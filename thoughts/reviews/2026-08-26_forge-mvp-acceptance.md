@@ -8,7 +8,7 @@
 
 ## Outcome
 
-The MVP implementation is green on macOS arm64 and Linux arm64 with native artifacts and runtime execution. Release readiness remains gated by two owner/external facts that cannot be manufactured locally: choosing the open-source license and executing the committed native CI workflow on Windows after a repository remote exists.
+The MVP implementation is green on macOS arm64 and Linux arm64 with native artifacts and runtime execution. Apache-2.0 is selected and recorded in the repository and package metadata. Native Windows execution is explicitly deferred until work on that platform resumes.
 
 ## Automated evidence
 
@@ -18,7 +18,7 @@ The MVP implementation is green on macOS arm64 and Linux arm64 with native artif
 | `pnpm typecheck` | Pass |
 | E2E helper TypeScript check | Pass |
 | `pnpm lint` | Pass |
-| `pnpm test` | Pass — 38 files, 269 tests |
+| `pnpm test` | Pass — 38 files, 270 tests |
 | `pnpm test:e2e` | Pass — 17/17 Electron tests |
 | Immutable business-value suite | Pass — BV-1 through BV-10 |
 | Immutable suite SHA-256 | `3528ff79a1e75b3ca5cfe012e7997d6d5dd04337c1258ac2e393cd6586cbaf6c` |
@@ -39,6 +39,7 @@ The MVP implementation is green on macOS arm64 and Linux arm64 with native artif
 - ASAR contains no source maps, unpacked native modules, or application `node_modules` tree.
 - Electron fuses disable RunAsNode, NODE_OPTIONS, and CLI inspect; ASAR integrity and ASAR-only loading are enabled.
 - The final macOS bundle passes `codesign --verify --deep --strict`; its signature is explicitly ad hoc, not Developer ID or notarization.
+- The macOS app and ZIP contain the exact repository Apache-2.0 `LICENSE` in `Contents/Resources`, alongside Electron's own notices.
 - No updater, privilege-elevation path, harness-state mutation, uninstall, delete, or move capability exists in application code.
 - SQLite/recovery storage is user-only on POSIX; observation snapshots enforce the 30/90 retention target under a 256 MiB default ceiling while pinning current inventory state.
 - POSIX permission hardening is platform-gated, so Windows relies on its per-user application-data ACLs instead of receiving unsupported mode mutations.
@@ -72,9 +73,8 @@ Cross-compilation is intentionally not substituted for the required native evide
 
 ## Remaining release gates
 
-1. Owner selects Apache-2.0, MIT, GPL-3.0, or another explicit open-source license; then add the exact `LICENSE` text and package metadata.
-2. Create/push the source repository and run `.github/workflows/ci.yml`; Windows remains the missing executed native platform, while the workflow revalidates all three.
-3. Keep the Release workflow manual and draft-only until the signing policy is selected. Official binaries remain repository Release assets only.
+1. When Windows work resumes, create/push the source repository and run `.github/workflows/ci.yml`; Windows remains the missing executed native platform, while the workflow revalidates all three.
+2. Keep the Release workflow manual and draft-only until the signing policy is selected. Official binaries remain repository Release assets only.
 
 ## Post-review verdict
 

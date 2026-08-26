@@ -39,6 +39,6 @@ pnpm test
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) before proposing a change and [SECURITY.md](SECURITY.md) for vulnerability reporting and the official-binary policy.
 
-## License status
+## License
 
-Forge is intended to be released as open source, but the license has not yet been selected. Until a `LICENSE` file is added, the source is not offered under an open-source license. Choosing that license is a blocker for the first public release.
+Forge is open-source software licensed under the [Apache License 2.0](LICENSE).

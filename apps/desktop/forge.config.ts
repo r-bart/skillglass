@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process"
 import path from "node:path"
+import { fileURLToPath } from "node:url"
 import { promisify } from "node:util"
 
 import { FusesPlugin } from "@electron-forge/plugin-fuses"
@@ -11,6 +12,7 @@ import { VitePlugin } from "@electron-forge/plugin-vite"
 import { FuseV1Options, FuseVersion } from "@electron/fuses"
 
 const execFileAsync = promisify(execFile)
+export const FORGE_LICENSE_PATH = fileURLToPath(new URL("../../LICENSE", import.meta.url))
 
 export async function finalizeDarwinAdHocSignature(
   packageResult: Readonly<{ platform: string; outputPaths: readonly string[] }>,
@@ -40,6 +42,7 @@ export const FORGE_PACKAGER_CONFIG = {
     hardenedRuntime: false,
     continueOnError: false,
   },
+  extraResource: [FORGE_LICENSE_PATH],
   prune: true,
 } as const
 
@@ -67,8 +70,7 @@ export const FORGE_LINUX_MAKER_OPTIONS: NonNullable<MakerDebConfig["options"]> &
   description: "Local-first inventory and safe updater for agent skills",
   productDescription: "Discover, inspect, install, and safely update agent skills without changing harness activation.",
   bin: "Forge",
-  // Honest pre-release metadata; the release workflow refuses publication until LICENSE exists.
-  license: "UNLICENSED",
+  license: "Apache-2.0",
   categories: ["Development"],
 }
 

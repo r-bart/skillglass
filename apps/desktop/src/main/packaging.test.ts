@@ -6,6 +6,7 @@ import { FuseV1Options } from "@electron/fuses"
 import config, {
   finalizeDarwinAdHocSignature,
   FORGE_FUSE_OPTIONS,
+  FORGE_LICENSE_PATH,
   FORGE_LINUX_MAKER_OPTIONS,
   FORGE_PACKAGER_CONFIG,
 } from "../../forge.config.js"
@@ -20,6 +21,7 @@ describe("desktop distributable policy", () => {
       name: "Forge",
       executableName: "Forge",
       appBundleId: "app.skillforge.desktop",
+      extraResource: [FORGE_LICENSE_PATH],
       prune: true,
     })
     expect(config.makers.map((maker) => maker.constructor.name)).toEqual([
@@ -32,9 +34,16 @@ describe("desktop distributable policy", () => {
       name: "forge",
       productName: "Forge",
       bin: "Forge",
-      license: "UNLICENSED",
+      license: "Apache-2.0",
       categories: ["Development"],
     })
+  })
+
+  it("ships the Forge Apache license as a distribution resource", async () => {
+    expect(FORGE_LICENSE_PATH).toMatch(/\/LICENSE$/)
+    await expect(readFile(FORGE_LICENSE_PATH, "utf8")).resolves.toContain(
+      "Apache License\n                           Version 2.0, January 2004",
+    )
   })
 
   it("uses explicit ad-hoc signing without claiming the future Developer ID policy", () => {

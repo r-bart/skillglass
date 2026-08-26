@@ -185,8 +185,7 @@ The MVP is ready for beta when:
 
 ## Open Decisions
 
-- Execute the native Windows/Linux adapter, filesystem, and packaged SQLite matrix; macOS arm64 is validated.
-- Choose the repository's open-source license.
+- Execute the native Windows adapter, filesystem, and packaged SQLite matrix when Windows work resumes; macOS and Linux arm64 are validated.
 - Select the first supported registry, if remote discovery returns after the MVP.
 - Decide whether packages become navigable objects after package operations exist.
 - Define the future telemetry contract per runtime before restoring trigger logs.

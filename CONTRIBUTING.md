@@ -1,6 +1,6 @@
 # Contributing to Forge
 
-Forge is under active development. Before the first external code contribution is accepted, the project owner must select an open-source license and add it as `LICENSE`. This repository currently grants no open-source reuse license; do not infer one from public source access.
+Forge is under active development and accepts contributions under the repository's [Apache License 2.0](LICENSE). Unless explicitly stated otherwise, intentionally submitted contributions are licensed under those same terms.
 
 Bug reports and design or implementation proposals are welcome. Do not include vulnerability details in a public issue; follow [SECURITY.md](SECURITY.md) instead.
 
