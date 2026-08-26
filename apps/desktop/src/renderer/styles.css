@@ -1,28 +1,7 @@
 :root {
-  color-scheme: dark;
-  --canvas: oklch(0.145 0.012 275);
-  --canvas-raised: oklch(0.175 0.014 275);
-  --surface: oklch(0.2 0.014 275);
-  --glass: oklch(0.92 0.025 88 / 0.08);
-  --glass-strong: oklch(0.92 0.025 88 / 0.14);
-  --border: oklch(0.94 0.01 275 / 0.11);
-  --border-strong: oklch(0.94 0.01 275 / 0.2);
-  --text: oklch(0.96 0.006 275);
-  --text-muted: oklch(0.76 0.012 275);
-  --text-subtle: oklch(0.68 0.014 275);
-  --accent: oklch(0.84 0.14 88);
-  --accent-soft: oklch(0.84 0.14 88 / 0.16);
-  --positive: oklch(0.78 0.12 152);
-  --focus: oklch(0.9 0.16 92);
-  --radius-small: 0.55rem;
-  --radius-medium: 0.8rem;
-  --radius-large: 1rem;
-  --header-height: 3.5rem;
   color: var(--text);
   background: var(--canvas);
-  font-family:
-    system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Ubuntu, Cantarell,
-    "Noto Sans", sans-serif;
+  font-family: var(--font-ui);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;

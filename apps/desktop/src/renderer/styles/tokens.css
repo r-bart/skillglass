@@ -1,0 +1,197 @@
+/*
+ * Forge visual tokens
+ *
+ * App.dc.html and HANDOFF.md are the source of truth. Keep material recipes as
+ * complete tokens so their specular bands, borders and shadows do not drift.
+ */
+
+:root {
+  color-scheme: dark;
+
+  /* Typography */
+  --font-ui:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica,
+    system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-size-field-label: 9.5px;
+  --font-size-mono: 11px;
+  --font-size-helper: 11.5px;
+  --font-size-label: 12px;
+  --font-size-body: 12.5px;
+  --font-size-row: 13px;
+  --font-size-row-strong: 13.5px;
+  --font-size-heading: 15px;
+  --font-size-surface-title: 22px;
+  --line-height-tight: 1.2;
+  --line-height-ui: 1.3;
+  --line-height-copy: 1.5;
+  --letter-spacing-field-label: 0.11em;
+  --letter-spacing-surface-title: -0.018em;
+
+  /* Matte surfaces */
+  --app-background: #0b0b0d;
+  --topbar-background: #101013;
+  --sidebar-background: #0e0e11;
+  --surface-raised: #131317;
+  --sheet-background: #111115;
+  --field-background: #0d0d10;
+  --scrim-background: rgba(4, 4, 6, 0.62);
+
+  /* Text */
+  --text-primary: #f4f4f6;
+  --text-secondary: rgba(244, 244, 246, 0.5);
+  --text-tertiary: rgba(244, 244, 246, 0.34);
+  --text-disabled: rgba(244, 244, 246, 0.3);
+  --text-on-metal: #141417;
+
+  /* Hairlines */
+  --hairline: 0.5px;
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-chrome: rgba(255, 255, 255, 0.07);
+  --border-default: rgba(255, 255, 255, 0.09);
+  --border-control: rgba(255, 255, 255, 0.13);
+  --border-elevated: rgba(255, 255, 255, 0.14);
+  --border-strongest: rgba(255, 255, 255, 0.16);
+
+  /* Geometry */
+  --radius-compact: 6px;
+  --radius-control: 8px;
+  --radius-tile: 9px;
+  --radius-row: 11px;
+  --radius-card: 12px;
+  --radius-sheet: 14px;
+  --radius-pill: 999px;
+  --control-height-compact: 28px;
+  --control-height: 34px;
+  --row-height: 52px;
+  --topbar-height: 46px;
+  --sidebar-width: 226px;
+  --inspector-width: 326px;
+
+  /* Status is evidence, never selection. */
+  --status-ok: oklch(0.72 0.15 152);
+  --status-ok-glow: oklch(0.72 0.15 152 / 0.5);
+  --status-stale: oklch(0.78 0.15 82);
+  --status-stale-glow: oklch(0.78 0.15 82 / 0.5);
+  --status-broken: oklch(0.62 0.19 26);
+  --status-broken-glow: oklch(0.62 0.19 26 / 0.5);
+  --status-idle: #3a3a42;
+  --status-idle-glow: transparent;
+
+  /* Blue is reserved for editing focus and links. */
+  --edit-focus: oklch(0.62 0.17 250);
+  --edit-focus-ring: oklch(0.62 0.17 250 / 0.18);
+  --link: oklch(0.68 0.15 250);
+  --link-hover: oklch(0.78 0.13 250);
+
+  /* Metal primary */
+  --metal-background: linear-gradient(
+    180deg,
+    #fefefe 0%,
+    #f0f0f2 44%,
+    #d5d5d9 53%,
+    #c4c4c9 100%
+  );
+  --metal-border: rgba(0, 0, 0, 0.5);
+  --metal-color: #141417;
+  --metal-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -1px 0 rgba(0, 0, 0, 0.07),
+    0 1px 2px rgba(0, 0, 0, 0.55), 0 6px 16px rgba(0, 0, 0, 0.35);
+
+  /* Dark primary */
+  --dark-background: linear-gradient(
+    180deg,
+    #43434c 0%,
+    #2e2e35 45%,
+    #1f1f25 54%,
+    #28282f 100%
+  );
+  --dark-border: rgba(255, 255, 255, 0.13);
+  --dark-color: #f4f4f6;
+  --dark-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 1px 2px rgba(0, 0, 0, 0.6);
+
+  /* Destructive action */
+  --danger-background: linear-gradient(
+    180deg,
+    oklch(0.62 0.19 26) 0%,
+    oklch(0.55 0.19 26) 45%,
+    oklch(0.47 0.18 26) 54%,
+    oklch(0.52 0.18 26) 100%
+  );
+  --danger-border: oklch(0.45 0.16 26);
+  --danger-color: #fff;
+  --danger-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 1px 2px rgba(0, 0, 0, 0.5);
+
+  /* Quiet controls and glass selection */
+  --quiet-background: rgba(244, 244, 246, 0.05);
+  --quiet-background-hover: rgba(244, 244, 246, 0.11);
+  --quiet-border: rgba(255, 255, 255, 0.09);
+  --glass-selection-background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.115) 0%,
+    rgba(255, 255, 255, 0.05) 100%
+  );
+  --glass-selection-border: rgba(255, 255, 255, 0.17);
+  --glass-selection-filter: blur(16px) saturate(1.6);
+  --glass-selection-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2), inset 0 -1px 0 rgba(0, 0, 0, 0.18),
+    0 1px 2px rgba(0, 0, 0, 0.35), 0 8px 24px rgba(0, 0, 0, 0.4);
+  --glass-popover-background: rgba(26, 26, 32, 0.94);
+  --glass-popover-filter: blur(24px) saturate(1.6);
+  --glass-sheet-background: rgba(22, 22, 27, 0.86);
+  --glass-sheet-filter: blur(30px) saturate(1.6);
+
+  /* Stable skill-tile materials */
+  --tile-blue: linear-gradient(180deg, oklch(0.68 0.17 250) 0%, oklch(0.55 0.17 250) 100%);
+  --tile-green: linear-gradient(180deg, oklch(0.75 0.15 152) 0%, oklch(0.6 0.15 152) 100%);
+  --tile-amber: linear-gradient(180deg, oklch(0.8 0.15 82) 0%, oklch(0.66 0.15 82) 100%);
+  --tile-plum: linear-gradient(180deg, oklch(0.66 0.17 310) 0%, oklch(0.52 0.17 310) 100%);
+  --tile-steel: linear-gradient(180deg, #5c5c66 0%, #3a3a42 100%);
+  --tile-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.26), 0 1px 3px rgba(0, 0, 0, 0.5);
+
+  /* Elevation */
+  --shadow-field: inset 0 1px 2px rgba(0, 0, 0, 0.45);
+  --shadow-popover:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 18px 44px rgba(0, 0, 0, 0.65);
+  --shadow-sheet: 0 30px 80px rgba(0, 0, 0, 0.7);
+  --shadow-glass-sheet:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 24px 70px rgba(0, 0, 0, 0.7);
+  --shadow-window:
+    0 0 0 1px rgba(0, 0, 0, 0.6), 0 40px 90px rgba(0, 0, 0, 0.7);
+
+  /* Motion */
+  --duration-press: 90ms;
+  --duration-hover: 140ms;
+  --duration-state: 180ms;
+  --duration-state-medium: 200ms;
+  --duration-state-long: 260ms;
+  --duration-graph: 420ms;
+  --ease-standard: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-press: cubic-bezier(0.2, 0, 0.4, 1);
+
+  /* Compatibility aliases for the existing renderer during the CSS split. */
+  --canvas: var(--app-background);
+  --canvas-raised: var(--surface-raised);
+  --surface: var(--surface-raised);
+  --glass: rgba(244, 244, 246, 0.06);
+  --glass-strong: rgba(244, 244, 246, 0.115);
+  --border: var(--border-default);
+  --border-strong: var(--border-strongest);
+  --text: var(--text-primary);
+  --text-muted: var(--text-secondary);
+  --text-subtle: var(--text-tertiary);
+  --accent: rgba(244, 244, 246, 0.78);
+  --accent-soft: rgba(244, 244, 246, 0.06);
+  --positive: var(--status-ok);
+  --danger: var(--status-broken);
+  --focus: var(--edit-focus);
+  --radius-small: var(--radius-tile);
+  --radius-medium: var(--radius-card);
+  --radius-large: var(--radius-sheet);
+  --radius: var(--radius-sheet);
+  --header-height: var(--topbar-height);
+  --shadow-large: var(--shadow-sheet);
+}
