@@ -105,8 +105,17 @@ export interface SnapshotRepository {
 
 export interface OperationJournalRepository {
   putPlan(plan: StoredOperationPlan): void
+  /** Atomically persists a new core plan and its first journal event. */
+  insertPlanWithStep(plan: StoredOperationPlan, step: JournalStep): void
   getPlan(id: string): StoredOperationPlan | undefined
+  listPlans(): readonly StoredOperationPlan[]
   updatePlanState(id: string, state: OperationPlanState, updatedAt?: string): boolean
+  /** CAS on the revision stored in payload; persists plan and event atomically. */
+  transitionPlanWithStep(
+    expectedRevision: number,
+    plan: StoredOperationPlan,
+    step: JournalStep,
+  ): boolean
   appendStep(step: JournalStep): void
   listSteps(planId: string): readonly JournalStep[]
   putRecovery(record: RecoveryRecord): void

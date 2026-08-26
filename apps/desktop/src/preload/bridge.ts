@@ -48,6 +48,7 @@ export function createForgeBridge(port: IpcRendererPort): ForgeBridge {
       plan: (input) => invoke(port, IPC_INVOKE_CHANNELS.operationsPlan, input) as ReturnType<ForgeBridge["operations"]["plan"]>,
       confirm: (input) => invoke(port, IPC_INVOKE_CHANNELS.operationsConfirm, input) as ReturnType<ForgeBridge["operations"]["confirm"]>,
       undo: (input) => invoke(port, IPC_INVOKE_CHANNELS.operationsUndo, input) as ReturnType<ForgeBridge["operations"]["undo"]>,
+      history: () => invoke(port, IPC_INVOKE_CHANNELS.operationsHistory, {}) as ReturnType<ForgeBridge["operations"]["history"]>,
     },
     events: {
       onRootsChanged: (listener) => subscribe(port, IPC_EVENT_CHANNELS.rootsChanged, listener),

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto"
 import { lstat, rename } from "node:fs/promises"
 import path from "node:path"
 
@@ -25,10 +26,12 @@ function assertTree(reference: ArtifactRef): void {
 export class ApprovedRootLocalInstallFileSystem implements FileSystemPort {
   readonly #policy: ApprovedRootPolicy
   readonly #materializer: FileSystemLocalSourceMaterializer
+  readonly #allowExistingDestination: boolean
 
-  constructor(policy: ApprovedRootPolicy) {
+  constructor(policy: ApprovedRootPolicy, options: { readonly allowExistingDestination?: boolean } = {}) {
     this.#policy = policy
     this.#materializer = new FileSystemLocalSourceMaterializer(policy)
+    this.#allowExistingDestination = options.allowExistingDestination ?? false
   }
 
   async authorize(reference: ArtifactRef, access: "read" | "write"): Promise<void> {
@@ -88,18 +91,66 @@ export class ApprovedRootLocalInstallFileSystem implements FileSystemPort {
     if (path.dirname(sourcePath) !== path.dirname(destinationPath)) {
       throw new LocalSourceError("DESTINATION_NOT_WRITABLE", "Install publication requires same-filesystem sibling staging")
     }
+    let destinationExists = false
     try {
-      await lstat(destinationPath)
-      throw new LocalSourceError("DESTINATION_COLLISION", "Install destination appeared after preview")
+      const destinationStats = await lstat(destinationPath)
+      if (destinationStats.isSymbolicLink() || !destinationStats.isDirectory()) {
+        throw new LocalSourceError("UPDATE_CONFLICT", "Update destination is not a real directory")
+      }
+      destinationExists = true
     } catch (error) {
       if (error instanceof LocalSourceError) throw error
       if (filesystemCode(error) !== "ENOENT") throw error
     }
-    await rename(sourcePath, destinationPath)
+    if (!destinationExists) {
+      await rename(sourcePath, destinationPath)
+      return
+    }
+    if (!this.#allowExistingDestination) {
+      throw new LocalSourceError("DESTINATION_COLLISION", "Install destination appeared after preview")
+    }
+
+    const previous = await inspectStrictTree(destinationPath)
+    const displacedName = `.forge-displaced-${createHash("sha256")
+      .update(JSON.stringify([source.relativePath, destination.relativePath]))
+      .digest("hex").slice(0, 24)}`
+    const destinationParent = path.posix.dirname(destination.relativePath.replaceAll("\\", "/"))
+    const displacedRelativePath = destinationParent === "." ? displacedName : `${destinationParent}/${displacedName}`
+    const displaced: ArtifactRef = { rootId: destination.rootId, relativePath: displacedRelativePath, kind: "tree" }
+    const displacedPath = await this.#policy.authorizeWrite(displaced.rootId, displaced.relativePath)
+    try {
+      await lstat(displacedPath)
+      throw new LocalSourceError("UPDATE_CONFLICT", "A prior replacement artifact blocks this update")
+    } catch (error) {
+      if (error instanceof LocalSourceError) throw error
+      if (filesystemCode(error) !== "ENOENT") throw error
+    }
+
+    await rename(destinationPath, displacedPath)
+    try {
+      await rename(sourcePath, destinationPath)
+    } catch (error) {
+      try {
+        await rename(displacedPath, destinationPath)
+      } catch (restoreError) {
+        throw new LocalSourceError("UPDATE_CONFLICT", "Replacement failed and the previous tree could not be restored", { cause: restoreError })
+      }
+      throw error
+    }
+    if (!(await this.#materializer.removeExact(displaced, previous.manifest.treeHash))) {
+      throw new LocalSourceError("UPDATE_CONFLICT", "Replaced tree changed before conservative cleanup")
+    }
   }
 
   async removeExact(reference: ArtifactRef, expectedHash: string): Promise<boolean> {
     assertTree(reference)
     return this.#materializer.removeExact(reference, expectedHash)
+  }
+}
+
+/** Update-only filesystem capability; installs deliberately retain absent-destination publication. */
+export class ApprovedRootLocalSourceUpdateFileSystem extends ApprovedRootLocalInstallFileSystem {
+  constructor(policy: ApprovedRootPolicy) {
+    super(policy, { allowExistingDestination: true })
   }
 }

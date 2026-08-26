@@ -1,5 +1,6 @@
 import type { LocalSourceManifestV1 } from "@forge/scanner"
 import type { AdapterOperationPlan } from "@forge/adapter-api"
+import type { Provenance } from "@forge/domain"
 
 import type { ArtifactRef, OperationPlan } from "../core/index.js"
 
@@ -111,6 +112,7 @@ export interface LocalImportProvenanceDraftV1 {
   readonly sourceKind: LocalSourceKind
   readonly sourceLocator: string
   readonly sourceObservedAt: string
+  readonly sourceIdentity: SourceIdentity
   readonly sourceTreeHash: string
   readonly archiveSha256?: string
   readonly payloadWrapper?: string
@@ -123,9 +125,17 @@ export interface LocalImportProvenanceDraftV1 {
 }
 
 export interface LocalImportProvenanceV1 extends LocalImportProvenanceDraftV1 {
+  readonly kind: "forge-import"
+  readonly managedBy: "forge"
+  readonly installedHash: string
   readonly installedTreeHash: string
   readonly installedManifest: LocalSourceManifestV1
+  readonly previousInstalledTreeHash?: string
+  readonly updatedByJournalId?: string
 }
+
+type ProvenanceCompatibility = LocalImportProvenanceV1 extends Provenance ? true : never
+export const LOCAL_IMPORT_PROVENANCE_IS_DOMAIN_PROVENANCE: ProvenanceCompatibility = true
 
 export interface PreparedLocalInstall {
   readonly plan: OperationPlan
@@ -152,5 +162,56 @@ export interface PrepareLocalInstallInput {
 
 export interface LocalInstallExecutionResult {
   readonly plan: OperationPlan
+  readonly provenance: LocalImportProvenanceV1
+}
+
+export type LocalSourceUpdateState = "current" | "available" | "diverged" | "unknown"
+export type LocalSourceUpdateTrigger = "explicit" | "watcher"
+
+export interface LocalSourceUpdateObservation {
+  readonly observationId: string
+  readonly installationId: string
+  readonly state: LocalSourceUpdateState
+  readonly trigger: LocalSourceUpdateTrigger
+  readonly observedAt: string
+  readonly baseTreeHash: string
+  readonly installedTreeHash?: string
+  readonly sourceTreeHash?: string
+  readonly archiveSha256?: string
+  readonly reason?: string
+}
+
+export interface LocalSourceUpdatePreviewEntry {
+  readonly action: "create" | "modify" | "delete"
+  readonly rootId: string
+  readonly relativePath: string
+  readonly beforeByteLength?: number
+  readonly beforeSha256?: string
+  readonly afterByteLength?: number
+  readonly afterSha256?: string
+}
+
+export interface PrepareLocalSourceUpdateInput {
+  readonly observationId: string
+  readonly adapterPlan: AdapterOperationPlan
+  readonly journalId: string
+  readonly provenanceId: string
+}
+
+export interface PreparedLocalSourceUpdate {
+  readonly plan: OperationPlan
+  readonly preview: readonly LocalSourceUpdatePreviewEntry[]
+  readonly observation: LocalSourceUpdateObservation
+  readonly previousProvenance: LocalImportProvenanceV1
+  /** Private Forge-owned materialization; never serialize this object to IPC. */
+  readonly sourceArtifact: ArtifactRef
+  readonly adapterPlan: AdapterOperationPlan
+  readonly journalId: string
+  readonly provenanceId: string
+}
+
+export interface LocalSourceUpdateExecutionResult {
+  readonly plan: OperationPlan
+  readonly provenanceId: string
   readonly provenance: LocalImportProvenanceV1
 }

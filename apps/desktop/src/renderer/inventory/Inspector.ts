@@ -11,6 +11,7 @@ import type {
   ForgeBridge,
   InstallationDetailDto,
   InventoryItemDto,
+  OperationPlanDto,
 } from "@forge/contracts"
 
 type Finding = InstallationDetailDto["findings"][number]
@@ -208,12 +209,20 @@ function StatusList({ detail }: { readonly detail: InstallationDetailDto }) {
 function Inspection({
   detail,
   inventoryBridge,
+  operationBridge,
+  onStatus,
 }: {
   readonly detail: InstallationDetailDto
   readonly inventoryBridge: ForgeBridge["inventory"]
+  readonly operationBridge?: ForgeBridge["operations"]
+  readonly onStatus?: (message: string) => void
 }) {
   const [sourceView, setSourceView] = useState<SourceView>("preview")
   const [actionError, setActionError] = useState<string>()
+  const [editing, setEditing] = useState(false)
+  const [content, setContent] = useState(detail.rawEntryContent)
+  const [plan, setPlan] = useState<OperationPlanDto>()
+  const [operationBusy, setOperationBusy] = useState(false)
   const path = entryPath(detail)
   const name = detail.installation.name.state === "known"
     ? detail.installation.name.value
@@ -232,6 +241,41 @@ function Inspection({
       setActionError(reason instanceof Error
         ? reason.message
         : "No se pudo mostrar el archivo")
+    }
+  }
+
+  const review = async (): Promise<void> => {
+    if (operationBridge === undefined) return
+    setOperationBusy(true)
+    setActionError(undefined)
+    try {
+      setPlan(await operationBridge.plan({
+        kind: "update-entry-content",
+        installationId: detail.installation.installationId,
+        expectedSnapshotId: detail.snapshotId,
+        content,
+      }))
+    } catch (reason) {
+      setActionError(reason instanceof Error ? reason.message : "No se pudo preparar la actualización")
+    } finally {
+      setOperationBusy(false)
+    }
+  }
+
+  const confirm = async (): Promise<void> => {
+    if (operationBridge === undefined || plan === undefined) return
+    setOperationBusy(true)
+    setActionError(undefined)
+    try {
+      const result = await operationBridge.confirm({ planId: plan.planId })
+      if (result.status !== "committed") throw new Error(result.message)
+      setPlan(undefined)
+      setEditing(false)
+      onStatus?.(result.message)
+    } catch (reason) {
+      setActionError(reason instanceof Error ? reason.message : "No se pudo actualizar la skill")
+    } finally {
+      setOperationBusy(false)
     }
   }
 
@@ -266,9 +310,81 @@ function Inspection({
         "Abrir archivo",
       ),
       detail.capabilities.canEditEntry
-        ? createElement("button", { type: "button", className: "primary-action" }, "Editar")
+        ? createElement("button", {
+            type: "button",
+            className: "primary-action",
+            onClick: () => {
+              setContent(detail.rawEntryContent)
+              setEditing(true)
+              setPlan(undefined)
+            },
+          }, "Editar")
         : null,
     ),
+    editing
+      ? createElement(
+          "section",
+          { className: "entry-editor", "aria-labelledby": "entry-editor-heading" },
+          createElement("h3", { id: "entry-editor-heading" }, "Editar contenido"),
+          createElement(
+            "label",
+            { className: "editor-label" },
+            createElement("span", null, "Contenido"),
+            createElement("textarea", {
+              value: content,
+              rows: 18,
+              onChange: (event) => setContent((event.currentTarget as HTMLTextAreaElement).value),
+            }),
+          ),
+          createElement(
+            "div",
+            { className: "inspector-actions" },
+            createElement("button", {
+              type: "button",
+              className: "primary-action",
+              disabled: operationBusy || content === detail.rawEntryContent,
+              onClick: () => { void review() },
+            }, operationBusy ? "Preparando…" : "Revisar cambios"),
+            createElement("button", {
+              type: "button",
+              className: "secondary-action",
+              disabled: operationBusy,
+              onClick: () => { setEditing(false); setPlan(undefined) },
+            }, "Cancelar"),
+          ),
+        )
+      : null,
+    plan === undefined
+      ? null
+      : createElement(
+          "div",
+          { className: "modal-backdrop" },
+          createElement(
+            "div",
+            { role: "dialog", "aria-modal": "true", "aria-labelledby": "update-dialog-title", className: "operation-dialog" },
+            createElement("h3", { id: "update-dialog-title" }, "Confirmar actualización"),
+            createElement("p", null, "Archivo que se modificará:"),
+            createElement("p", { className: "inspector-path" }, path),
+            createElement("p", null, "Contenido nuevo exacto:"),
+            createElement("pre", { className: "source-code operation-preview" }, content),
+            createElement(
+              "div",
+              { className: "inspector-actions" },
+              createElement("button", {
+                type: "button",
+                className: "primary-action",
+                disabled: operationBusy,
+                onClick: () => { void confirm() },
+              }, operationBusy ? "Actualizando…" : "Actualizar skill"),
+              createElement("button", {
+                type: "button",
+                className: "secondary-action",
+                disabled: operationBusy,
+                onClick: () => setPlan(undefined),
+              }, "Volver"),
+            ),
+          ),
+        ),
     actionError === undefined
       ? null
       : createElement("p", { className: "form-error", role: "alert" }, actionError),
@@ -404,9 +520,11 @@ function Inspection({
 export interface InspectorProps {
   readonly installationId?: string
   readonly inventoryBridge: ForgeBridge["inventory"]
+  readonly operationBridge?: ForgeBridge["operations"]
+  readonly onStatus?: (message: string) => void
 }
 
-export function Inspector({ installationId, inventoryBridge }: InspectorProps) {
+export function Inspector({ installationId, inventoryBridge, operationBridge, onStatus }: InspectorProps) {
   const [detail, setDetail] = useState<InstallationDetailDto>()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string>()
@@ -441,8 +559,13 @@ export function Inspector({ installationId, inventoryBridge }: InspectorProps) {
     if (loading) return createElement("p", { role: "status" }, "Cargando inspector…")
     if (error !== undefined) return createElement("p", { role: "alert", className: "form-error" }, error)
     if (detail === undefined) return createElement(EmptyInspector)
-    return createElement(Inspection, { detail, inventoryBridge })
-  }, [detail, error, installationId, inventoryBridge, loading])
+    return createElement(Inspection, {
+      detail,
+      inventoryBridge,
+      ...(operationBridge === undefined ? {} : { operationBridge }),
+      ...(onStatus === undefined ? {} : { onStatus }),
+    })
+  }, [detail, error, installationId, inventoryBridge, loading, onStatus, operationBridge])
 
   return createElement(
     "aside",

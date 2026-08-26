@@ -9,6 +9,7 @@ import type {
   ConfirmOperationInput,
   LocalSourceSelectionDto,
   OperationPlanDto,
+  OperationHistoryDto,
   OperationRequestDto,
   OperationResultDto,
   SelectLocalSourceInput,
@@ -52,6 +53,7 @@ export interface ForgeBridge {
     plan(input: OperationRequestDto): Promise<OperationPlanDto>
     confirm(input: ConfirmOperationInput): Promise<OperationResultDto>
     undo(input: UndoOperationInput): Promise<OperationResultDto>
+    history(): Promise<OperationHistoryDto>
   }
   events: {
     onRootsChanged(listener: (event: RootsChangedEvent) => void): Unsubscribe

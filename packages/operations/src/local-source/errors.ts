@@ -23,6 +23,7 @@ export type LocalSourceErrorCode =
   | "DESTINATION_COLLISION"
   | "DESTINATION_NOT_WRITABLE"
   | "STAGING_MISMATCH"
+  | "UPDATE_CONFLICT"
 
 export class LocalSourceError extends Error {
   override readonly name = "LocalSourceError"

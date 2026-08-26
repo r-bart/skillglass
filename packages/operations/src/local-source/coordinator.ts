@@ -140,6 +140,7 @@ export class LocalInstallCoordinator {
           sourceKind: source.kind,
           sourceLocator: source.sourceLocator,
           sourceObservedAt: source.observedAt,
+          sourceIdentity: source.identity,
           sourceTreeHash: source.manifest.treeHash,
           ...(source.archiveSha256 === undefined ? {} : { archiveSha256: source.archiveSha256 }),
           ...(source.payloadWrapper === undefined ? {} : { payloadWrapper: source.payloadWrapper }),
@@ -194,6 +195,9 @@ export class LocalInstallCoordinator {
       }
       const provenance: LocalImportProvenanceV1 = {
         ...prepared.provenance,
+        kind: "forge-import",
+        managedBy: "forge",
+        installedHash: installed.manifest.treeHash,
         installedTreeHash: installed.manifest.treeHash,
         installedManifest: installed.manifest,
       }

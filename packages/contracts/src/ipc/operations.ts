@@ -156,6 +156,20 @@ export const UndoOperationInputSchema = z
   .object({ journalId: JournalIdSchema })
   .strict()
 
+export const OperationHistoryItemDtoSchema = z
+  .object({
+    journalId: JournalIdSchema,
+    kind: z.enum(["install-local", "update-from-local", "update-entry-content"]),
+    installationIds: z.array(InstallationIdSchema).max(128),
+    createdAt: IsoDateTimeSchema,
+    undoAvailable: z.boolean(),
+  })
+  .strict()
+
+export const OperationHistoryDtoSchema = z
+  .object({ items: z.array(OperationHistoryItemDtoSchema).max(1_000) })
+  .strict()
+
 export const OperationResultStatusSchema = z.enum([
   "committed",
   "rolled-back",
@@ -199,3 +213,4 @@ export type OperationPlanDto = z.infer<typeof OperationPlanDtoSchema>
 export type ConfirmOperationInput = z.infer<typeof ConfirmOperationInputSchema>
 export type UndoOperationInput = z.infer<typeof UndoOperationInputSchema>
 export type OperationResultDto = z.infer<typeof OperationResultDtoSchema>
+export type OperationHistoryDto = z.infer<typeof OperationHistoryDtoSchema>

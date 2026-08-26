@@ -434,8 +434,11 @@ class SqliteOperationJournalRepository
   implements OperationJournalRepository
 {
   readonly #putPlan
+  readonly #database: DatabaseSync
   readonly #getPlan
+  readonly #listPlans
   readonly #updatePlanState
+  readonly #transitionPlan
   readonly #appendStep
   readonly #listSteps
   readonly #putRecovery
@@ -443,14 +446,23 @@ class SqliteOperationJournalRepository
   readonly #listPendingRecovery
 
   constructor(database: DatabaseSync) {
+    this.#database = database
     this.#putPlan = database.prepare(`
       INSERT INTO operation_plans(
         id, kind, state, created_at, updated_at, expires_at, adapter_id, payload_json
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `)
     this.#getPlan = database.prepare("SELECT * FROM operation_plans WHERE id = ?")
+    this.#listPlans = database.prepare(
+      "SELECT * FROM operation_plans ORDER BY created_at DESC, id DESC",
+    )
     this.#updatePlanState = database.prepare(`
       UPDATE operation_plans SET state = ?, updated_at = ? WHERE id = ?
+    `)
+    this.#transitionPlan = database.prepare(`
+      UPDATE operation_plans
+      SET kind = ?, state = ?, updated_at = ?, expires_at = ?, adapter_id = ?, payload_json = ?
+      WHERE id = ? AND json_extract(payload_json, '$.revision') = ?
     `)
     this.#appendStep = database.prepare(`
       INSERT INTO journal_steps(id, plan_id, sequence, state, created_at, payload_json)
@@ -491,9 +503,20 @@ class SqliteOperationJournalRepository
     )
   }
 
+  insertPlanWithStep(plan: StoredOperationPlan, step: JournalStep): void {
+    transaction(this.#database, () => {
+      this.putPlan(plan)
+      this.appendStep(step)
+    })
+  }
+
   getPlan(id: string): StoredOperationPlan | undefined {
     const row = this.#getPlan.get(id) as SqlRow | undefined
     return row === undefined ? undefined : operationPlanFromRow(row)
+  }
+
+  listPlans(): readonly StoredOperationPlan[] {
+    return rows<SqlRow>(this.#listPlans.all()).map(operationPlanFromRow)
   }
 
   updatePlanState(
@@ -502,6 +525,28 @@ class SqliteOperationJournalRepository
     updatedAt = new Date().toISOString(),
   ): boolean {
     return this.#updatePlanState.run(state, updatedAt, id).changes > 0
+  }
+
+  transitionPlanWithStep(
+    expectedRevision: number,
+    plan: StoredOperationPlan,
+    step: JournalStep,
+  ): boolean {
+    return transaction(this.#database, () => {
+      const changed = this.#transitionPlan.run(
+        plan.kind,
+        plan.state,
+        plan.updatedAt,
+        plan.expiresAt ?? null,
+        plan.adapterId,
+        json(plan.payload),
+        plan.id,
+        expectedRevision,
+      ).changes > 0
+      if (!changed) return false
+      this.appendStep(step)
+      return true
+    })
   }
 
   appendStep(step: JournalStep): void {

@@ -49,4 +49,23 @@ describe("validated preload bridge", () => {
     expect(() => ipc.emit(IPC_EVENT_CHANNELS.rootsChanged, { rootIds: ["/path"], observedAt: "bad" })).toThrow()
     expect(listener).not.toHaveBeenCalled()
   })
+
+  it("reveals an observed entry by opaque installation ID without accepting a path", async () => {
+    const ipc = port(new Map([[IPC_INVOKE_CHANNELS.inventoryOpenEntry, {
+      ok: true,
+    }]]))
+    const bridge = createForgeBridge(ipc.value)
+
+    await expect(bridge.inventory.openEntry({
+      installationId: "installation_alpha",
+    })).resolves.toEqual({ ok: true })
+    expect(ipc.invoke).toHaveBeenCalledWith(
+      IPC_INVOKE_CHANNELS.inventoryOpenEntry,
+      { installationId: "installation_alpha" },
+    )
+    expect(() => bridge.inventory.openEntry({
+      installationId: "../../private",
+    })).toThrow()
+    expect(ipc.invoke).toHaveBeenCalledTimes(1)
+  })
 })

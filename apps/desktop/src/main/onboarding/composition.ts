@@ -14,11 +14,19 @@ import {
 import { canonicalPath, type ProjectScope } from "@forge/domain"
 import { resolveCanonicalPath } from "@forge/scanner"
 import { openForgeStore } from "@forge/storage"
+import {
+  ContentUpdateCoordinator,
+  OperationEngine,
+  ProjectionContentFileSystem,
+  StorageOperationRepository,
+} from "@forge/operations"
 
 import { isTrustedRendererUrl } from "../security.js"
 import { e2eAdminSkillsRoot, useE2eBuiltAssets } from "../e2e-test-seam.js"
 import { registerInventoryIpc } from "../inventory/ipc.js"
 import { InventoryService } from "../inventory/service.js"
+import { registerOperationIpc } from "../operations/ipc.js"
+import { DesktopOperationService } from "../operations/service.js"
 import { registerOnboardingIpc } from "./ipc.js"
 import { RootService } from "./root-service.js"
 import { ApprovedRootScanService } from "./scan-service.js"
@@ -127,10 +135,37 @@ export async function createOnboardingComposition(
       ...(developmentServerUrl === undefined ? [] : [developmentServerUrl]),
     ),
   })
+  const operationRepository = new StorageOperationRepository(store.operations)
+  const operationFileSystem = new ProjectionContentFileSystem(store.projections)
+  const operationEngine = new OperationEngine({
+    repository: operationRepository,
+    fileSystem: operationFileSystem,
+  })
+  await operationEngine.recoverStartup()
+  const contentUpdates = new ContentUpdateCoordinator({
+    projections: store.projections,
+    snapshots: store.snapshots,
+    repository: operationRepository,
+    fileSystem: operationFileSystem,
+    engine: operationEngine,
+    rescan: async () => {
+      await rootService.scanPersistedApproval()
+    },
+  })
+  const unregisterOperations = registerOperationIpc({
+    ipcMain,
+    service: new DesktopOperationService(contentUpdates),
+    isTrustedSender: (url) => isTrustedRendererUrl(
+      url,
+      usesBuiltAssets,
+      ...(developmentServerUrl === undefined ? [] : [developmentServerUrl]),
+    ),
+  })
   return {
     rootService,
     startPersistedScan: () => rootService.scanPersistedApproval(),
     dispose: () => {
+      unregisterOperations()
       unregisterInventory()
       unregister()
       store.close()

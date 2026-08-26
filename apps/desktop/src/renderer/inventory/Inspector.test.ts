@@ -101,6 +101,39 @@ function bridge(value: InstallationDetailDto): ForgeBridge["inventory"] {
   }
 }
 
+function operations(): ForgeBridge["operations"] {
+  return {
+    selectLocalSource: () => Promise.resolve(null),
+    plan: () => Promise.resolve({
+      planId: "plan_update",
+      kind: "update-entry-content",
+      status: "planned",
+      createdAt: NOW,
+      expiresAt: "2026-08-26T10:15:00.000Z",
+      adapterId: "codex",
+      installationIds: ["installation_global_review"],
+      targetRootId: "root_global",
+      affectedScopes: [{ kind: "global" }],
+      affectedEntries: [{ action: "modify", rootId: "root_global", installationId: "installation_global_review", relativePath: "global-review/SKILL.md" }],
+      preconditions: [], conflicts: [], warnings: [], undo: "persistent",
+      summary: "Actualizar global-review/SKILL.md",
+    }),
+    confirm: () => Promise.resolve({
+      operationId: "operation_update",
+      planId: "plan_update",
+      journalId: "plan_update",
+      status: "committed",
+      finishedAt: NOW,
+      installationIds: ["installation_global_review"],
+      message: "Skill actualizada",
+      issues: [],
+      undoAvailable: true,
+    }),
+    undo: () => Promise.reject(new Error("Not part of inspector test")),
+    history: () => Promise.resolve({ items: [] }),
+  }
+}
+
 function buttonNamed(name: string): HTMLButtonElement | undefined {
   return [...container.querySelectorAll("button")]
     .find((button) => button.textContent?.trim() === name)
@@ -196,5 +229,43 @@ describe("Inspector", () => {
     const source = container.querySelector('[aria-label="Fuente de SKILL.md"]')
     expect(source?.textContent).toBe(value.rawEntryContent)
     expect(buttonNamed("Fuente")?.getAttribute("aria-pressed")).toBe("true")
+  })
+
+  it("previews exact edited content before confirming the operation", async () => {
+    const value = detail()
+    const operationBridge = operations()
+    const plan = vi.spyOn(operationBridge, "plan")
+    const confirm = vi.spyOn(operationBridge, "confirm")
+    const onStatus = vi.fn()
+    await act(async () => root.render(createElement(Inspector, {
+      installationId: value.installation.installationId,
+      inventoryBridge: bridge(value),
+      operationBridge,
+      onStatus,
+    })))
+
+    act(() => buttonNamed("Editar")?.click())
+    const textarea = container.querySelector("textarea")
+    if (textarea === null) throw new Error("Editor was not rendered")
+    const changed = `${value.rawEntryContent}\nNueva regla verificable.`
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set
+      setter?.call(textarea, changed)
+      textarea.dispatchEvent(new Event("input", { bubbles: true }))
+    })
+    await act(async () => buttonNamed("Revisar cambios")?.click())
+
+    expect(plan).toHaveBeenCalledWith({
+      kind: "update-entry-content",
+      installationId: value.installation.installationId,
+      expectedSnapshotId: value.snapshotId,
+      content: changed,
+    })
+    expect(container.querySelector('[role="dialog"]')?.textContent).toContain("/safe/global-review/SKILL.md")
+    expect(container.querySelector('[role="dialog"]')?.textContent).toContain("Nueva regla verificable.")
+
+    await act(async () => buttonNamed("Actualizar skill")?.click())
+    expect(confirm).toHaveBeenCalledWith({ planId: "plan_update" })
+    expect(onStatus).toHaveBeenCalledWith("Skill actualizada")
   })
 })

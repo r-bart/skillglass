@@ -62,10 +62,12 @@ function AppHeader({
   activeSurface,
   mobileNavigationOpen,
   onToggleMobileNavigation,
+  onOpenHistory,
 }: {
   activeSurface: Surface
   mobileNavigationOpen: boolean
   onToggleMobileNavigation: () => void
+  onOpenHistory: () => void
 }) {
   return createElement(
     "header",
@@ -80,6 +82,7 @@ function AppHeader({
       "div",
       { className: "header-actions" },
       createElement("p", { className: "local-status" }, "Datos locales"),
+      createElement("button", { className: "secondary-action history-button", type: "button", onClick: onOpenHistory }, "Historial"),
       createElement(
         "button",
         {
@@ -198,14 +201,17 @@ export function App({
   onboardingBridge: suppliedOnboardingBridge,
   inventoryBridge: suppliedInventoryBridge,
   eventBridge: suppliedEventBridge,
+  operationBridge: suppliedOperationBridge,
 }: {
   onboardingBridge?: ForgeBridge["onboarding"]
   inventoryBridge?: ForgeBridge["inventory"]
   eventBridge?: ForgeBridge["events"]
+  operationBridge?: ForgeBridge["operations"]
 }) {
   const onboardingBridge = suppliedOnboardingBridge ?? window.forge.onboarding
   const inventoryBridge = suppliedInventoryBridge ?? window.forge.inventory
   const eventBridge = suppliedEventBridge ?? window.forge.events
+  const operationBridge = suppliedOperationBridge ?? window.forge.operations
   const [activeSurface, setActiveSurface] = useState<Surface>("onboarding")
   const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false)
   const [onboardingState, setOnboardingState] = useState<OnboardingStateDto | null>(null)
@@ -213,6 +219,32 @@ export function App({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedInstallationId, setSelectedInstallationId] = useState<string>()
+  const [operationStatus, setOperationStatus] = useState<string>()
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [history, setHistory] = useState<Awaited<ReturnType<ForgeBridge["operations"]["history"]>>>()
+  const [historyError, setHistoryError] = useState<string>()
+
+  const openHistory = async (): Promise<void> => {
+    setHistoryOpen(true)
+    setHistoryError(undefined)
+    try {
+      setHistory(await operationBridge.history())
+    } catch (reason) {
+      setHistoryError(reason instanceof Error ? reason.message : "No se pudo cargar el historial")
+    }
+  }
+
+  const undo = async (journalId: string): Promise<void> => {
+    setHistoryError(undefined)
+    try {
+      const result = await operationBridge.undo({ journalId })
+      if (result.status !== "committed") throw new Error(result.message)
+      setOperationStatus(result.message)
+      setHistory(await operationBridge.history())
+    } catch (reason) {
+      setHistoryError(reason instanceof Error ? reason.message : "No se pudo deshacer la actualización")
+    }
+  }
 
   useEffect(() => {
     let current = true
@@ -295,7 +327,42 @@ export function App({
       activeSurface,
       mobileNavigationOpen,
       onToggleMobileNavigation: () => setMobileNavigationOpen((isOpen) => !isOpen),
+      onOpenHistory: () => { void openHistory() },
     }),
+    operationStatus === undefined
+      ? null
+      : createElement("p", { className: "operation-status", role: "status" }, operationStatus),
+    historyOpen
+      ? createElement(
+          "div",
+          { className: "modal-backdrop" },
+          createElement(
+            "div",
+            { role: "dialog", "aria-modal": "true", "aria-labelledby": "history-dialog-title", className: "operation-dialog" },
+            createElement("h2", { id: "history-dialog-title" }, "Historial"),
+            historyError === undefined ? null : createElement("p", { role: "alert", className: "form-error" }, historyError),
+            history === undefined
+              ? createElement("p", null, "Cargando historial…")
+              : history.items.filter(({ undoAvailable }) => undoAvailable).length === 0
+                ? createElement("p", null, "No hay operaciones que se puedan deshacer.")
+                : createElement(
+                    "ul",
+                    { className: "history-list" },
+                    ...history.items.filter(({ undoAvailable }) => undoAvailable).map((item) => createElement(
+                      "li",
+                      { key: item.journalId },
+                      createElement("span", null, item.kind === "update-entry-content" ? "Actualización de contenido" : "Operación"),
+                      createElement("button", {
+                        type: "button",
+                        className: "primary-action",
+                        onClick: () => { void undo(item.journalId) },
+                      }, item.kind === "update-entry-content" ? "Deshacer actualización" : "Deshacer operación"),
+                    )),
+                  ),
+            createElement("button", { type: "button", className: "secondary-action", onClick: () => setHistoryOpen(false) }, "Cerrar"),
+          ),
+        )
+      : null,
     mobileNavigationOpen
       ? createElement(
           "div",
@@ -323,6 +390,8 @@ export function App({
       ),
       createElement(Inspector, {
         inventoryBridge,
+        operationBridge,
+        onStatus: setOperationStatus,
         ...(activeSurface === "inventory" && selectedInstallationId !== undefined
           ? { installationId: selectedInstallationId }
           : {}),

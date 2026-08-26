@@ -5,6 +5,7 @@ import {
   ConfirmOperationInputSchema,
   LocalSourceSelectionDtoSchema,
   OperationPlanDtoSchema,
+  OperationHistoryDtoSchema,
   OperationRequestDtoSchema,
   OperationResultDtoSchema,
   SelectLocalSourceInputSchema,
@@ -74,6 +75,10 @@ export const IPC_INVOKE_CONTRACTS = {
   [IPC_INVOKE_CHANNELS.operationsUndo]: {
     input: UndoOperationInputSchema,
     output: OperationResultDtoSchema,
+  },
+  [IPC_INVOKE_CHANNELS.operationsHistory]: {
+    input: EmptyInputSchema,
+    output: OperationHistoryDtoSchema,
   },
 } as const
 
