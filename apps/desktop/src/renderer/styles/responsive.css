@@ -1,0 +1,124 @@
+/* Deliberate shell modes. This layer is loaded last so legacy breakpoints cannot
+ * turn the inspector into an in-flow column or hide a selected narrow sheet. */
+
+/* Compact desktop / tablet: keep navigation in flow and let content use the
+ * remaining viewport. The inspector is a viewport-bound overlay. */
+@media (min-width: 960px) and (max-width: 1279px) {
+  .app-body {
+    position: relative;
+    grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  }
+
+  .sidebar.app-sidebar {
+    display: flex;
+  }
+
+  .main-content {
+    grid-column: 2;
+    width: auto;
+  }
+
+  .inspector {
+    position: absolute;
+    z-index: 24;
+    inset: 0 0 0 auto;
+    display: flex;
+    width: min(var(--inspector-width), calc(100% - var(--sidebar-width)));
+    height: 100%;
+    grid-column: auto;
+    padding: 0;
+    border-top: 0;
+    border-left: var(--hairline) solid var(--border-chrome);
+    background: var(--sidebar-background);
+    box-shadow: -18px 0 36px rgba(0, 0, 0, 0.32);
+  }
+
+  .inspector--empty {
+    display: none;
+  }
+}
+
+/* Narrow: navigation is disclosed from the topbar, content owns the full
+ * width, and the selected inspector remains reachable as a side sheet. */
+@media (max-width: 959px) {
+  .app-body {
+    position: relative;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sidebar.app-sidebar {
+    display: none;
+  }
+
+  .navigation-toggle {
+    display: grid;
+  }
+
+  .main-content {
+    width: auto;
+    grid-column: 1;
+  }
+
+  .mobile-navigation {
+    position: fixed;
+    z-index: 29;
+    top: var(--topbar-height);
+    bottom: 0;
+    left: 0;
+    display: block;
+    width: min(var(--sidebar-width), calc(100vw - 2rem));
+    max-height: none;
+    padding: 0.875rem 0 1rem;
+    overflow: auto;
+    border-right: var(--hairline) solid var(--border-chrome);
+    border-bottom: 0;
+    background: var(--glass-popover-background);
+    box-shadow: var(--shadow-popover);
+    backdrop-filter: var(--glass-popover-filter);
+  }
+
+  .inspector {
+    position: absolute;
+    z-index: 24;
+    inset: 0 0 0 auto;
+    display: flex;
+    width: min(var(--inspector-width), 100%);
+    height: 100%;
+    grid-column: auto;
+    padding: 0;
+    border-top: 0;
+    border-left: var(--hairline) solid var(--border-chrome);
+    background: var(--sidebar-background);
+    box-shadow: -18px 0 36px rgba(0, 0, 0, 0.38);
+  }
+
+  .inspector--empty {
+    display: none;
+  }
+}
+
+@media (max-width: 800px) {
+  .app-topbar {
+    grid-template-columns: minmax(4rem, 1fr) auto;
+    gap: 0.5rem;
+  }
+
+  .app-topbar__center,
+  .pending-entry {
+    display: none;
+  }
+
+  .history-button__label {
+    display: none;
+  }
+}
+
+@media (forced-colors: active) and (max-width: 1279px) {
+  .inspector,
+  .mobile-navigation {
+    border-color: CanvasText;
+    background: Canvas;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+}
