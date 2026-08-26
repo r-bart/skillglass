@@ -14,7 +14,7 @@ interface NavigationProps {
   readonly activeSurface: Surface
   readonly onboardingRequired: boolean
   readonly onNavigate: (surface: Surface) => void
-  readonly scopeSlot?: ReactNode
+  readonly inventoryScopeTarget?: boolean
 }
 
 interface TopbarProps extends NavigationProps {
@@ -36,12 +36,6 @@ function Brand({ activeSurface }: { readonly activeSurface: Surface }): ReactNod
     createElement("span", { "aria-hidden": "true", className: "app-brand__separator" }),
     createElement("span", { className: "app-brand__context" }, surfaceLabels[activeSurface]),
   )
-}
-
-function focusInventorySearch(): void {
-  const search = document.querySelector<HTMLInputElement>(".inventory-search input[type='search']")
-  search?.focus()
-  search?.select()
 }
 
 export function AppTopbar({
@@ -66,18 +60,14 @@ export function AppTopbar({
     createElement(
       "div",
       { className: "app-topbar__center" },
+      createElement("div", {
+        className: "topbar-search-slot",
+        hidden: !inventoryContext,
+        id: "inventory-search-slot",
+        role: "search",
+      }),
       inventoryContext
-        ? createElement(
-            "button",
-            {
-              "aria-label": "Buscar en el inventario",
-              className: "topbar-search-slot",
-              onClick: focusInventorySearch,
-              type: "button",
-            },
-            createElement("span", { "aria-hidden": "true", className: "topbar-search-slot__icon" }),
-            createElement("span", { className: "topbar-search-slot__text" }, "Filtrar por nombre o descripción"),
-          )
+        ? null
         : createElement(
             "p",
             { className: "app-topbar__context", "aria-live": "polite" },
@@ -166,9 +156,9 @@ export function AppTopbar({
 
 export function PrimaryNavigation({
   activeSurface,
+  inventoryScopeTarget = false,
   onboardingRequired,
   onNavigate,
-  scopeSlot,
 }: NavigationProps): ReactNode {
   const views: readonly [Surface, string][] = [
     ["inventory", "Inventario"],
@@ -180,22 +170,24 @@ export function PrimaryNavigation({
     "nav",
     { "aria-label": "Secciones principales", className: "primary-navigation" },
     createElement(SectionLabel, { as: "h2", className: "navigation-label" }, "Ámbito"),
-    scopeSlot ?? createElement(
-      "div",
-      { className: "scope-navigation-slot" },
-      createElement(
-        "button",
-        {
-          "aria-current": activeSurface === "inventory" ? "location" : undefined,
-          className: "navigation-item scope-navigation-item",
-          disabled: onboardingRequired,
-          onClick: () => onNavigate("inventory"),
-          type: "button",
-        },
-        createElement("span", { "aria-hidden": "true", className: "navigation-dot navigation-dot--scope" }),
-        createElement("span", { className: "navigation-text" }, "Esta máquina"),
-      ),
-    ),
+    inventoryScopeTarget
+      ? createElement("div", { className: "scope-navigation-slot", id: "inventory-scope-slot" })
+      : createElement(
+          "div",
+          { className: "scope-navigation-slot" },
+          createElement(
+            "button",
+            {
+              "aria-current": activeSurface === "inventory" ? "location" : undefined,
+              className: "navigation-item scope-navigation-item",
+              disabled: onboardingRequired,
+              onClick: () => onNavigate("inventory"),
+              type: "button",
+            },
+            createElement("span", { "aria-hidden": "true", className: "navigation-dot navigation-dot--scope" }),
+            createElement("span", { className: "navigation-text" }, "Esta máquina"),
+          ),
+        ),
     createElement(SectionLabel, { as: "h2", className: "navigation-label navigation-label--views" }, "Vistas"),
     createElement(
       "ul",
@@ -227,7 +219,7 @@ export function AppSidebar(props: NavigationProps): ReactNode {
   return createElement(
     "aside",
     { className: "sidebar app-sidebar" },
-    createElement(PrimaryNavigation, props),
+    createElement(PrimaryNavigation, { ...props, inventoryScopeTarget: true }),
     createElement(
       "div",
       { className: "app-sidebar__footer" },

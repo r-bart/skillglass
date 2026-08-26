@@ -217,6 +217,28 @@ describe("Inventory", () => {
     expect(container.textContent).toContain("Sin autor observado")
   })
 
+  it("focuses and selects the real search field with the platform find shortcut", async () => {
+    await act(async () => root.render(createElement(Inventory, {
+      inventoryBridge: bridge(() => Promise.resolve(basePage)),
+    })))
+    const search = container.querySelector<HTMLInputElement>('input[type="search"]')
+    if (search === null) throw new Error("Search field is missing")
+    await act(async () => inputText(search, "release"))
+    search.blur()
+
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", {
+        bubbles: true,
+        key: "f",
+        [/Mac|iPhone|iPad/u.test(navigator.platform) ? "metaKey" : "ctrlKey"]: true,
+      }))
+    })
+
+    expect(document.activeElement).toBe(search)
+    expect(search.selectionStart).toBe(0)
+    expect(search.selectionEnd).toBe(search.value.length)
+  })
+
   it("supports mouse and arrow-key selection with a single roving tab stop", async () => {
     const onSelectionChange = vi.fn()
     await act(async () => root.render(createElement(Inventory, {

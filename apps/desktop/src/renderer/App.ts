@@ -1,4 +1,4 @@
-import { createElement, useEffect, useState, type ReactNode } from "react"
+import { createElement, useEffect, useRef, useState, type ReactNode } from "react"
 
 import type {
   ForgeBridge,
@@ -19,6 +19,13 @@ import {
 import { Inspector, Inventory } from "./inventory/index.js"
 import { OperationPlanDetails } from "./OperationPlanDetails.js"
 import { Pending } from "./Pending.js"
+import {
+  CompactSurfaceHeader,
+  MetalAction,
+  QuietAction,
+  SectionLabel,
+  StatusPill,
+} from "./VisualPrimitives.js"
 
 const accessLabels: Record<RootCandidateDto["access"], string> = {
   "read-write": "Lectura y escritura",
@@ -48,61 +55,79 @@ function Onboarding({
 }) {
   return createElement(
     "section",
-    { className: "content-surface", "aria-labelledby": "onboarding-title" },
-    createElement(
-      "div",
-      { className: "page-heading" },
-      createElement("p", { className: "eyebrow" }, "Primer uso"),
-      createElement("h1", { id: "onboarding-title" }, "Carpetas de skills"),
-      createElement(
-        "p",
-        { className: "page-description" },
-        "Revisa las ubicaciones propuestas. Forge no iniciará el primer escaneo hasta guardar tu aprobación.",
-      ),
-    ),
+    { className: "content-surface onboarding-surface", "aria-labelledby": "onboarding-title", "data-scroll-panel": "onboarding" },
+    createElement(CompactSurfaceHeader, {
+      className: "onboarding-header",
+      description: "Revisa las ubicaciones propuestas. Forge no iniciará el primer escaneo hasta guardar tu aprobación.",
+      eyebrow: "Primer uso",
+      title: "Carpetas de skills",
+      titleId: "onboarding-title",
+    }),
     state === null
       ? createElement("p", { className: "surface-note", role: "status" }, "Detectando ubicaciones compatibles…")
       : createElement(
           "form",
           { className: "root-form", onSubmit: (event) => { event.preventDefault(); onApprove() } },
           createElement(
-            "fieldset",
-            { className: "root-fieldset", disabled: busy },
-            createElement("legend", null, "Ubicaciones que Forge puede observar"),
+            "div",
+            { className: "onboarding-card" },
             createElement(
-              "div",
-              { className: "root-list" },
-              ...state.proposedRoots.map((root) => createElement(
-                "label",
-                { className: "root-option", key: root.candidateId },
-                createElement("input", {
-                  type: "checkbox",
-                  checked: selected.has(root.candidateId),
-                  onChange: () => onToggle(root.candidateId),
-                }),
-                createElement(
-                  "span",
-                  { className: "root-copy" },
-                  createElement("span", { className: "root-name" }, root.displayName),
-                  createElement("span", { className: "root-path" }, root.displayPath),
+              "fieldset",
+              { className: "root-fieldset", disabled: busy },
+              createElement(
+                "legend",
+                null,
+                createElement(SectionLabel, { as: "span" }, "Ubicaciones que Forge puede observar"),
+              ),
+              createElement(
+                "div",
+                { className: "root-list" },
+                ...state.proposedRoots.map((root) => createElement(
+                  "label",
+                  { className: "root-option glass-selectable-row", key: root.candidateId },
+                  createElement("input", {
+                    type: "checkbox",
+                    checked: selected.has(root.candidateId),
+                    onChange: () => onToggle(root.candidateId),
+                  }),
                   createElement(
                     "span",
-                    { className: "root-meta" },
-                    createElement("span", { className: `access-badge access-${root.access}` }, accessLabels[root.access]),
-                    createElement("span", null, root.discovery.kind === "unknown" ? "Evidencia desconocida" : `Evidencia ${root.discovery.kind}`),
+                    { className: "root-copy" },
+                    createElement("span", { className: "root-name" }, root.displayName),
+                    createElement("span", { className: "root-path" }, root.displayPath),
+                    createElement(
+                      "span",
+                      { className: "root-meta" },
+                      createElement(StatusPill, {
+                        tone: root.access === "read-write" ? "ok" : root.access === "denied" ? "danger" : "idle",
+                      }, accessLabels[root.access]),
+                      createElement("span", { className: "root-evidence" }, root.discovery.kind === "unknown" ? "Evidencia desconocida" : `Evidencia ${root.discovery.kind}`),
+                    ),
                   ),
-                ),
-              )),
+                )),
+              ),
+            ),
+            createElement(
+              "div",
+              { className: "onboarding-card__footer" },
+              createElement(
+                "div",
+                { className: "root-secondary-actions" },
+                createElement(QuietAction, { disabled: busy, onClick: onAdd }, "Añadir carpeta…"),
+                createElement(QuietAction, { disabled: busy, onClick: onAddProject }, "Añadir proyecto Codex…"),
+              ),
+              createElement(MetalAction, {
+                disabled: busy || selected.size === 0,
+                type: "submit",
+              }, busy ? "Escaneando…" : state.status === "complete" ? "Guardar cambios" : "Escanear carpetas aprobadas"),
             ),
           ),
           createElement(
-            "div",
-            { className: "root-actions" },
-            createElement("button", { className: "secondary-action", type: "button", disabled: busy, onClick: onAdd }, "Añadir carpeta…"),
-            createElement("button", { className: "secondary-action", type: "button", disabled: busy, onClick: onAddProject }, "Añadir proyecto Codex…"),
-            createElement("button", { className: "primary-action", type: "submit", disabled: busy || selected.size === 0 }, busy ? "Escaneando…" : state.status === "complete" ? "Guardar cambios" : "Escanear carpetas aprobadas"),
+            "p",
+            { className: "root-safety-note" },
+            createElement("span", { "aria-hidden": "true", className: "root-safety-note__icon" }, "✓"),
+            createElement("span", null, "La carpeta se elige mediante el diálogo del sistema. Forge nunca solicita privilegios de administrador."),
           ),
-          createElement("p", { className: "root-safety-note" }, "La carpeta se elige mediante el diálogo del sistema. Forge nunca solicita privilegios de administrador."),
         ),
     error === null ? null : createElement("p", { className: "form-error", role: "alert" }, error),
     createElement(
@@ -133,7 +158,9 @@ export function App({
   const inventoryBridge = suppliedInventoryBridge ?? window.forge.inventory
   const eventBridge = suppliedEventBridge ?? window.forge.events
   const operationBridge = suppliedOperationBridge ?? window.forge.operations
+  const mainContentRef = useRef<HTMLElement>(null)
   const [activeSurface, setActiveSurface] = useState<Surface>("onboarding")
+  const [scrollResetRevision, setScrollResetRevision] = useState(0)
   const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false)
   const [onboardingState, setOnboardingState] = useState<OnboardingStateDto | null>(null)
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
@@ -314,9 +341,21 @@ export function App({
 
   const onboardingRequired = onboardingState?.status !== "complete"
 
+  useEffect(() => {
+    const main = mainContentRef.current
+    if (main === null) return
+    main.scrollTop = 0
+    main.scrollLeft = 0
+    for (const panel of main.querySelectorAll<HTMLElement>("[data-scroll-panel], .inventory-table-wrap")) {
+      panel.scrollTop = 0
+      panel.scrollLeft = 0
+    }
+  }, [activeSurface, scrollResetRevision])
+
   const navigate = (surface: Surface) => {
     if (surface !== "onboarding" && onboardingRequired) return
     setActiveSurface(surface)
+    setScrollResetRevision((current) => current + 1)
     setMobileNavigationOpen(false)
   }
 
@@ -359,6 +398,7 @@ export function App({
       const approvedRoots = await onboardingBridge.approveRoots({ candidateIds: [...selected] })
       setOnboardingState((state) => state === null ? state : { ...state, status: "complete", selectedCandidateIds: [...selected], approvedRoots })
       setActiveSurface("inventory")
+      setScrollResetRevision((current) => current + 1)
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "No se pudo guardar la aprobación")
     } finally {
@@ -527,7 +567,7 @@ export function App({
       createElement(AppSidebar, { activeSurface, onNavigate: navigate, onboardingRequired }),
       createElement(
         "main",
-        { className: "main-content", id: "main-content", tabIndex: -1 },
+        { className: "main-content", id: "main-content", ref: mainContentRef, tabIndex: -1 },
         scanNotice === undefined
           ? null
           : createElement("p", { className: "form-error", role: "alert" }, scanNotice),

@@ -104,6 +104,26 @@ describe("Forge application shell", () => {
     expect(inspector).not.toBeNull()
   })
 
+  it("mounts the real inventory search and scopes once in the app chrome", () => {
+    const search = container.querySelector<HTMLInputElement>('#inventory-search-slot input[type="search"]')
+    const scopes = container.querySelector<HTMLElement>('#inventory-scope-slot nav[aria-label="Ámbitos del inventario"]')
+
+    expect(search?.labels?.[0]?.textContent).toContain("Buscar skills")
+    expect(scopes).not.toBeNull()
+    expect(container.querySelectorAll('input[type="search"]')).toHaveLength(1)
+    expect(container.querySelectorAll('nav[aria-label="Ámbitos del inventario"]')).toHaveLength(1)
+  })
+
+  it("resets the owning content panel when navigating", () => {
+    const main = container.querySelector<HTMLElement>("#main-content")
+    if (main === null) throw new Error("main content missing")
+    main.scrollTop = 128
+
+    act(() => buttonNamed("Inventario").click())
+
+    expect(main.scrollTop).toBe(0)
+  })
+
   it("navigates between the MVP placeholder surfaces with semantic buttons", async () => {
     expect(container.querySelector("h1")?.textContent).toBe("Inventario")
     expect(buttonNamed("Inventario").getAttribute("aria-current")).toBe("page")

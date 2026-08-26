@@ -7,6 +7,7 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from "react"
+import { createPortal } from "react-dom"
 
 import type {
   ForgeBridge,
@@ -80,15 +81,16 @@ function ScopeNavigation({
     {
       key: scopeKey(value),
       type: "button",
-      className: "scope-button",
+      className: "navigation-item scope-button",
       "aria-pressed": scopeKey(scope) === scopeKey(value),
       onClick: () => onChange(value),
     },
-    label,
+    createElement("span", { "aria-hidden": "true", className: "navigation-dot navigation-dot--scope" }),
+    createElement("span", { className: "navigation-text" }, label),
   )
   return createElement(
     "nav",
-    { className: "scope-navigation", "aria-label": "Ámbitos del inventario" },
+    { className: "scope-navigation scope-navigation--sidebar", "aria-label": "Ámbitos del inventario" },
     button("Esta máquina", { kind: "all" }),
     button("Global", { kind: "global" }),
     ...projects.map((project) => button(project.displayName, {
@@ -400,9 +402,41 @@ export function Inventory({ inventoryBridge, eventBridge, onSelectionChange }: I
     packageId,
   ].some((value) => value.trim().length > 0)
 
+  const scopeNavigation = createElement(ScopeNavigation, {
+    scope,
+    projects: page.projects ?? [],
+    onChange: setScope,
+  })
+  const searchControl = createElement(
+    "label",
+    { className: "inventory-search topbar-inventory-search" },
+    createElement("span", { className: "visually-hidden" }, "Buscar skills"),
+    createElement("span", { "aria-hidden": "true", className: "topbar-search-slot__icon" }),
+    createElement("input", {
+      ref: searchRef,
+      type: "search",
+      value: search,
+      placeholder: "Filtrar por nombre o descripción",
+      onChange: (event) => setSearch(event.currentTarget.value),
+    }),
+    createElement(
+      "kbd",
+      { "aria-hidden": "true" },
+      /Mac|iPhone|iPad/u.test(navigator.platform) ? "⌘F" : "Ctrl F",
+    ),
+  )
+  const searchTarget = document.getElementById("inventory-search-slot")
+  const scopeTarget = document.getElementById("inventory-scope-slot")
+
   return createElement(
     "section",
-    { className: "content-surface inventory-surface", "aria-labelledby": "inventory-title" },
+    { className: "content-surface inventory-surface", "aria-labelledby": "inventory-title", "data-scroll-panel": "inventory" },
+    searchTarget === null
+      ? createElement("div", { className: "inventory-search-fallback", role: "search" }, searchControl)
+      : createPortal(searchControl, searchTarget),
+    scopeTarget === null
+      ? createElement("div", { className: "inventory-scope-fallback" }, scopeNavigation)
+      : createPortal(scopeNavigation, scopeTarget),
     createElement(
       "div",
       { className: "page-heading inventory-heading" },
@@ -410,22 +444,9 @@ export function Inventory({ inventoryBridge, eventBridge, onSelectionChange }: I
       createElement("h1", { id: "inventory-title" }, "Inventario"),
       createElement("p", { className: "page-description" }, "Consulta instalaciones reales y su evidencia sin alterar la activación del harness."),
     ),
-    createElement(ScopeNavigation, { scope, projects: page.projects ?? [], onChange: setScope }),
     createElement(
       "div",
-      { className: "inventory-controls", role: "search" },
-      createElement(
-        "label",
-        { className: "inventory-search" },
-        createElement("span", { className: "visually-hidden" }, "Buscar skills"),
-        createElement("input", {
-          ref: searchRef,
-          type: "search",
-          value: search,
-          placeholder: "Buscar por nombre, descripción, ruta o metadatos…",
-          onChange: (event) => setSearch(event.currentTarget.value),
-        }),
-      ),
+      { className: "inventory-controls", "aria-label": "Filtros del inventario" },
       createElement(FilterSelect, { label: "Runtime", value: adapter, onChange: setAdapter, options: [
         { value: "", label: "Todos" }, { value: "codex", label: "Codex" }, { value: "folder", label: "Carpetas" },
       ] }),

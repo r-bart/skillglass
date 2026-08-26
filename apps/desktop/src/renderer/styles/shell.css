@@ -129,8 +129,7 @@ html[data-platform="macos"] .app-topbar {
   width: min(100%, 23.5rem);
   height: 1.75rem;
   align-items: center;
-  gap: 0.5625rem;
-  padding: 0 0.6875rem;
+  padding: 0;
   cursor: text;
   border: var(--hairline) solid var(--border-default);
   border-radius: var(--radius-control);
@@ -138,6 +137,51 @@ html[data-platform="macos"] .app-topbar {
   background: rgba(0, 0, 0, 0.5);
   box-shadow: var(--shadow-field);
   text-align: left;
+}
+
+.topbar-search-slot[hidden] {
+  display: none;
+}
+
+.topbar-inventory-search {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 0.5625rem;
+  padding: 0 0.6875rem;
+}
+
+.topbar-inventory-search input[type="search"] {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  color: rgba(244, 244, 246, 0.82);
+  background: transparent;
+  box-shadow: none;
+  font-size: 12.5px;
+}
+
+.topbar-inventory-search input[type="search"]::placeholder {
+  color: var(--text-tertiary);
+  opacity: 1;
+}
+
+.topbar-inventory-search kbd {
+  flex: none;
+  color: var(--text-tertiary);
+  font-size: 9.5px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.topbar-search-slot:focus-within {
+  border-color: var(--edit-focus);
+  box-shadow: 0 0 0 3px var(--edit-focus-ring), var(--shadow-field);
 }
 
 .topbar-search-slot__icon {
@@ -328,6 +372,29 @@ html[data-platform="macos"] .app-topbar {
   list-style: none;
 }
 
+.scope-navigation--sidebar {
+  display: grid;
+  gap: 1px;
+  padding: 0;
+  overflow: visible;
+}
+
+.scope-navigation--sidebar .scope-button {
+  min-height: 2rem;
+  flex: initial;
+  padding: 0 0.625rem;
+  border-color: transparent;
+  border-radius: var(--radius-control);
+}
+
+.scope-navigation--sidebar .scope-button[aria-pressed="true"] {
+  border-color: var(--glass-selection-border);
+  color: var(--text-primary);
+  background: var(--glass-selection-background);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.09);
+  backdrop-filter: var(--glass-selection-filter);
+}
+
 .navigation-item {
   display: flex;
   width: 100%;
@@ -448,6 +515,7 @@ html[data-platform="macos"] .app-topbar {
 }
 
 .main-content {
+  height: 100%;
   min-width: 0;
   min-height: 0;
   padding: 1.25rem 1.5rem;
@@ -455,6 +523,47 @@ html[data-platform="macos"] .app-topbar {
   overscroll-behavior: contain;
   background: var(--app-background);
   scrollbar-gutter: stable;
+}
+
+.inventory-surface {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  margin: 0;
+  overflow: hidden;
+}
+
+.inventory-surface > :where(.inventory-heading, .inventory-controls, .form-error, .inventory-loading, .empty-state, .inventory-load-more, .inventory-count) {
+  flex: none;
+}
+
+.inventory-surface .inventory-table-wrap {
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.inventory-search-fallback,
+.inventory-scope-fallback {
+  flex: none;
+}
+
+.inventory-search-fallback {
+  width: min(100%, 23.5rem);
+  min-height: 1.75rem;
+  margin-bottom: 0.75rem;
+  border: var(--hairline) solid var(--border-default);
+  border-radius: var(--radius-control);
+  background: var(--field-background);
+  box-shadow: var(--shadow-field);
+}
+
+.inventory-scope-fallback {
+  margin-bottom: 0.75rem;
 }
 
 .inspector {
