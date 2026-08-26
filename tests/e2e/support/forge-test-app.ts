@@ -144,6 +144,16 @@ async function exists(candidate: string): Promise<boolean> {
   }
 }
 
+async function eventuallyAbsent(candidate: string, timeoutMs = 2_000): Promise<boolean> {
+  if (!(await exists(candidate))) return false
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 25))
+    if (!(await exists(candidate))) return false
+  }
+  return true
+}
+
 async function readAuditLines(file: string): Promise<string[]> {
   const raw = await readFile(file, "utf8")
   return raw.split(/\r?\n/u).map((line) => line.trim()).filter(Boolean)
@@ -255,7 +265,10 @@ export async function createForgeBusinessFixture(): Promise<ForgeBusinessFixture
       return batches.flatMap((line) => JSON.parse(line) as string[])
     },
     readGlobalSkill: () => readFile(globalSkillEntry, "utf8"),
-    installDestinationExists: () => exists(installDestination),
+    // An undo is requested through asynchronous Electron IPC. Acceptance checks
+    // ask whether the destination remains, so tolerate only that bounded handoff;
+    // a destination that is genuinely left behind still returns true.
+    installDestinationExists: () => eventuallyAbsent(installDestination),
     async changeInstallSource(text) {
       await writeFile(
         path.join(installDirectorySource, "SKILL.md"),

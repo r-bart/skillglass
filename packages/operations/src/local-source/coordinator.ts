@@ -29,6 +29,8 @@ export interface LocalInstallCoordinatorOptions {
   readonly materializer: LocalSourceMaterializerPort
   readonly engine: EnginePort
   readonly installationId?: (adapterId: string, canonicalPath: string) => string
+  /** Private, non-scanned approved root for durable source materializations. */
+  readonly privateSourceRootId?: string
 }
 
 interface PendingInstall {
@@ -83,6 +85,7 @@ export class LocalInstallCoordinator {
   readonly #materializer: LocalSourceMaterializerPort
   readonly #engine: EnginePort
   readonly #installationId: NonNullable<LocalInstallCoordinatorOptions["installationId"]>
+  readonly #privateSourceRootId: string | undefined
   readonly #pending = new Map<string, PendingInstall>()
 
   constructor(options: LocalInstallCoordinatorOptions) {
@@ -91,6 +94,7 @@ export class LocalInstallCoordinator {
     this.#materializer = options.materializer
     this.#engine = options.engine
     this.#installationId = options.installationId ?? defaultInstallationId
+    this.#privateSourceRootId = options.privateSourceRootId
   }
 
   async prepare(input: PrepareLocalInstallInput): Promise<PreparedLocalInstall> {
@@ -108,7 +112,11 @@ export class LocalInstallCoordinator {
       const step = requireInstallStep(input.adapterPlan, source)
       const target = await this.#targets.authorizeAbsentDirectChild(step.rootId, step.relativePath)
       const suffix = opaqueSuffix(planId)
-      sourceArtifact = { rootId: target.rootId, relativePath: `.forge-source-${suffix}`, kind: "tree" }
+      sourceArtifact = {
+        rootId: this.#privateSourceRootId ?? target.rootId,
+        relativePath: `.forge-source-${suffix}`,
+        kind: "tree",
+      }
       const stage = { rootId: target.rootId, relativePath: `.forge-stage-${suffix}` }
       const staged = await this.#materializer.materialize(source, sourceArtifact)
       if (staged.treeHash !== source.manifest.treeHash) {

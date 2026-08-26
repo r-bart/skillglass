@@ -134,7 +134,11 @@ export class OperationEngine {
         })
 
         plan = await this.#transition(plan, "applying", {}, plan.undoStatus, true)
-        await this.#fileSystem.replace(plan.artifacts.stage, plan.artifacts.destination)
+        await this.#fileSystem.replace(
+          plan.artifacts.stage,
+          plan.artifacts.destination,
+          plan.kind === "install" ? "create" : "update",
+        )
 
         plan = await this.#transition(plan, "verifying", {})
         await this.#verifyPostconditions(plan)
@@ -310,7 +314,7 @@ export class OperationEngine {
     }
     await this.#cleanupExact(plan.artifacts.stage, plan.expectedAfterHash)
     await this.#fileSystem.copyExclusive(snapshot, plan.artifacts.stage)
-    await this.#fileSystem.replace(plan.artifacts.stage, plan.artifacts.destination)
+    await this.#fileSystem.replace(plan.artifacts.stage, plan.artifacts.destination, "update")
     const restored = await this.#fileSystem.observe(plan.artifacts.destination)
     if (!exactObservation(restored, plan.expectedBefore.hash)) {
       throw new OperationConflictError("Restored destination failed hash verification")
@@ -348,7 +352,7 @@ export class OperationEngine {
     }
     await this.#cleanupExact(plan.artifacts.stage, plan.expectedAfterHash)
     await this.#fileSystem.copyExclusive(plan.undo.snapshot, plan.artifacts.stage)
-    await this.#fileSystem.replace(plan.artifacts.stage, plan.undo.destination)
+    await this.#fileSystem.replace(plan.artifacts.stage, plan.undo.destination, "update")
     const restored = await this.#fileSystem.observe(plan.undo.destination)
     if (!exactObservation(restored, plan.undo.restoredHash)) {
       throw new OperationConflictError("Undo restoration failed hash verification")

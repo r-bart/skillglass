@@ -440,7 +440,7 @@ export class FolderAdapter implements SkillRuntimeAdapter {
   async #planInstall(request: AdapterOperationRequest): Promise<AdapterOperationPlan> {
     if (request.request.kind !== "install-local") throw new TypeError("Expected install request")
     const manifest = sourceManifest(request.sourceManifest, request.request.source.treeHash)
-    const relativePath = `skill-${manifest.treeHash.slice(0, 12)}`
+    const relativePath = request.request.source.suggestedName ?? `skill-${manifest.treeHash.slice(0, 12)}`
     const destination = await request.rootPolicy.authorizeWrite(request.targetRoot.id, relativePath)
     try {
       await lstat(destination)
@@ -469,7 +469,7 @@ export class FolderAdapter implements SkillRuntimeAdapter {
 
   async #planSourceUpdate(request: AdapterOperationRequest): Promise<AdapterOperationPlan> {
     if (request.request.kind !== "update-from-local") throw new TypeError("Expected source update request")
-    const manifest = sourceManifest(request.sourceManifest, request.request.source.treeHash)
+    const manifest = sourceManifest(request.sourceManifest, request.sourceManifest?.treeHash ?? "")
     const installation = installationFor(request)
     const relativePath = relativeWithin(request.targetRoot, installation.canonicalPath)
     const authorized = await request.rootPolicy.authorizeWrite(request.targetRoot.id, relativePath)

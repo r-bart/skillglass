@@ -3,11 +3,14 @@ import type { IpcMain, IpcMainInvokeEvent } from "electron"
 import {
   IPC_INVOKE_CHANNELS,
   IPC_INVOKE_CONTRACTS,
+  type AckDto,
   type ConfirmOperationInput,
   type OperationHistoryDto,
   type OperationPlanDto,
   type OperationRequestDto,
   type OperationResultDto,
+  type LocalSourceSelectionDto,
+  type SelectLocalSourceInput,
   type UndoOperationInput,
 } from "@forge/contracts"
 
@@ -40,6 +43,10 @@ export function registerOperationIpc(options: RegisterOperationIpcOptions): () =
     IPC_INVOKE_CHANNELS.operationsPlan,
     (input) => options.service.plan(input),
   )
+  register<SelectLocalSourceInput, LocalSourceSelectionDto | null>(
+    IPC_INVOKE_CHANNELS.operationsSelectLocalSource,
+    (input) => options.service.selectLocalSource(input),
+  )
   register<ConfirmOperationInput, OperationResultDto>(
     IPC_INVOKE_CHANNELS.operationsConfirm,
     (input) => options.service.confirm(input),
@@ -52,11 +59,17 @@ export function registerOperationIpc(options: RegisterOperationIpcOptions): () =
     IPC_INVOKE_CHANNELS.operationsHistory,
     () => options.service.history(),
   )
+  register<Record<string, never>, AckDto>(
+    IPC_INVOKE_CHANNELS.operationsRefreshUpdates,
+    () => options.service.refreshUpdates(),
+  )
 
   return () => {
     options.ipcMain.removeHandler(IPC_INVOKE_CHANNELS.operationsPlan)
+    options.ipcMain.removeHandler(IPC_INVOKE_CHANNELS.operationsSelectLocalSource)
     options.ipcMain.removeHandler(IPC_INVOKE_CHANNELS.operationsConfirm)
     options.ipcMain.removeHandler(IPC_INVOKE_CHANNELS.operationsUndo)
     options.ipcMain.removeHandler(IPC_INVOKE_CHANNELS.operationsHistory)
+    options.ipcMain.removeHandler(IPC_INVOKE_CHANNELS.operationsRefreshUpdates)
   }
 }

@@ -131,6 +131,7 @@ function operations(): ForgeBridge["operations"] {
     }),
     undo: () => Promise.reject(new Error("Not part of inspector test")),
     history: () => Promise.resolve({ items: [] }),
+    refreshUpdates: () => Promise.resolve({ ok: true }),
   }
 }
 
@@ -267,5 +268,37 @@ describe("Inspector", () => {
     await act(async () => buttonNamed("Actualizar skill")?.click())
     expect(confirm).toHaveBeenCalledWith({ planId: "plan_update" })
     expect(onStatus).toHaveBeenCalledWith("Skill actualizada")
+  })
+
+  it("refuses a source update when main reports local divergence", async () => {
+    const base = detail()
+    const value: InstallationDetailDto = {
+      ...base,
+      installation: {
+        ...base.installation,
+        status: { ...base.installation.status, update: "available" },
+      },
+      provenance: { ...base.provenance, kind: "forge-import", managedBy: "forge" },
+      capabilities: { ...base.capabilities, canUpdateFromSource: true },
+    }
+    const operationBridge = operations()
+    const plan = vi.spyOn(operationBridge, "plan").mockRejectedValue(
+      new Error("Installed tree differs from its recorded base"),
+    )
+    await act(async () => root.render(createElement(Inspector, {
+      installationId: value.installation.installationId,
+      inventoryBridge: bridge(value),
+      operationBridge,
+    })))
+
+    await act(async () => buttonNamed("Actualizar")?.click())
+    expect(plan).toHaveBeenCalledWith({
+      kind: "update-from-local",
+      installationId: value.installation.installationId,
+      expectedSnapshotId: value.snapshotId,
+    })
+    const dialog = container.querySelector('[role="dialog"]')
+    expect(dialog?.textContent).toContain("Conflicto de actualización")
+    expect(dialog?.textContent).toContain("cambios locales")
   })
 })

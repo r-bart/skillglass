@@ -29,6 +29,7 @@ import type {
   ProjectionRepository,
   SnapshotRepository,
   StoredProvenance,
+  UpdateObservationRepository,
 } from "./types.js"
 
 interface InventoryRecord {
@@ -201,15 +202,18 @@ export class StoredInventoryQueryRepository implements InventoryQueryRepository 
   readonly #projections: ProjectionRepository
   readonly #snapshots: SnapshotRepository
   readonly #now: () => Date
+  readonly #updates: UpdateObservationRepository | undefined
 
   constructor(
     projections: ProjectionRepository,
     snapshots: SnapshotRepository,
     now: () => Date = () => new Date(),
+    updates?: UpdateObservationRepository,
   ) {
     this.#projections = projections
     this.#snapshots = snapshots
     this.#now = now
+    this.#updates = updates
   }
 
   list(input: InventoryQuery): InventoryPageDto {
@@ -227,6 +231,7 @@ export class StoredInventoryQueryRepository implements InventoryQueryRepository 
         !matchesScope(installation, query, projectsById)
       ) continue
       const provenance = this.#snapshots.getProvenance(installation.provenanceId)
+      const updateObservation = this.#updates?.get(installation.id)
       const authorClaim = observedScalar(snapshot, "author")
       const packageClaimValue = packageClaim(provenance)
       const author = authorClaim === undefined ? undefined : evidenceDto(authorClaim)
@@ -249,6 +254,7 @@ export class StoredInventoryQueryRepository implements InventoryQueryRepository 
           findings: snapshot.findings,
           access: installation.access,
           ...(provenance === undefined ? {} : { provenance: provenance.value }),
+          ...(updateObservation === undefined ? {} : { update: updateObservation.state }),
         }),
         observedAt: snapshot.observedAt,
       }
@@ -318,6 +324,7 @@ export class StoredInventoryQueryRepository implements InventoryQueryRepository 
     const snapshot = this.#snapshots.get(installation.snapshotId)
     if (snapshot === undefined) return undefined
     const provenance = this.#snapshots.getProvenance(installation.provenanceId)
+    const updateObservation = this.#updates?.get(installation.id)
     const root = this.#projections.listRoots().find(({ id }) => id === installation.rootId)
     if (root === undefined) return undefined
 
@@ -345,6 +352,7 @@ export class StoredInventoryQueryRepository implements InventoryQueryRepository 
         findings: snapshot.findings,
         access: installation.access,
         ...(provenance === undefined ? {} : { provenance: provenance.value }),
+        ...(updateObservation === undefined ? {} : { update: updateObservation.state }),
       }),
       observedAt: snapshot.observedAt,
     }

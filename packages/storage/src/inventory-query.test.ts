@@ -298,4 +298,23 @@ describe("StoredInventoryQueryRepository", () => {
       "Beta API",
     ])
   })
+
+  it("projects persisted local-source refresh state into list and inspector status", () => {
+    store.updates.put({
+      installationId: "installation_project_release",
+      state: "available",
+      observedAt: OBSERVED_AT,
+      baseTreeHash: HASH,
+      installedTreeHash: HASH,
+      sourceTreeHash: "b".repeat(64),
+    })
+
+    expect(store.inventory.list({
+      scope: { kind: "all" },
+      updates: ["available"],
+    }).items.map(({ installationId }) => installationId)).toEqual([
+      "installation_project_release",
+    ])
+    expect(store.inventory.inspect("installation_project_release")?.installation.status.update).toBe("available")
+  })
 })

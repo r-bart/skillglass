@@ -80,6 +80,10 @@ export const IPC_INVOKE_CONTRACTS = {
     input: EmptyInputSchema,
     output: OperationHistoryDtoSchema,
   },
+  [IPC_INVOKE_CHANNELS.operationsRefreshUpdates]: {
+    input: EmptyInputSchema,
+    output: AckDtoSchema,
+  },
 } as const
 
 /** Runtime schemas keyed by the closed event-channel allowlist. */

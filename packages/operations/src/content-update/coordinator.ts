@@ -28,6 +28,8 @@ export interface ContentUpdateCoordinatorOptions {
   readonly rescan: () => Promise<void>
   readonly now?: () => Date
   readonly ids?: () => string
+  /** Private, non-scanned approved root for restart-safe snapshots. */
+  readonly recoveryRootId?: string
 }
 
 function relativeContained(root: string, candidate: string): string {
@@ -53,6 +55,7 @@ export class ContentUpdateCoordinator {
   readonly #rescan: () => Promise<void>
   readonly #now: () => Date
   readonly #ids: () => string
+  readonly #recoveryRootId: string | undefined
 
   constructor(options: ContentUpdateCoordinatorOptions) {
     this.#projections = options.projections
@@ -63,6 +66,7 @@ export class ContentUpdateCoordinator {
     this.#rescan = options.rescan
     this.#now = options.now ?? (() => new Date())
     this.#ids = options.ids ?? (() => randomUUID())
+    this.#recoveryRootId = options.recoveryRootId
   }
 
   async plan(input: OperationRequestDto): Promise<OperationPlanDto> {
@@ -108,7 +112,12 @@ export class ContentUpdateCoordinator {
       expectedBeforeHash: entry.contentHash,
       content: input.content,
       stage: { rootId: root.id, relativePath: sibling(`.${filename}.forge-stage-${suffix}`) },
-      snapshot: { rootId: root.id, relativePath: sibling(`.${filename}.forge-snapshot-${suffix}`) },
+      snapshot: {
+        rootId: this.#recoveryRootId ?? root.id,
+        relativePath: this.#recoveryRootId === undefined
+          ? sibling(`.${filename}.forge-snapshot-${suffix}`)
+          : `.forge-content-snapshot-${suffix}`,
+      },
     })
     await this.#engine.register(plan)
     return {

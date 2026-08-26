@@ -6,8 +6,6 @@ import {
   type OperationPlanDto,
   type OperationResultDto,
 } from "@forge/contracts"
-import type { ContentUpdateCoordinator } from "@forge/operations"
-
 import { registerOperationIpc } from "./ipc.js"
 import { DesktopOperationService } from "./service.js"
 
@@ -54,21 +52,26 @@ describe("operation main IPC", () => {
       handle(channel: string, handler: Handler) { handlers.set(channel, handler) },
       removeHandler(channel: string) { handlers.delete(channel) },
     }
-    const coordinator = {
+    const service = {
       plan: vi.fn(() => Promise.resolve(plan)),
       confirm: vi.fn(() => Promise.resolve(result)),
       undo: vi.fn(() => Promise.resolve({ ...result, message: "Actualización deshecha", undoAvailable: false })),
       history: vi.fn(() => ({ items: [{ journalId: plan.planId, kind: plan.kind, installationIds: plan.installationIds, createdAt: plan.createdAt, undoAvailable: true }] })),
-    } as unknown as ContentUpdateCoordinator
+      selectLocalSource: vi.fn(() => Promise.resolve(null)),
+      refreshUpdates: vi.fn(() => Promise.resolve({ ok: true as const })),
+    } as unknown as DesktopOperationService
     const dispose = registerOperationIpc({
       ipcMain,
-      service: new DesktopOperationService(coordinator),
+      service,
       isTrustedSender: (url) => url === "forge://app/index.html",
     })
     const planHandler = handlers.get(IPC_INVOKE_CHANNELS.operationsPlan)
     const confirmHandler = handlers.get(IPC_INVOKE_CHANNELS.operationsConfirm)
     const historyHandler = handlers.get(IPC_INVOKE_CHANNELS.operationsHistory)
-    if (planHandler === undefined || confirmHandler === undefined || historyHandler === undefined) {
+    const selectHandler = handlers.get(IPC_INVOKE_CHANNELS.operationsSelectLocalSource)
+    const refreshHandler = handlers.get(IPC_INVOKE_CHANNELS.operationsRefreshUpdates)
+    if (planHandler === undefined || confirmHandler === undefined || historyHandler === undefined ||
+      selectHandler === undefined || refreshHandler === undefined) {
       throw new Error("Operation handlers were not registered")
     }
 
@@ -94,6 +97,9 @@ describe("operation main IPC", () => {
       planId: "../../plan",
     })).rejects.toThrow()
     await expect(historyHandler(event("forge://app/index.html"), {})).resolves.toMatchObject({ items: [{ journalId: "plan_update" }] })
+    await expect(selectHandler(event("forge://app/index.html"), { kind: "zip", path: "/tmp/private.zip" })).rejects.toThrow()
+    await expect(selectHandler(event("forge://app/index.html"), { kind: "zip" })).resolves.toBeNull()
+    await expect(refreshHandler(event("forge://app/index.html"), {})).resolves.toEqual({ ok: true })
 
     dispose()
     expect(handlers.size).toBe(0)

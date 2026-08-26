@@ -464,7 +464,7 @@ export function Inventory({ inventoryBridge, eventBridge, onSelectionChange }: I
     ),
     error === undefined ? null : createElement("p", { role: "alert", className: "form-error" }, error),
     loading
-      ? createElement("p", { role: "status", className: "inventory-loading" }, "Consultando inventario…")
+      ? createElement("p", { "aria-live": "polite", className: "inventory-loading" }, "Consultando inventario…")
       : page.items.length > 0
         ? createElement(InventoryTable, { items: page.items, groupBy, selectedId, onSelect: select })
         : createElement(

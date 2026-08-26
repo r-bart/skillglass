@@ -164,12 +164,14 @@ describe("Codex safe operation planning and admission", () => {
       writableWithoutElevation: true,
     }])
     const install: AdapterOperationRequest = {
-      request: { kind: "install-local", source: { kind: "directory", selectionToken: TOKEN, treeHash: HASH }, targetRootId: userRoot.id },
+      request: { kind: "install-local", source: { kind: "directory", selectionToken: TOKEN, suggestedName: "local-skill", treeHash: HASH }, targetRootId: userRoot.id },
       targetRoot: userRoot, rootPolicy,
     }
     const update: AdapterOperationRequest = {
-      request: { kind: "update-from-local", installationId: personal.installation.id, expectedSnapshotId: personal.snapshot.id, source: { kind: "directory", selectionToken: TOKEN, treeHash: OTHER_HASH } },
-      targetRoot: userRoot, installation: personal.installation, rootPolicy,
+      request: { kind: "update-from-local", installationId: personal.installation.id, expectedSnapshotId: personal.snapshot.id },
+      targetRoot: userRoot, installation: personal.installation,
+      sourceManifest: { contract: "local-source-v1", hashAlgorithm: "forge-tree-v1", treeHash: OTHER_HASH, files: [] },
+      rootPolicy,
     }
     const edit: AdapterOperationRequest = {
       request: { kind: "update-entry-content", installationId: personal.installation.id, expectedSnapshotId: personal.snapshot.id, content: "---\nname: personal-skill\ndescription: Changed\n---\n" },
@@ -198,17 +200,19 @@ describe("Codex safe operation planning and admission", () => {
     const admin = sourceRoot(adminCandidate)
     const user = sourceRoot(userCandidate)
     const adminPolicy = await createApprovedRootPolicy([{ rootId: admin.id, path: admin.canonicalPath, kind: admin.kind, access: admin.access, writableWithoutElevation: false }])
-    const adminResult = await instance.planOperation({ request: { kind: "install-local", source: { kind: "directory", selectionToken: TOKEN, treeHash: HASH }, targetRootId: admin.id }, targetRoot: admin, rootPolicy: adminPolicy })
+    const adminResult = await instance.planOperation({ request: { kind: "install-local", source: { kind: "directory", selectionToken: TOKEN, suggestedName: "local-skill", treeHash: HASH }, targetRootId: admin.id }, targetRoot: admin, rootPolicy: adminPolicy })
     expect(adminResult).toMatchObject({ status: "unavailable", capabilityState: "unsupported" })
 
     const userPolicy = await createApprovedRootPolicy([{ rootId: user.id, path: user.canonicalPath, kind: user.kind, access: user.access, writableWithoutElevation: true }])
     const stale = await instance.planOperation({
-      request: { kind: "update-from-local", installationId: personal.installation.id, expectedSnapshotId: "snapshot_stale", source: { kind: "directory", selectionToken: TOKEN, treeHash: HASH } },
-      targetRoot: user, installation: personal.installation, rootPolicy: userPolicy,
+      request: { kind: "update-from-local", installationId: personal.installation.id, expectedSnapshotId: "snapshot_stale" },
+      targetRoot: user, installation: personal.installation,
+      sourceManifest: { contract: "local-source-v1", hashAlgorithm: "forge-tree-v1", treeHash: HASH, files: [] },
+      rootPolicy: userPolicy,
     })
     expect(stale.status).toBe("unavailable")
     const outside: SourceRoot = { ...user, id: "unapproved_root", canonicalPath: canonicalPath(repositoryRoot) }
-    const outsideResult = await instance.planOperation({ request: { kind: "install-local", source: { kind: "directory", selectionToken: TOKEN, treeHash: HASH }, targetRootId: outside.id }, targetRoot: outside, rootPolicy: userPolicy })
+    const outsideResult = await instance.planOperation({ request: { kind: "install-local", source: { kind: "directory", selectionToken: TOKEN, suggestedName: "local-skill", treeHash: HASH }, targetRootId: outside.id }, targetRoot: outside, rootPolicy: userPolicy })
     expect(outsideResult.status).toBe("unavailable")
   })
 

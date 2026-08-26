@@ -222,6 +222,8 @@ function Inspection({
   const [editing, setEditing] = useState(false)
   const [content, setContent] = useState(detail.rawEntryContent)
   const [plan, setPlan] = useState<OperationPlanDto>()
+  const [sourcePlan, setSourcePlan] = useState<OperationPlanDto>()
+  const [sourceConflict, setSourceConflict] = useState<string>()
   const [operationBusy, setOperationBusy] = useState(false)
   const path = entryPath(detail)
   const name = detail.installation.name.state === "known"
@@ -279,6 +281,51 @@ function Inspection({
     }
   }
 
+  const prepareSourceUpdate = async (): Promise<void> => {
+    if (operationBridge === undefined) return
+    setOperationBusy(true)
+    setActionError(undefined)
+    setSourceConflict(undefined)
+    try {
+      const next = await operationBridge.plan({
+        kind: "update-from-local",
+        installationId: detail.installation.installationId,
+        expectedSnapshotId: detail.snapshotId,
+      })
+      if (next.status === "blocked" || next.conflicts.length > 0) {
+        setSourceConflict(next.conflicts.map(({ message }) => message).join(" ") || "Se detectaron cambios locales")
+      } else {
+        setSourcePlan(next)
+      }
+    } catch (reason) {
+      const message = reason instanceof Error ? reason.message : "La instalación contiene cambios locales"
+      setSourceConflict(`Forge detectó cambios locales y no sobrescribirá la instalación. ${message}`)
+    } finally {
+      setOperationBusy(false)
+    }
+  }
+
+  const confirmSourceUpdate = async (): Promise<void> => {
+    if (operationBridge === undefined || sourcePlan === undefined) return
+    setOperationBusy(true)
+    setActionError(undefined)
+    try {
+      const result = await operationBridge.confirm({ planId: sourcePlan.planId })
+      if (result.status === "conflict") {
+        setSourceConflict(`Forge detectó cambios locales y no sobrescribirá la instalación. ${result.message}`)
+        setSourcePlan(undefined)
+        return
+      }
+      if (result.status !== "committed") throw new Error(result.message)
+      setSourcePlan(undefined)
+      onStatus?.(result.message)
+    } catch (reason) {
+      setActionError(reason instanceof Error ? reason.message : "No se pudo actualizar desde el origen")
+    } finally {
+      setOperationBusy(false)
+    }
+  }
+
   return createElement(
     "div",
     { className: "inspector-detail" },
@@ -319,6 +366,17 @@ function Inspection({
               setPlan(undefined)
             },
           }, "Editar")
+        : null,
+      detail.capabilities.canUpdateFromSource && (
+        detail.installation.status.update === "available" ||
+        detail.installation.status.update === "diverged"
+      )
+        ? createElement("button", {
+            type: "button",
+            className: "primary-action",
+            disabled: operationBusy,
+            onClick: () => { void prepareSourceUpdate() },
+          }, "Actualizar")
         : null,
     ),
     editing
@@ -382,6 +440,47 @@ function Inspection({
                 disabled: operationBusy,
                 onClick: () => setPlan(undefined),
               }, "Volver"),
+            ),
+          ),
+        ),
+    sourceConflict === undefined
+      ? null
+      : createElement(
+          "div",
+          { className: "modal-backdrop" },
+          createElement(
+            "div",
+            { role: "dialog", "aria-modal": "true", "aria-labelledby": "source-conflict-title", className: "operation-dialog" },
+            createElement("h3", { id: "source-conflict-title" }, "Conflicto de actualización"),
+            createElement("p", null, sourceConflict),
+            createElement("button", { type: "button", className: "secondary-action", onClick: () => setSourceConflict(undefined) }, "Cerrar"),
+          ),
+        ),
+    sourcePlan === undefined
+      ? null
+      : createElement(
+          "div",
+          { className: "modal-backdrop" },
+          createElement(
+            "div",
+            { role: "dialog", "aria-modal": "true", "aria-labelledby": "source-update-title", className: "operation-dialog" },
+            createElement("h3", { id: "source-update-title" }, "Confirmar actualización de origen"),
+            sourcePlan.destinationLabel === undefined ? null : createElement("p", { className: "inspector-path" }, sourcePlan.destinationLabel),
+            createElement(
+              "ul",
+              { className: "operation-diff" },
+              ...sourcePlan.affectedEntries.map((entry) => createElement(
+                "li",
+                { key: `${entry.action}:${entry.relativePath}` },
+                createElement("span", { className: `diff-action diff-${entry.action}` }, entry.action === "create" ? "Crear" : entry.action === "delete" ? "Eliminar" : "Modificar"),
+                createElement("code", null, entry.relativePath),
+              )),
+            ),
+            createElement(
+              "div",
+              { className: "inspector-actions" },
+              createElement("button", { type: "button", className: "primary-action", disabled: operationBusy, onClick: () => { void confirmSourceUpdate() } }, operationBusy ? "Actualizando…" : "Actualizar skill"),
+              createElement("button", { type: "button", className: "secondary-action", disabled: operationBusy, onClick: () => setSourcePlan(undefined) }, "Cancelar"),
             ),
           ),
         ),

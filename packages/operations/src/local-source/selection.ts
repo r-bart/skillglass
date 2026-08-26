@@ -79,7 +79,7 @@ export class SourceSelectionService {
   async claimForPlan(
     token: string,
     planId: string,
-    expected: Readonly<{ kind: LocalSourceKind; treeHash: string; archiveSha256?: string }>,
+    expected: Readonly<{ kind: LocalSourceKind; suggestedName?: string; treeHash: string; archiveSha256?: string }>,
   ): Promise<AdmittedLocalSource> {
     const record = this.#requireUsableRecord(token)
     if (record.claimedByPlanId !== undefined && record.claimedByPlanId !== planId) {
@@ -87,6 +87,11 @@ export class SourceSelectionService {
     }
     if (
       record.admission.kind !== expected.kind ||
+      (expected.suggestedName !== undefined && (
+        record.admission.kind === "zip"
+          ? path.basename(record.admission.sourceLocator, path.extname(record.admission.sourceLocator))
+          : path.basename(record.admission.sourceLocator)
+      ) !== expected.suggestedName) ||
       record.admission.manifest.treeHash !== expected.treeHash ||
       record.admission.archiveSha256 !== expected.archiveSha256
     ) {
@@ -95,6 +100,25 @@ export class SourceSelectionService {
     const current = await this.#admission.inspect(record.admission.kind, record.admission.sourceLocator, this.#now().toISOString())
     if (!sameIdentity(record.admission, current)) throw new LocalSourceError("SOURCE_CHANGED", "Local source changed after selection")
     record.claimedByPlanId = planId
+    return current
+  }
+
+  /** Reauthorizes a renderer claim so an adapter can describe a plan before the token is consumed. */
+  async inspectForPlanning(
+    token: string,
+    expected: Readonly<{ kind: LocalSourceKind; suggestedName: string; treeHash: string; archiveSha256?: string }>,
+  ): Promise<AdmittedLocalSource> {
+    const record = this.#requireUsableRecord(token)
+    if (
+      record.admission.kind !== expected.kind ||
+      path.basename(record.admission.sourceLocator, record.admission.kind === "zip" ? path.extname(record.admission.sourceLocator) : undefined) !== expected.suggestedName ||
+      record.admission.manifest.treeHash !== expected.treeHash ||
+      record.admission.archiveSha256 !== expected.archiveSha256
+    ) {
+      throw new LocalSourceError("SOURCE_CHANGED", "Selection does not match the renderer's preview identity")
+    }
+    const current = await this.#admission.inspect(record.admission.kind, record.admission.sourceLocator, this.#now().toISOString())
+    if (!sameIdentity(record.admission, current)) throw new LocalSourceError("SOURCE_CHANGED", "Local source changed after selection")
     return current
   }
 

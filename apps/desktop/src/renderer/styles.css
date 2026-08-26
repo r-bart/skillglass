@@ -1124,6 +1124,47 @@ h2 {
   box-shadow: var(--shadow-large);
 }
 
+.operation-error {
+  position: fixed;
+  z-index: 60;
+  right: 1rem;
+  top: 4.5rem;
+  max-width: min(32rem, calc(100vw - 2rem));
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border: 0.0625rem solid var(--danger, var(--border-strong));
+  border-radius: var(--radius-small);
+  color: var(--text);
+  background: var(--surface);
+  box-shadow: var(--shadow-large);
+}
+
+.operation-diff {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.operation-diff li {
+  display: grid;
+  grid-template-columns: 5rem minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: baseline;
+}
+
+.operation-diff code {
+  overflow-wrap: anywhere;
+}
+
+.diff-action {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
 .history-list {
   display: grid;
   gap: 0.75rem;

@@ -346,7 +346,7 @@ export class CodexAdapter implements SkillRuntimeAdapter {
     let expectedBefore: string | undefined
     let expectedAfter: string
     if (request.request.kind === "install-local") {
-      relativePath = `skill-${request.request.source.treeHash.slice(0, 12)}`
+      relativePath = request.request.source.suggestedName ?? `skill-${request.request.source.treeHash.slice(0, 12)}`
       action = "create"
       expectedAfter = request.request.source.treeHash
       try {
@@ -371,7 +371,7 @@ export class CodexAdapter implements SkillRuntimeAdapter {
       expectedBefore = expectedHash(request.request.expectedSnapshotId)
       expectedAfter = request.request.kind === "update-entry-content"
         ? sha256(request.request.content)
-        : request.request.source.treeHash
+        : request.sourceManifest?.treeHash ?? sha256("missing-source-manifest")
       try {
         await request.rootPolicy.authorizeWrite(request.targetRoot.id, target)
       } catch {

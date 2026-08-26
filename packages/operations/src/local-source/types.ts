@@ -150,6 +150,7 @@ export interface PreparedLocalInstall {
 export interface LocalSourceClaim {
   readonly kind: LocalSourceKind
   readonly selectionToken: string
+  readonly suggestedName?: string
   readonly treeHash: string
   readonly archiveSha256?: string
 }

@@ -1,6 +1,12 @@
 import { createElement, useEffect, useState, type ReactNode } from "react"
 
-import type { ForgeBridge, OnboardingStateDto, RootCandidateDto } from "@forge/contracts"
+import type {
+  ForgeBridge,
+  LocalSourceSelectionDto,
+  OnboardingStateDto,
+  OperationPlanDto,
+  RootCandidateDto,
+} from "@forge/contracts"
 
 import { Inspector, Inventory } from "./inventory/index.js"
 
@@ -63,11 +69,21 @@ function AppHeader({
   mobileNavigationOpen,
   onToggleMobileNavigation,
   onOpenHistory,
+  operationsVisible,
+  operationBusy,
+  onInstallDirectory,
+  onInstallZip,
+  onRefreshUpdates,
 }: {
   activeSurface: Surface
   mobileNavigationOpen: boolean
   onToggleMobileNavigation: () => void
   onOpenHistory: () => void
+  operationsVisible: boolean
+  operationBusy: boolean
+  onInstallDirectory: () => void
+  onInstallZip: () => void
+  onRefreshUpdates: () => void
 }) {
   return createElement(
     "header",
@@ -82,6 +98,15 @@ function AppHeader({
       "div",
       { className: "header-actions" },
       createElement("p", { className: "local-status" }, "Datos locales"),
+      operationsVisible
+        ? createElement("button", { className: "secondary-action", type: "button", disabled: operationBusy, onClick: onInstallDirectory }, "Instalar desde carpeta")
+        : null,
+      operationsVisible
+        ? createElement("button", { className: "secondary-action", type: "button", disabled: operationBusy, onClick: onInstallZip }, "Instalar desde ZIP")
+        : null,
+      operationsVisible
+        ? createElement("button", { className: "secondary-action", type: "button", disabled: operationBusy, onClick: onRefreshUpdates }, "Buscar actualizaciones")
+        : null,
       createElement("button", { className: "secondary-action history-button", type: "button", onClick: onOpenHistory }, "Historial"),
       createElement(
         "button",
@@ -223,6 +248,83 @@ export function App({
   const [historyOpen, setHistoryOpen] = useState(false)
   const [history, setHistory] = useState<Awaited<ReturnType<ForgeBridge["operations"]["history"]>>>()
   const [historyError, setHistoryError] = useState<string>()
+  const [operationError, setOperationError] = useState<string>()
+  const [operationBusy, setOperationBusy] = useState(false)
+  const [installPlan, setInstallPlan] = useState<OperationPlanDto>()
+
+  const sourceClaim = (selection: LocalSourceSelectionDto) => {
+    const suggestedName = selection.kind === "zip"
+      ? selection.displayName.replace(/\.zip$/iu, "")
+      : selection.displayName
+    return selection.kind === "directory"
+      ? {
+          kind: "directory" as const,
+          selectionToken: selection.selectionToken,
+          suggestedName,
+          treeHash: selection.treeHash,
+        }
+      : {
+          kind: "zip" as const,
+          selectionToken: selection.selectionToken,
+          suggestedName,
+          archiveSha256: selection.archiveSha256,
+          treeHash: selection.treeHash,
+        }
+  }
+
+  const installFrom = async (kind: "directory" | "zip"): Promise<void> => {
+    setOperationBusy(true)
+    setOperationError(undefined)
+    try {
+      const selection = await operationBridge.selectLocalSource({ kind })
+      if (selection === null) return
+      const target = onboardingState?.approvedRoots.find((root) =>
+        root.access === "read-write" && root.kind === "global") ??
+        onboardingState?.approvedRoots.find((root) => root.access === "read-write")
+      if (target === undefined) throw new Error("No hay una carpeta aprobada con escritura para instalar")
+      setInstallPlan(await operationBridge.plan({
+        kind: "install-local",
+        source: sourceClaim(selection),
+        targetRootId: target.rootId,
+      }))
+    } catch (reason) {
+      const message = reason instanceof Error ? reason.message : "No se pudo leer la fuente local"
+      setOperationError(kind === "zip"
+        ? `La fuente ZIP contiene una ruta no segura. ${message}`
+        : message)
+    } finally {
+      setOperationBusy(false)
+    }
+  }
+
+  const confirmInstall = async (): Promise<void> => {
+    if (installPlan === undefined) return
+    setOperationBusy(true)
+    setOperationError(undefined)
+    try {
+      const result = await operationBridge.confirm({ planId: installPlan.planId })
+      if (result.status !== "committed") throw new Error(result.message)
+      setOperationStatus(result.message)
+      setInstallPlan(undefined)
+    } catch (reason) {
+      setOperationError(reason instanceof Error ? reason.message : "No se pudo instalar la skill")
+    } finally {
+      setOperationBusy(false)
+    }
+  }
+
+  const refreshUpdates = async (): Promise<void> => {
+    setOperationBusy(true)
+    setOperationError(undefined)
+    try {
+      await operationBridge.refreshUpdates()
+      setOperationStatus("Actualizaciones revisadas")
+    } catch (reason) {
+      setOperationError(reason instanceof Error ? reason.message : "No se pudieron buscar actualizaciones")
+    } finally {
+      setOperationBusy(false)
+    }
+  }
 
   const openHistory = async (): Promise<void> => {
     setHistoryOpen(true)
@@ -258,6 +360,19 @@ export function App({
     })
     return () => { current = false }
   }, [onboardingBridge])
+
+  useEffect(() => {
+    const stopProgress = eventBridge.onOperationProgress((event) => {
+      setOperationStatus(event.message)
+    })
+    const stopCompleted = eventBridge.onOperationCompleted((event) => {
+      setOperationStatus(event.message)
+    })
+    return () => {
+      stopProgress()
+      stopCompleted()
+    }
+  }, [eventBridge])
 
   const onboardingRequired = onboardingState?.status !== "complete"
 
@@ -328,7 +443,15 @@ export function App({
       mobileNavigationOpen,
       onToggleMobileNavigation: () => setMobileNavigationOpen((isOpen) => !isOpen),
       onOpenHistory: () => { void openHistory() },
+      operationsVisible: activeSurface === "inventory" && !onboardingRequired,
+      operationBusy,
+      onInstallDirectory: () => { void installFrom("directory") },
+      onInstallZip: () => { void installFrom("zip") },
+      onRefreshUpdates: () => { void refreshUpdates() },
     }),
+    operationError === undefined
+      ? null
+      : createElement("p", { className: "operation-error", role: "alert" }, operationError),
     operationStatus === undefined
       ? null
       : createElement("p", { className: "operation-status", role: "status" }, operationStatus),
@@ -351,18 +474,57 @@ export function App({
                     ...history.items.filter(({ undoAvailable }) => undoAvailable).map((item) => createElement(
                       "li",
                       { key: item.journalId },
-                      createElement("span", null, item.kind === "update-entry-content" ? "Actualización de contenido" : "Operación"),
+                      createElement("span", null, item.kind === "install-local"
+                        ? "Instalación local"
+                        : item.kind === "update-entry-content"
+                          ? "Actualización de contenido"
+                          : "Actualización de origen"),
                       createElement("button", {
                         type: "button",
                         className: "primary-action",
                         onClick: () => { void undo(item.journalId) },
-                      }, item.kind === "update-entry-content" ? "Deshacer actualización" : "Deshacer operación"),
+                      }, item.kind === "install-local"
+                        ? "Deshacer instalación"
+                        : item.kind === "update-entry-content"
+                          ? "Deshacer actualización"
+                          : "Deshacer actualización de origen"),
                     )),
                   ),
             createElement("button", { type: "button", className: "secondary-action", onClick: () => setHistoryOpen(false) }, "Cerrar"),
           ),
         )
       : null,
+    installPlan === undefined
+      ? null
+      : createElement(
+          "div",
+          { className: "modal-backdrop" },
+          createElement(
+            "div",
+            { role: "dialog", "aria-modal": "true", "aria-labelledby": "install-dialog-title", className: "operation-dialog" },
+            createElement("h2", { id: "install-dialog-title" }, "Confirmar instalación"),
+            installPlan.destinationLabel === undefined
+              ? null
+              : createElement("p", { className: "inspector-path" }, installPlan.destinationLabel),
+            createElement("p", null, "Cambios exactos:"),
+            createElement(
+              "ul",
+              { className: "operation-diff" },
+              ...installPlan.affectedEntries.map((entry) => createElement(
+                "li",
+                { key: `${entry.action}:${entry.relativePath}` },
+                createElement("span", { className: `diff-action diff-${entry.action}` }, entry.action === "create" ? "Crear" : entry.action === "delete" ? "Eliminar" : "Modificar"),
+                createElement("code", null, entry.relativePath),
+              )),
+            ),
+            createElement(
+              "div",
+              { className: "inspector-actions" },
+              createElement("button", { type: "button", className: "primary-action", disabled: operationBusy, onClick: () => { void confirmInstall() } }, operationBusy ? "Instalando…" : "Instalar skill"),
+              createElement("button", { type: "button", className: "secondary-action", disabled: operationBusy, onClick: () => setInstallPlan(undefined) }, "Cancelar"),
+            ),
+          ),
+        ),
     mobileNavigationOpen
       ? createElement(
           "div",

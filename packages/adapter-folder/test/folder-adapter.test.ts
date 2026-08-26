@@ -92,7 +92,7 @@ async function operationFixture(rootPath: string) {
   const install: AdapterOperationRequest = {
     request: {
       kind: "install-local",
-      source: { kind: "directory", selectionToken: TOKEN, treeHash: hashResult.manifest.treeHash },
+      source: { kind: "directory", selectionToken: TOKEN, suggestedName: "alpha-copy", treeHash: hashResult.manifest.treeHash },
       targetRootId: root.id,
     },
     targetRoot: root,
@@ -104,7 +104,6 @@ async function operationFixture(rootPath: string) {
       kind: "update-from-local",
       installationId: alpha.installation.id,
       expectedSnapshotId: alpha.snapshot.id,
-      source: { kind: "directory", selectionToken: TOKEN, treeHash: hashResult.manifest.treeHash },
     },
     targetRoot: root,
     installation: alpha.installation,

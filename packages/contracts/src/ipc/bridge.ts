@@ -54,6 +54,7 @@ export interface ForgeBridge {
     confirm(input: ConfirmOperationInput): Promise<OperationResultDto>
     undo(input: UndoOperationInput): Promise<OperationResultDto>
     history(): Promise<OperationHistoryDto>
+    refreshUpdates(): Promise<AckDto>
   }
   events: {
     onRootsChanged(listener: (event: RootsChangedEvent) => void): Unsubscribe

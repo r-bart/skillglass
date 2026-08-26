@@ -24,6 +24,22 @@ export interface StoredProvenance {
   readonly value: Provenance
 }
 
+export interface StoredUpdateObservation {
+  readonly installationId: string
+  readonly state: "current" | "available" | "diverged" | "unknown"
+  readonly observedAt: string
+  readonly baseTreeHash: string
+  readonly installedTreeHash?: string
+  readonly sourceTreeHash?: string
+}
+
+export interface UpdateObservationRepository {
+  put(observation: StoredUpdateObservation): void
+  get(installationId: string): StoredUpdateObservation | undefined
+  list(): readonly StoredUpdateObservation[]
+  delete(installationId: string): boolean
+}
+
 export type OperationPlanState =
   | "planned"
   | "preconditions-checked"
@@ -129,6 +145,7 @@ export interface ForgeStore {
   readonly snapshots: SnapshotRepository
   readonly operations: OperationJournalRepository
   readonly settings: SettingsRepository
+  readonly updates: UpdateObservationRepository
   readonly path: string
   close(): void
 }

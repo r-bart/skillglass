@@ -26,12 +26,9 @@ function assertTree(reference: ArtifactRef): void {
 export class ApprovedRootLocalInstallFileSystem implements FileSystemPort {
   readonly #policy: ApprovedRootPolicy
   readonly #materializer: FileSystemLocalSourceMaterializer
-  readonly #allowExistingDestination: boolean
-
-  constructor(policy: ApprovedRootPolicy, options: { readonly allowExistingDestination?: boolean } = {}) {
+  constructor(policy: ApprovedRootPolicy) {
     this.#policy = policy
     this.#materializer = new FileSystemLocalSourceMaterializer(policy)
-    this.#allowExistingDestination = options.allowExistingDestination ?? false
   }
 
   async authorize(reference: ArtifactRef, access: "read" | "write"): Promise<void> {
@@ -83,7 +80,7 @@ export class ApprovedRootLocalInstallFileSystem implements FileSystemPort {
     throw new LocalSourceError("SOURCE_TYPE", "Local install filesystem does not write direct-content artifacts")
   }
 
-  async replace(source: ArtifactRef, destination: ArtifactRef): Promise<void> {
+  async replace(source: ArtifactRef, destination: ArtifactRef, mode: "create" | "update"): Promise<void> {
     assertTree(source)
     assertTree(destination)
     const sourcePath = await this.#policy.authorizeWrite(source.rootId, source.relativePath)
@@ -103,10 +100,13 @@ export class ApprovedRootLocalInstallFileSystem implements FileSystemPort {
       if (filesystemCode(error) !== "ENOENT") throw error
     }
     if (!destinationExists) {
+      if (mode === "update") {
+        throw new LocalSourceError("UPDATE_CONFLICT", "Update destination disappeared before replacement")
+      }
       await rename(sourcePath, destinationPath)
       return
     }
-    if (!this.#allowExistingDestination) {
+    if (mode === "create") {
       throw new LocalSourceError("DESTINATION_COLLISION", "Install destination appeared after preview")
     }
 
@@ -150,7 +150,5 @@ export class ApprovedRootLocalInstallFileSystem implements FileSystemPort {
 
 /** Update-only filesystem capability; installs deliberately retain absent-destination publication. */
 export class ApprovedRootLocalSourceUpdateFileSystem extends ApprovedRootLocalInstallFileSystem {
-  constructor(policy: ApprovedRootPolicy) {
-    super(policy, { allowExistingDestination: true })
-  }
+  // Retained as an explicit capability name; replacement mode is selected by the engine.
 }

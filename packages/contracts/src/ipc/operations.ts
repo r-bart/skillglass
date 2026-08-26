@@ -48,6 +48,7 @@ export const LocalInstallSourceDtoSchema = z.discriminatedUnion("kind", [
     .object({
       kind: z.literal("directory"),
       selectionToken: SelectionTokenSchema,
+      suggestedName: z.string().min(1).max(255),
       treeHash: Sha256Schema,
     })
     .strict(),
@@ -55,6 +56,7 @@ export const LocalInstallSourceDtoSchema = z.discriminatedUnion("kind", [
     .object({
       kind: z.literal("zip"),
       selectionToken: SelectionTokenSchema,
+      suggestedName: z.string().min(1).max(255),
       archiveSha256: Sha256Schema,
       treeHash: Sha256Schema,
     })
@@ -74,7 +76,6 @@ export const OperationRequestDtoSchema = z.discriminatedUnion("kind", [
       kind: z.literal("update-from-local"),
       installationId: InstallationIdSchema,
       expectedSnapshotId: SnapshotIdSchema,
-      source: LocalInstallSourceDtoSchema,
     })
     .strict(),
   z
@@ -108,10 +109,14 @@ export const ScopeRefDtoSchema = z.discriminatedUnion("kind", [
 
 export const AffectedEntryDtoSchema = z
   .object({
-    action: z.enum(["create", "modify"]),
+    action: z.enum(["create", "modify", "delete"]),
     rootId: RootIdSchema,
     installationId: InstallationIdSchema.optional(),
     relativePath: RelativeDisplayPathSchema,
+    beforeByteLength: z.number().int().nonnegative().optional(),
+    beforeSha256: Sha256Schema.optional(),
+    afterByteLength: z.number().int().nonnegative().optional(),
+    afterSha256: Sha256Schema.optional(),
   })
   .strict()
 
@@ -136,6 +141,7 @@ export const OperationPlanDtoSchema = z
     warnings: z.array(OperationIssueDtoSchema).max(128),
     undo: z.enum(["persistent", "not-supported"]),
     summary: z.string().min(1).max(4_000),
+    destinationLabel: z.string().min(1).max(2_048).optional(),
   })
   .strict()
   .superRefine((plan, context) => {

@@ -4,7 +4,7 @@ import { copyFile, lstat, open, readFile, rename, unlink } from "node:fs/promise
 import path from "node:path"
 
 import type { ProjectionRepository } from "@forge/storage"
-import { FilesystemApprovedRootPolicy, type ApprovedRootPolicy } from "@forge/scanner"
+import { FilesystemApprovedRootPolicy, type ApprovedRootInput, type ApprovedRootPolicy } from "@forge/scanner"
 
 import type { ArtifactObservation, ArtifactRef, FileSystemPort } from "../core/index.js"
 import { OperationConflictError, OperationValidationError } from "../core/index.js"
@@ -28,19 +28,24 @@ function filesystemCode(error: unknown): string | undefined {
 /** Resolves every root ID from the current persisted projection, never from renderer paths. */
 export class ProjectionContentFileSystem implements FileSystemPort {
   readonly #projections: ProjectionRepository
+  readonly #additionalRoots: readonly ApprovedRootInput[]
 
-  constructor(projections: ProjectionRepository) {
+  constructor(projections: ProjectionRepository, additionalRoots: readonly ApprovedRootInput[] = []) {
     this.#projections = projections
+    this.#additionalRoots = additionalRoots
   }
 
   async #policy(): Promise<ApprovedRootPolicy> {
-    return FilesystemApprovedRootPolicy.create(this.#projections.listRoots().map((root) => ({
-      rootId: root.id,
-      path: root.canonicalPath,
-      kind: root.kind,
-      access: root.access,
-      writableWithoutElevation: root.access === "read-write" && root.kind !== "managed" && root.kind !== "system",
-    })))
+    return FilesystemApprovedRootPolicy.create([
+      ...this.#projections.listRoots().map((root) => ({
+        rootId: root.id,
+        path: root.canonicalPath,
+        kind: root.kind,
+        access: root.access,
+        writableWithoutElevation: root.access === "read-write" && root.kind !== "managed" && root.kind !== "system",
+      })),
+      ...this.#additionalRoots,
+    ])
   }
 
   async #readPath(reference: ArtifactRef): Promise<string> {

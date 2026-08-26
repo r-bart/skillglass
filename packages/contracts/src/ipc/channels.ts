@@ -13,6 +13,7 @@ export const IPC_INVOKE_CHANNELS = {
   operationsConfirm: "forge:operations:confirm",
   operationsUndo: "forge:operations:undo",
   operationsHistory: "forge:operations:history",
+  operationsRefreshUpdates: "forge:operations:refresh-updates",
 } as const
 
 export const IPC_EVENT_CHANNELS = {

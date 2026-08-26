@@ -13,6 +13,7 @@ import {
 
 import { migrate } from "./migrations.js"
 import { StoredInventoryQueryRepository } from "./inventory-query.js"
+import { SettingsUpdateObservationRepository } from "./update-observations.js"
 import type {
   ForgeStore,
   InventoryProjection,
@@ -322,6 +323,10 @@ class SqliteSnapshotRepository implements SnapshotRepository {
     this.#insertProvenance = database.prepare(`
       INSERT INTO provenance(id, installation_id, observed_at, value_json)
       VALUES (?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        installation_id = excluded.installation_id,
+        observed_at = excluded.observed_at,
+        value_json = excluded.value_json
     `)
     this.#getProvenance = database.prepare(
       "SELECT * FROM provenance WHERE id = ?",
@@ -652,13 +657,16 @@ export function openForgeStore(options: OpenForgeStoreOptions): ForgeStore {
 
     const projections = new SqliteProjectionRepository(database)
     const snapshots = new SqliteSnapshotRepository(database)
+    const settings = new SqliteSettingsRepository(database)
+    const updates = new SettingsUpdateObservationRepository(settings)
     const store: ForgeStore = {
       path: options.path,
       projections,
-      inventory: new StoredInventoryQueryRepository(projections, snapshots),
+      inventory: new StoredInventoryQueryRepository(projections, snapshots, () => new Date(), updates),
       snapshots,
       operations: new SqliteOperationJournalRepository(database),
-      settings: new SqliteSettingsRepository(database),
+      settings,
+      updates,
       close: () => {
         if (database.isOpen) database.close()
       },

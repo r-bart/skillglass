@@ -104,7 +104,7 @@ export function operationRequest(kind: OperationRequestDto["kind"]): AdapterOper
     kind === "install-local"
       ? {
           kind,
-          source: { kind: "directory", selectionToken: TOKEN, treeHash: HASH },
+          source: { kind: "directory", selectionToken: TOKEN, suggestedName: "alpha", treeHash: HASH },
           targetRootId: root.id,
         }
       : kind === "update-from-local"
@@ -112,7 +112,6 @@ export function operationRequest(kind: OperationRequestDto["kind"]): AdapterOper
             kind,
             installationId: "installation_alpha",
             expectedSnapshotId: "snapshot_alpha",
-            source: { kind: "directory", selectionToken: TOKEN, treeHash: HASH },
           }
         : {
             kind,
@@ -121,7 +120,14 @@ export function operationRequest(kind: OperationRequestDto["kind"]): AdapterOper
             content: "---\nname: alpha\ndescription: changed\n---\n",
           }
 
-  return { request, targetRoot: root, rootPolicy }
+  return {
+    request,
+    targetRoot: root,
+    ...(kind === "update-from-local"
+      ? { sourceManifest: { contract: "local-source-v1" as const, hashAlgorithm: "forge-tree-v1" as const, treeHash: HASH, files: [] } }
+      : {}),
+    rootPolicy,
+  }
 }
 
 function operationPlan(request: AdapterOperationRequest): OperationPlanDto {

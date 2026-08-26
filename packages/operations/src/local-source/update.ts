@@ -34,6 +34,8 @@ export interface LocalSourceUpdateCoordinatorOptions {
   readonly provenance: LocalSourceProvenanceRepository
   readonly now?: () => Date
   readonly mintObservationId?: () => string
+  /** Private, non-scanned approved root for source materializations and snapshots. */
+  readonly recoveryRootId?: string
 }
 
 interface DestinationInspection {
@@ -146,6 +148,7 @@ export class LocalSourceUpdateCoordinator {
   readonly #provenance: LocalSourceProvenanceRepository
   readonly #now: NonNullable<LocalSourceUpdateCoordinatorOptions["now"]>
   readonly #mintObservationId: NonNullable<LocalSourceUpdateCoordinatorOptions["mintObservationId"]>
+  readonly #recoveryRootId: string | undefined
   readonly #observations = new Map<string, InternalObservation>()
   readonly #pending = new Map<string, PendingUpdate>()
 
@@ -157,6 +160,7 @@ export class LocalSourceUpdateCoordinator {
     this.#provenance = options.provenance
     this.#now = options.now ?? (() => new Date())
     this.#mintObservationId = options.mintObservationId ?? randomUUID
+    this.#recoveryRootId = options.recoveryRootId
   }
 
   async observe(provenance: LocalImportProvenanceV1, trigger: LocalSourceUpdateTrigger): Promise<LocalSourceUpdateObservation> {
@@ -169,6 +173,15 @@ export class LocalSourceUpdateCoordinator {
     const provenance = this.#provenance.reconstruct(provenanceId)
     if (provenance === undefined) throw new LocalSourceError("SELECTION_UNKNOWN", "Local-source provenance does not exist")
     return this.observe(provenance, trigger)
+  }
+
+  /** Main-process-only adapter planning data for one still-live opaque observation. */
+  sourceManifestForObservation(observationId: string): LocalSourceManifestV1 {
+    const observed = this.#observations.get(observationId)
+    if (observed?.public.state !== "available" || observed.source === undefined) {
+      throw new LocalSourceError("UPDATE_CONFLICT", "Update observation has no verified available source")
+    }
+    return observed.source.manifest
   }
 
   async prepare(input: PrepareLocalSourceUpdateInput): Promise<PreparedLocalSourceUpdate> {
@@ -199,7 +212,11 @@ export class LocalSourceUpdateCoordinator {
     requireUpdateStep(input.adapterPlan, destination.artifact, destination.inspection.manifest.treeHash, source.manifest.treeHash)
 
     const suffix = opaqueSuffix(planId)
-    const sourceArtifact: ArtifactRef = { rootId: destination.artifact.rootId, relativePath: `.forge-update-source-${suffix}`, kind: "tree" }
+    const sourceArtifact: ArtifactRef = {
+      rootId: this.#recoveryRootId ?? destination.artifact.rootId,
+      relativePath: `.forge-update-source-${suffix}`,
+      kind: "tree",
+    }
     try {
       const materialized = await this.#materializer.materialize(source, sourceArtifact)
       if (materialized.treeHash !== source.manifest.treeHash || JSON.stringify(materialized.files) !== JSON.stringify(source.manifest.files)) {
@@ -218,7 +235,10 @@ export class LocalSourceUpdateCoordinator {
         destination: destination.artifact,
         expectedBeforeHash: destination.inspection.manifest.treeHash,
         stage: { rootId: destination.artifact.rootId, relativePath: `.forge-update-stage-${suffix}` },
-        snapshot: { rootId: destination.artifact.rootId, relativePath: `.forge-update-snapshot-${suffix}` },
+        snapshot: {
+          rootId: this.#recoveryRootId ?? destination.artifact.rootId,
+          relativePath: `.forge-update-snapshot-${suffix}`,
+        },
       })
       const prepared: PreparedLocalSourceUpdate = {
         plan,

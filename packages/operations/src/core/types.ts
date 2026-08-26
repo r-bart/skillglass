@@ -136,7 +136,11 @@ export interface FileSystemPort {
   copyExclusive(source: ArtifactRef, destination: ArtifactRef): Promise<void>
   writeFileExclusive(destination: ArtifactRef, content: string): Promise<void>
   /** Atomically replaces destination where supported and consumes source. */
-  replace(source: ArtifactRef, destination: ArtifactRef): Promise<void>
+  replace(
+    source: ArtifactRef,
+    destination: ArtifactRef,
+    mode: "create" | "update",
+  ): Promise<void>
   /** Removes only when the complete current artifact matches expectedHash. */
   removeExact(path: ArtifactRef, expectedHash: string): Promise<boolean>
 }

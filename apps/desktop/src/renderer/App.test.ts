@@ -61,6 +61,7 @@ const operationBridge: ForgeBridge["operations"] = {
   confirm: () => Promise.reject(new Error("Not part of this renderer test")),
   undo: () => Promise.reject(new Error("Not part of this renderer test")),
   history: () => Promise.resolve({ items: [] }),
+  refreshUpdates: () => Promise.resolve({ ok: true }),
 }
 
 function buttonNamed(name: string): HTMLButtonElement {
@@ -151,5 +152,111 @@ describe("Forge application shell", () => {
     await act(async () => buttonNamed("Escanear carpetas aprobadas").click())
     expect(approveRoots).toHaveBeenCalledWith({ candidateIds: [candidate.candidateId] })
     expect(container.querySelector("h1")?.textContent).toBe("Inventario")
+  })
+
+  it("selects a local directory by token and previews exact install files before confirmation", async () => {
+    const selectLocalSource = vi.fn(() => Promise.resolve({
+      kind: "directory" as const,
+      selectionToken: "a".repeat(32),
+      displayName: "local-installable",
+      treeHash: "b".repeat(64),
+      expiresAt: "2026-08-26T10:15:00.000Z",
+    }))
+    const plan = vi.fn(() => Promise.resolve({
+      planId: "plan_install",
+      kind: "install-local" as const,
+      status: "planned" as const,
+      createdAt: "2026-08-26T10:00:00.000Z",
+      expiresAt: "2026-08-26T10:15:00.000Z",
+      adapterId: "folder",
+      installationIds: [],
+      targetRootId: approved.rootId,
+      affectedScopes: [{ kind: "global" as const }],
+      affectedEntries: [{ action: "create" as const, rootId: approved.rootId, relativePath: "local-installable/SKILL.md", afterByteLength: 42, afterSha256: "c".repeat(64) }],
+      preconditions: [], conflicts: [], warnings: [], undo: "persistent" as const,
+      summary: "Instalar local-installable",
+      destinationLabel: "/safe/skills/local-installable",
+    }))
+    const confirm = vi.fn(() => Promise.resolve({
+      operationId: "operation_install",
+      planId: "plan_install",
+      journalId: "plan_install",
+      status: "committed" as const,
+      finishedAt: "2026-08-26T10:01:00.000Z",
+      installationIds: ["installation_local"],
+      message: "Skill instalada",
+      issues: [], undoAvailable: true,
+    }))
+    const bridge: ForgeBridge["operations"] = {
+      ...operationBridge,
+      selectLocalSource,
+      plan,
+      confirm,
+    }
+    await act(async () => root.render(createElement(App, {
+      onboardingBridge: onboardingBridge(completeState), inventoryBridge, eventBridge, operationBridge: bridge,
+    })))
+
+    await act(async () => buttonNamed("Instalar desde carpeta").click())
+    expect(selectLocalSource).toHaveBeenCalledWith({ kind: "directory" })
+    expect(plan).toHaveBeenCalledWith({
+      kind: "install-local",
+      source: {
+        kind: "directory",
+        selectionToken: "a".repeat(32),
+        suggestedName: "local-installable",
+        treeHash: "b".repeat(64),
+      },
+      targetRootId: approved.rootId,
+    })
+    const dialog = container.querySelector('[role="dialog"]')
+    expect(dialog?.getAttribute("aria-labelledby")).toBe("install-dialog-title")
+    expect(dialog?.textContent).toContain("/safe/skills/local-installable")
+    expect(dialog?.textContent).toContain("local-installable/SKILL.md")
+
+    await act(async () => buttonNamed("Instalar skill").click())
+    expect(confirm).toHaveBeenCalledWith({ planId: "plan_install" })
+    expect(container.querySelector('[role="status"]')?.textContent).toContain("Skill instalada")
+  })
+
+  it("announces authoritative operation progress and completion", async () => {
+    let progress: Parameters<ForgeBridge["events"]["onOperationProgress"]>[0] = () => undefined
+    let completed: Parameters<ForgeBridge["events"]["onOperationCompleted"]>[0] = () => undefined
+    const bridge: ForgeBridge["events"] = {
+      ...eventBridge,
+      onOperationProgress: (listener) => {
+        progress = listener
+        return () => undefined
+      },
+      onOperationCompleted: (listener) => {
+        completed = listener
+        return () => undefined
+      },
+    }
+    await act(async () => root.render(createElement(App, {
+      onboardingBridge: onboardingBridge(completeState), inventoryBridge, eventBridge: bridge, operationBridge,
+    })))
+
+    act(() => progress({
+      operationId: "operation_install",
+      planId: "plan_install",
+      journalId: "plan_install",
+      stage: "applying",
+      message: "Aplicando instalación",
+    }))
+    expect(container.querySelector('[role="status"]')?.textContent).toContain("Aplicando instalación")
+
+    act(() => completed({
+      operationId: "operation_install",
+      planId: "plan_install",
+      journalId: "plan_install",
+      status: "committed",
+      finishedAt: "2026-08-26T10:01:00.000Z",
+      installationIds: ["installation_local"],
+      message: "Skill instalada",
+      issues: [],
+      undoAvailable: true,
+    }))
+    expect(container.querySelector('[role="status"]')?.textContent).toContain("Skill instalada")
   })
 })

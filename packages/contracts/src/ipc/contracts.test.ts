@@ -237,17 +237,16 @@ describe("operation contracts", () => {
     treeHash: HASH_B,
   }
 
-  it("accepts tokenized install and update requests without source paths", () => {
+  it("accepts tokenized installs and reconstructs update sources from installation IDs", () => {
     expectJsonRoundTrip(OperationRequestDtoSchema, {
       kind: "install-local",
-      source: localSource,
+      source: { ...localSource, suggestedName: "skill" },
       targetRootId: "root_global",
     })
     expectJsonRoundTrip(OperationRequestDtoSchema, {
       kind: "update-from-local",
       installationId: "installation_alpha",
       expectedSnapshotId: "snapshot_alpha",
-      source: localSource,
     })
     expectJsonRoundTrip(OperationRequestDtoSchema, {
       kind: "update-entry-content",
@@ -259,14 +258,14 @@ describe("operation contracts", () => {
     expect(
       OperationRequestDtoSchema.safeParse({
         kind: "install-local",
-        source: { ...localSource, path: "/tmp/skill.zip" },
+        source: { ...localSource, suggestedName: "skill", path: "/tmp/skill.zip" },
         targetRootId: "root_global",
       }).success,
     ).toBe(false)
     expect(
       OperationRequestDtoSchema.safeParse({
         kind: "install-local",
-        source: { ...localSource, selectionToken: "/tmp/skill.zip" },
+        source: { ...localSource, suggestedName: "skill", selectionToken: "/tmp/skill.zip" },
         targetRootId: "root_global",
       }).success,
     ).toBe(false)
@@ -294,6 +293,13 @@ describe("operation contracts", () => {
           action: "create",
           rootId: "root_global",
           relativePath: "skill-forge/SKILL.md",
+        },
+        {
+          action: "delete",
+          rootId: "root_global",
+          relativePath: "skill-forge/obsolete.md",
+          beforeByteLength: 12,
+          beforeSha256: "d".repeat(64),
         },
       ],
       preconditions: [],
