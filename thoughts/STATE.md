@@ -31,6 +31,7 @@
 - Electron acceptance: 17/17 passing; immutable BV suite 10/10 and hash unchanged.
 - macOS package/make, strict code-sign verification, ASAR/fuses, and packaged SQLite reopen smoke pass.
 - Native Linux ARM64 package/runtime, all Electron E2E scenarios, packaged SQLite reopen, DEB/RPM makers, and artifact verification pass.
+- Windows x64 cross-packaging produces a structurally valid PE GUI executable with the expected ASAR and hardened fuses; native launch, SQLite reopen, E2E, and Squirrel maker evidence remain pending.
 - CI and manual draft-Release workflows are implemented for native macOS, Windows, and Linux runners.
 - Final strict architecture re-review: APPROVE; no internal release-blocking finding remains.
 - Acceptance record: `thoughts/reviews/2026-08-26_forge-mvp-acceptance.md`.

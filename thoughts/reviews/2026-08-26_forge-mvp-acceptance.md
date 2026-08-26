@@ -41,6 +41,7 @@ The MVP implementation is green on macOS arm64 and Linux arm64 with native artif
 - The final macOS bundle passes `codesign --verify --deep --strict`; its signature is explicitly ad hoc, not Developer ID or notarization.
 - No updater, privilege-elevation path, harness-state mutation, uninstall, delete, or move capability exists in application code.
 - SQLite/recovery storage is user-only on POSIX; observation snapshots enforce the 30/90 retention target under a 256 MiB default ceiling while pinning current inventory state.
+- POSIX permission hardening is platform-gated, so Windows relies on its per-user application-data ACLs instead of receiving unsupported mode mutations.
 
 ## Business and failure-path evidence
 
@@ -64,7 +65,7 @@ The MVP implementation is green on macOS arm64 and Linux arm64 with native artif
 | Platform | Workflow defined | Executed evidence |
 |---|---:|---:|
 | macOS arm64 | Yes | Pass locally |
-| Windows | Yes | Pending repository remote / GitHub Actions run |
+| Windows x64 | Yes | Cross-package pass: valid PE GUI executable, expected ASAR, and hardened fuses. Native launch, SQLite reopen, E2E, and Squirrel maker remain pending repository remote / GitHub Actions run |
 | Linux arm64 | Yes | Pass in a native Linux ARM64 container: 269/269 unit/integration tests, 17 Electron E2E scenarios as an unprivileged user with the Chromium sandbox enabled, packaged SQLite reopen, DEB/RPM maker and artifact verification |
 
 Cross-compilation is intentionally not substituted for the required native evidence.

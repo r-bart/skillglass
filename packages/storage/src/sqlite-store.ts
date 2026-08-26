@@ -772,7 +772,9 @@ export function openForgeStore(options: OpenForgeStoreOptions): ForgeStore {
   }
   if (options.path !== ":memory:") {
     mkdirSync(dirname(options.path), { recursive: true, mode: 0o700 })
-    if (options.privateDirectory === true) chmodSync(dirname(options.path), 0o700)
+    if (options.privateDirectory === true && process.platform !== "win32") {
+      chmodSync(dirname(options.path), 0o700)
+    }
   }
 
   const database = new DatabaseSync(options.path, {
@@ -786,7 +788,7 @@ export function openForgeStore(options: OpenForgeStoreOptions): ForgeStore {
     migrate(database)
     if (options.path !== ":memory:") {
       database.exec("PRAGMA journal_mode = WAL")
-      chmodSync(options.path, 0o600)
+      if (process.platform !== "win32") chmodSync(options.path, 0o600)
     }
 
     const projections = new SqliteProjectionRepository(database)

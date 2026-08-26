@@ -245,7 +245,7 @@ export async function createOnboardingComposition(
   })
   const recoveryPath = path.join(app.getPath("userData"), "operation-recovery-v1")
   await mkdir(recoveryPath, { recursive: true, mode: 0o700 })
-  await chmod(recoveryPath, 0o700)
+  if (process.platform !== "win32") await chmod(recoveryPath, 0o700)
   const recoveryRoot: ApprovedRootInput = {
     rootId: RECOVERY_ROOT_ID,
     path: recoveryPath,
