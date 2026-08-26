@@ -2,6 +2,8 @@ import { createElement, useEffect, useState, type ReactNode } from "react"
 
 import type { ForgeBridge, OnboardingStateDto, RootCandidateDto } from "@forge/contracts"
 
+import { Inspector, Inventory } from "./inventory/index.js"
+
 type Surface = "onboarding" | "inventory"
 
 interface NavigationProps {
@@ -186,101 +188,31 @@ function Onboarding({
   )
 }
 
-function InventoryPlaceholder() {
-  return createElement(
-    "section",
-    { className: "content-surface", "aria-labelledby": "inventory-title" },
-    createElement(
-      "div",
-      { className: "page-heading" },
-      createElement("p", { className: "eyebrow" }, "Todas las fuentes"),
-      createElement("h1", { id: "inventory-title" }, "Inventario"),
-      createElement(
-        "p",
-        { className: "page-description" },
-        "Consulta las skills que Forge observe en las ubicaciones aprobadas, sin alterar su activación en ningún harness.",
-      ),
-    ),
-    createElement(
-      "dl",
-      { className: "inventory-summary" },
-      createElement(
-        "div",
-        null,
-        createElement("dt", null, "Skills observadas"),
-        createElement("dd", { className: "numeric-value" }, "Sin datos"),
-      ),
-      createElement(
-        "div",
-        null,
-        createElement("dt", null, "Último escaneo"),
-        createElement("dd", null, "Todavía no ejecutado"),
-      ),
-      createElement(
-        "div",
-        null,
-        createElement("dt", null, "Acceso"),
-        createElement("dd", null, "Pendiente de configurar"),
-      ),
-    ),
-    createElement(
-      "div",
-      { className: "empty-state" },
-      createElement("p", { className: "empty-state-kicker" }, "Inventario preparado"),
-      createElement("h2", null, "Tus skills aparecerán aquí"),
-      createElement(
-        "p",
-        null,
-        "Cuando existan raíces aprobadas, esta vista mostrará resultados, estados de evidencia y ámbitos disponibles.",
-      ),
-    ),
-  )
-}
-
-function InspectorPlaceholder() {
-  return createElement(
-    "aside",
-    { className: "inspector", "aria-labelledby": "inspector-title" },
-    createElement(
-      "div",
-      { className: "inspector-heading" },
-      createElement("p", { className: "eyebrow" }, "Detalle"),
-      createElement("h2", { id: "inspector-title" }, "Inspector"),
-    ),
-    createElement(
-      "div",
-      { className: "inspector-empty" },
-      createElement("p", { className: "inspector-empty-title" }, "Ninguna skill seleccionada"),
-      createElement(
-        "p",
-        null,
-        "Selecciona una skill del inventario para revisar su origen, ubicación y evidencia disponible.",
-      ),
-    ),
-    createElement(
-      "dl",
-      { className: "inspector-metadata" },
-      createElement("div", null, createElement("dt", null, "Ruta"), createElement("dd", null, "Sin selección")),
-      createElement("div", null, createElement("dt", null, "Runtime"), createElement("dd", null, "Sin datos")),
-      createElement("div", null, createElement("dt", null, "Ámbito"), createElement("dd", null, "Sin datos")),
-    ),
-  )
-}
-
-function PageContent({ activeSurface, onboarding }: { activeSurface: Surface; onboarding: ReactNode }): ReactNode {
+function PageContent({ activeSurface, onboarding, inventory }: { activeSurface: Surface; onboarding: ReactNode; inventory: ReactNode }): ReactNode {
   return activeSurface === "onboarding"
     ? onboarding
-    : createElement(InventoryPlaceholder)
+    : inventory
 }
 
-export function App({ onboardingBridge: suppliedOnboardingBridge }: { onboardingBridge?: ForgeBridge["onboarding"] }) {
+export function App({
+  onboardingBridge: suppliedOnboardingBridge,
+  inventoryBridge: suppliedInventoryBridge,
+  eventBridge: suppliedEventBridge,
+}: {
+  onboardingBridge?: ForgeBridge["onboarding"]
+  inventoryBridge?: ForgeBridge["inventory"]
+  eventBridge?: ForgeBridge["events"]
+}) {
   const onboardingBridge = suppliedOnboardingBridge ?? window.forge.onboarding
+  const inventoryBridge = suppliedInventoryBridge ?? window.forge.inventory
+  const eventBridge = suppliedEventBridge ?? window.forge.events
   const [activeSurface, setActiveSurface] = useState<Surface>("onboarding")
   const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false)
   const [onboardingState, setOnboardingState] = useState<OnboardingStateDto | null>(null)
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [selectedInstallationId, setSelectedInstallationId] = useState<string>()
 
   useEffect(() => {
     let current = true
@@ -349,6 +281,11 @@ export function App({ onboardingBridge: suppliedOnboardingBridge }: { onboarding
     onAdd: () => { void addRoot() },
     onApprove: () => { void approve() },
   })
+  const inventory = createElement(Inventory, {
+    inventoryBridge,
+    eventBridge,
+    onSelectionChange: setSelectedInstallationId,
+  })
 
   return createElement(
     "div",
@@ -382,9 +319,14 @@ export function App({ onboardingBridge: suppliedOnboardingBridge }: { onboarding
       createElement(
         "main",
         { className: "main-content", id: "main-content", tabIndex: -1 },
-        createElement(PageContent, { activeSurface, onboarding }),
+        createElement(PageContent, { activeSurface, onboarding, inventory }),
       ),
-      createElement(InspectorPlaceholder),
+      createElement(Inspector, {
+        inventoryBridge,
+        ...(activeSurface === "inventory" && selectedInstallationId !== undefined
+          ? { installationId: selectedInstallationId }
+          : {}),
+      }),
     ),
   )
 }

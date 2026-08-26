@@ -4,6 +4,7 @@ import type {
   InventoryPageDto,
   InventoryQuery,
 } from "./inventory.js"
+import type { AckDto } from "./primitives.js"
 import type {
   ConfirmOperationInput,
   LocalSourceSelectionDto,
@@ -42,6 +43,7 @@ export interface ForgeBridge {
   inventory: {
     list(input: InventoryQuery): Promise<InventoryPageDto>
     inspect(input: InspectInstallationInput): Promise<InstallationDetailDto>
+    openEntry(input: InspectInstallationInput): Promise<AckDto>
   }
   operations: {
     selectLocalSource(

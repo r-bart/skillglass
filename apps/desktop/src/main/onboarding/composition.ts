@@ -2,7 +2,7 @@ import { createHash } from "node:crypto"
 import { lstat } from "node:fs/promises"
 import path from "node:path"
 
-import { app, dialog, ipcMain, type BrowserWindow } from "electron"
+import { app, dialog, ipcMain, shell, type BrowserWindow } from "electron"
 
 import { CodexAdapter } from "@forge/adapter-codex"
 import { FolderAdapter } from "@forge/adapter-folder"
@@ -16,6 +16,9 @@ import { resolveCanonicalPath } from "@forge/scanner"
 import { openForgeStore } from "@forge/storage"
 
 import { isTrustedRendererUrl } from "../security.js"
+import { e2eAdminSkillsRoot, useE2eBuiltAssets } from "../e2e-test-seam.js"
+import { registerInventoryIpc } from "../inventory/ipc.js"
+import { InventoryService } from "../inventory/service.js"
 import { registerOnboardingIpc } from "./ipc.js"
 import { RootService } from "./root-service.js"
 import { ApprovedRootScanService } from "./scan-service.js"
@@ -67,7 +70,10 @@ export async function createOnboardingComposition(
     projects,
   }
   const store = openForgeStore({ path: path.join(app.getPath("userData"), "forge.sqlite") })
-  const codexAdapter = new CodexAdapter()
+  const adminSkillsRoot = e2eAdminSkillsRoot()
+  const codexAdapter = new CodexAdapter(
+    adminSkillsRoot === undefined ? {} : { adminSkillsRoot },
+  )
   const folderAdapter = new FolderAdapter({ roots: [] })
   const send = (channel: string, payload: unknown): void => {
     const window = currentWindow()
@@ -101,13 +107,23 @@ export async function createOnboardingComposition(
       }))
     },
   })
-  const developmentServerUrl = app.isPackaged ? undefined : MAIN_WINDOW_VITE_DEV_SERVER_URL
+  const usesBuiltAssets = app.isPackaged || useE2eBuiltAssets()
+  const developmentServerUrl = usesBuiltAssets ? undefined : MAIN_WINDOW_VITE_DEV_SERVER_URL
   const unregister = registerOnboardingIpc({
     ipcMain,
     rootService,
     isTrustedSender: (url) => isTrustedRendererUrl(
       url,
-      app.isPackaged,
+      usesBuiltAssets,
+      ...(developmentServerUrl === undefined ? [] : [developmentServerUrl]),
+    ),
+  })
+  const unregisterInventory = registerInventoryIpc({
+    ipcMain,
+    inventoryService: new InventoryService(store.inventory, store.projections, shell),
+    isTrustedSender: (url) => isTrustedRendererUrl(
+      url,
+      usesBuiltAssets,
       ...(developmentServerUrl === undefined ? [] : [developmentServerUrl]),
     ),
   })
@@ -115,6 +131,7 @@ export async function createOnboardingComposition(
     rootService,
     startPersistedScan: () => rootService.scanPersistedApproval(),
     dispose: () => {
+      unregisterInventory()
       unregister()
       store.close()
     },

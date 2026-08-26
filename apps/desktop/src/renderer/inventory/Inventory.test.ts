@@ -1,0 +1,330 @@
+import { act, createElement } from "react"
+import { createRoot, type Root } from "react-dom/client"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+
+import type {
+  ForgeBridge,
+  InventoryItemDto,
+  InventoryPageDto,
+} from "@forge/contracts"
+
+import { Inventory } from "./Inventory.js"
+
+Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
+
+const OBSERVED_AT = "2026-08-26T10:00:00.000Z"
+
+function item(
+  id: string,
+  name: string,
+  scope: InventoryItemDto["scope"],
+  author?: string,
+): InventoryItemDto {
+  return {
+    installationId: `installation_${id}`,
+    adapterId: id === "folder_skill" ? "folder" : "codex",
+    rootId: scope.kind === "project" ? "root_project" : "root_global",
+    scope,
+    key: name,
+    name: {
+      state: "known",
+      value: name,
+      evidence: { kind: "observed", source: "SKILL.md" },
+    },
+    description: {
+      state: "known",
+      value: `Descripción de ${name}`,
+      evidence: { kind: "observed", source: "SKILL.md" },
+    },
+    declaredVersion: {
+      state: "unknown",
+      evidence: { kind: "unknown", source: "frontmatter.version" },
+    },
+    ...(author === undefined
+      ? {}
+      : {
+          author: {
+            state: "known" as const,
+            value: author,
+            evidence: { kind: "observed" as const, source: "SKILL.md" },
+          },
+        }),
+    status: {
+      validity: id === "folder_skill" ? "invalid" : "valid",
+      runtimeState: "unknown",
+      source: id === "folder_skill" ? "read-only" : "local",
+      update: "unknown",
+      usage: "unavailable",
+    },
+    observedAt: OBSERVED_AT,
+  }
+}
+
+const inventoryItems: readonly InventoryItemDto[] = [
+  item("global_review", "global-review", { kind: "global" }, "Ada"),
+  item(
+    "project_release",
+    "project-release",
+    { kind: "project", projectId: "project_acme" },
+    "Grace",
+  ),
+  item(
+    "folder_skill",
+    "broken-frontmatter",
+    { kind: "project", projectId: "project_acme" },
+  ),
+]
+
+const basePage: InventoryPageDto = {
+  items: [...inventoryItems],
+  projects: [{ projectId: "project_acme", displayName: "Acme Web" }],
+  nextCursor: null,
+  total: inventoryItems.length,
+  observedAt: OBSERVED_AT,
+}
+
+function bridge(
+  list: ForgeBridge["inventory"]["list"],
+): ForgeBridge["inventory"] {
+  return {
+    list,
+    inspect: () => Promise.reject(new Error("Inspector belongs to Task 4.4")),
+    openEntry: () => Promise.resolve({ ok: true }),
+  }
+}
+
+function selectLabeled(label: string): HTMLSelectElement {
+  const control = [...container.querySelectorAll("label")]
+    .find((candidate) => candidate.querySelector("span")?.textContent === label)
+    ?.querySelector("select")
+  if (!(control instanceof HTMLSelectElement)) {
+    throw new Error(`Select not found: ${label}`)
+  }
+  return control
+}
+
+function buttonNamed(name: string): HTMLButtonElement {
+  const button = [...container.querySelectorAll("button")]
+    .find((candidate) => candidate.textContent?.trim() === name)
+  if (!(button instanceof HTMLButtonElement)) {
+    throw new Error(`Button not found: ${name}`)
+  }
+  return button
+}
+
+function inputText(control: HTMLInputElement, value: string): void {
+  const setter = Object.getOwnPropertyDescriptor(
+    HTMLInputElement.prototype,
+    "value",
+  )?.set
+  if (setter === undefined) throw new Error("Native input value setter missing")
+  setter.call(control, value)
+  control.dispatchEvent(new Event("input", { bubbles: true }))
+}
+
+async function settle(): Promise<void> {
+  await act(async () => {
+    await Promise.resolve()
+    await Promise.resolve()
+  })
+}
+
+let container: HTMLDivElement
+let root: Root
+
+beforeEach(() => {
+  container = document.createElement("div")
+  document.body.append(container)
+  root = createRoot(container)
+})
+
+afterEach(() => {
+  act(() => root.unmount())
+  container.remove()
+})
+
+describe("Inventory", () => {
+  it("navigates Esta máquina, true Global, and a project as distinct queries", async () => {
+    const list = vi.fn(() => Promise.resolve(basePage))
+    await act(async () => root.render(createElement(Inventory, {
+      inventoryBridge: bridge(list),
+    })))
+
+    expect(list).toHaveBeenLastCalledWith(expect.objectContaining({
+      scope: { kind: "all" },
+    }))
+    expect(buttonNamed("Esta máquina").getAttribute("aria-pressed")).toBe("true")
+
+    await act(async () => buttonNamed("Global").click())
+    expect(list).toHaveBeenLastCalledWith(expect.objectContaining({
+      scope: { kind: "global" },
+    }))
+
+    await act(async () => buttonNamed("Acme Web").click())
+    expect(list).toHaveBeenLastCalledWith(expect.objectContaining({
+      scope: { kind: "project", projectId: "project_acme" },
+    }))
+  })
+
+  it("submits accessible search, evidence-aware filters, grouping, and sorting", async () => {
+    const list = vi.fn(() => Promise.resolve(basePage))
+    await act(async () => root.render(createElement(Inventory, {
+      inventoryBridge: bridge(list),
+    })))
+
+    const search = container.querySelector<HTMLInputElement>('input[type="search"]')
+    expect(search?.labels?.[0]?.textContent).toContain("Buscar skills")
+    expect(selectLabeled("Validez").labels?.[0]?.textContent).toContain("Validez")
+
+    await act(async () => {
+      if (search === null) throw new Error("Search field is missing")
+      inputText(search, "release")
+    })
+    const validity = selectLabeled("Validez")
+    await act(async () => {
+      validity.value = "invalid"
+      validity.dispatchEvent(new Event("change", { bubbles: true }))
+    })
+    const provenance = selectLabeled("Procedencia")
+    await act(async () => {
+      provenance.value = "local"
+      provenance.dispatchEvent(new Event("change", { bubbles: true }))
+    })
+    const order = selectLabeled("Orden")
+    await act(async () => {
+      order.value = "observedAt:desc"
+      order.dispatchEvent(new Event("change", { bubbles: true }))
+    })
+    const grouping = selectLabeled("Agrupar")
+    await act(async () => {
+      grouping.value = "author"
+      grouping.dispatchEvent(new Event("change", { bubbles: true }))
+    })
+    const author = selectLabeled("Autor")
+    await act(async () => {
+      author.value = "Ada"
+      author.dispatchEvent(new Event("change", { bubbles: true }))
+    })
+
+    expect(list).toHaveBeenLastCalledWith(expect.objectContaining({
+      search: "release",
+      validity: ["invalid"],
+      provenanceKinds: ["local"],
+      authors: ["Ada"],
+      groupBy: "author",
+      sort: { by: "observedAt", direction: "desc" },
+    }))
+    expect(container.textContent).toContain("Sin autor observado")
+  })
+
+  it("supports mouse and arrow-key selection with a single roving tab stop", async () => {
+    const onSelectionChange = vi.fn()
+    await act(async () => root.render(createElement(Inventory, {
+      inventoryBridge: bridge(() => Promise.resolve(basePage)),
+      onSelectionChange,
+    })))
+
+    const rows = [...container.querySelectorAll<HTMLTableRowElement>(".inventory-row")]
+    expect(rows.map(({ tabIndex }) => tabIndex)).toEqual([0, -1, -1])
+
+    await act(async () => rows[0]?.click())
+    expect(rows[0]?.getAttribute("aria-selected")).toBe("true")
+    expect(onSelectionChange).toHaveBeenLastCalledWith(
+      "installation_global_review",
+    )
+
+    await act(async () => {
+      rows[0]?.dispatchEvent(new KeyboardEvent("keydown", {
+        bubbles: true,
+        key: "ArrowDown",
+      }))
+    })
+    expect(rows[1]?.getAttribute("aria-selected")).toBe("true")
+    expect(document.activeElement).toBe(rows[1])
+    expect(onSelectionChange).toHaveBeenLastCalledWith(
+      "installation_project_release",
+    )
+  })
+
+  it("loads the next deterministic cursor page without replacing visible rows", async () => {
+    const list = vi.fn((query) => Promise.resolve(query.cursor === undefined
+      ? {
+          ...basePage,
+          items: [inventoryItems[0] as InventoryItemDto],
+          nextCursor: "installation_global_review",
+          total: 2,
+        }
+      : {
+          ...basePage,
+          items: [inventoryItems[1] as InventoryItemDto],
+          nextCursor: null,
+          total: 2,
+        }))
+    await act(async () => root.render(createElement(Inventory, {
+      inventoryBridge: bridge(list),
+    })))
+
+    expect(container.querySelectorAll(".inventory-row")).toHaveLength(1)
+    expect(container.textContent).toContain("1 de 2 instalaciones")
+    await act(async () => buttonNamed("Cargar más instalaciones").click())
+
+    expect(list).toHaveBeenLastCalledWith(expect.objectContaining({
+      cursor: "installation_global_review",
+    }))
+    expect(container.querySelectorAll(".inventory-row")).toHaveLength(2)
+    expect(container.textContent).toContain("2 instalaciones")
+  })
+
+  it("renders distinct unfiltered and filtered empty states and clears filters", async () => {
+    const list = vi.fn(() => Promise.resolve({
+      ...basePage,
+      items: [],
+      total: 0,
+    }))
+    await act(async () => root.render(createElement(Inventory, {
+      inventoryBridge: bridge(list),
+    })))
+    expect(container.textContent).toContain("No se han observado skills")
+
+    const search = container.querySelector<HTMLInputElement>('input[type="search"]')
+    await act(async () => {
+      if (search === null) throw new Error("Search field is missing")
+      inputText(search, "missing")
+    })
+    await settle()
+    expect(container.textContent).toContain("No hay skills que coincidan")
+
+    await act(async () => buttonNamed("Limpiar filtros").click())
+    expect(list).toHaveBeenLastCalledWith(expect.not.objectContaining({
+      search: expect.anything(),
+    }))
+  })
+
+  it("refreshes the projection when the main process reports an inventory change", async () => {
+    const list = vi.fn(() => Promise.resolve(basePage))
+    let listener: (() => void) | undefined
+    const unsubscribe = vi.fn()
+    const eventBridge: ForgeBridge["events"] = {
+      onRootsChanged: () => () => undefined,
+      onInventoryChanged: vi.fn((next) => {
+        listener = next
+        return unsubscribe
+      }),
+      onOperationProgress: () => () => undefined,
+      onOperationCompleted: () => () => undefined,
+    }
+
+    await act(async () => root.render(createElement(Inventory, {
+      inventoryBridge: bridge(list),
+      eventBridge,
+    })))
+    expect(list).toHaveBeenCalledTimes(1)
+
+    await act(async () => listener?.())
+    expect(list).toHaveBeenCalledTimes(2)
+
+    act(() => root.unmount())
+    expect(unsubscribe).toHaveBeenCalledOnce()
+    root = createRoot(container)
+  })
+})

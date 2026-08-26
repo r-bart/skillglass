@@ -177,6 +177,10 @@ importers:
       '@forge/domain':
         specifier: workspace:*
         version: link:../domain
+      '@forge/scanner':
+        specifier: workspace:*
+        version: link:../scanner
+
   packages/contracts:
     dependencies:
       zod:
@@ -230,6 +234,9 @@ importers:
       '@forge/domain':
         specifier: workspace:*
         version: link:../domain
+      '@forge/scanner':
+        specifier: workspace:*
+        version: link:../scanner
 
   packages/test-fixtures: {}
 

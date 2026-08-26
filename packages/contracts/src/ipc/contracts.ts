@@ -10,7 +10,7 @@ import {
   SelectLocalSourceInputSchema,
   UndoOperationInputSchema,
 } from "./operations.js"
-import { EmptyInputSchema } from "./primitives.js"
+import { AckDtoSchema, EmptyInputSchema } from "./primitives.js"
 import {
   ApproveRootsInputSchema,
   ApprovedRootDtoSchema,
@@ -54,6 +54,10 @@ export const IPC_INVOKE_CONTRACTS = {
   [IPC_INVOKE_CHANNELS.inventoryInspect]: {
     input: InspectInstallationInputSchema,
     output: InstallationDetailDtoSchema,
+  },
+  [IPC_INVOKE_CHANNELS.inventoryOpenEntry]: {
+    input: InspectInstallationInputSchema,
+    output: AckDtoSchema,
   },
   [IPC_INVOKE_CHANNELS.operationsSelectLocalSource]: {
     input: SelectLocalSourceInputSchema,

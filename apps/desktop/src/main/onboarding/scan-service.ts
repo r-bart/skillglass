@@ -5,6 +5,8 @@ import type { ProjectScope, SourceRoot } from "@forge/domain"
 import { ScanCoordinator } from "@forge/scanner"
 import type { ForgeStore } from "@forge/storage"
 
+import { auditE2eScan } from "../e2e-test-seam.js"
+
 export interface ApprovedRootScanServiceOptions {
   readonly codexAdapter: SkillRuntimeAdapter
   readonly projects: readonly ProjectScope[]
@@ -51,6 +53,7 @@ export class ApprovedRootScanService {
 
   async scan(approvedRoots: readonly SourceRoot[]): Promise<void> {
     if (approvedRoots.length === 0) throw new TypeError("A persisted approval is required before scanning")
+    auditE2eScan(approvedRoots)
     const folderRoots = approvedRoots.filter(({ adapterId }) => adapterId === "folder")
     const adapters: SkillRuntimeAdapter[] = [this.#codexAdapter]
     if (folderRoots.length > 0) {

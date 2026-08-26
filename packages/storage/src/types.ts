@@ -5,6 +5,11 @@ import type {
   SkillSnapshot,
   SourceRoot,
 } from "@forge/domain"
+import type {
+  InstallationDetailDto,
+  InventoryPageDto,
+  InventoryQuery,
+} from "@forge/contracts"
 
 export interface InventoryProjection {
   readonly projects: readonly ProjectScope[]
@@ -85,6 +90,11 @@ export interface ProjectionRepository {
   getInstallation(id: string): SkillInstallation | undefined
 }
 
+export interface InventoryQueryRepository {
+  list(query: InventoryQuery): InventoryPageDto
+  inspect(installationId: string): InstallationDetailDto | undefined
+}
+
 export interface SnapshotRepository {
   put(snapshot: SkillSnapshot): void
   get(id: string): SkillSnapshot | undefined
@@ -106,6 +116,7 @@ export interface OperationJournalRepository {
 
 export interface ForgeStore {
   readonly projections: ProjectionRepository
+  readonly inventory: InventoryQueryRepository
   readonly snapshots: SnapshotRepository
   readonly operations: OperationJournalRepository
   readonly settings: SettingsRepository

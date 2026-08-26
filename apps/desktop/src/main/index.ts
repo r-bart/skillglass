@@ -4,6 +4,10 @@ import { join } from "node:path"
 import { FORGE_SCHEME, registerForgeProtocol } from "./protocol.js"
 import { createMainWindow } from "./window.js"
 import { createOnboardingComposition, type OnboardingComposition } from "./onboarding/composition.js"
+import { applyE2eProcessPathOverrides, useE2eBuiltAssets } from "./e2e-test-seam.js"
+
+applyE2eProcessPathOverrides(app)
+const usesBuiltAssets = app.isPackaged || useE2eBuiltAssets()
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -28,17 +32,17 @@ let mainWindow: BrowserWindow | undefined
 let onboarding: OnboardingComposition | undefined
 
 app.whenReady().then(async () => {
-  if (app.isPackaged) {
+  if (usesBuiltAssets) {
     registerForgeProtocol(join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}`))
   }
 
   onboarding = await createOnboardingComposition(() => mainWindow)
-  mainWindow = await createMainWindow(app.isPackaged)
+  mainWindow = await createMainWindow(usesBuiltAssets)
   await onboarding.startPersistedScan()
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      void createMainWindow(app.isPackaged).then((window) => {
+      void createMainWindow(usesBuiltAssets).then((window) => {
         mainWindow = window
       })
     }

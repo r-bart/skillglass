@@ -340,4 +340,96 @@ describe("openForgeStore", () => {
     ).toThrow()
     store.close()
   })
+
+  it("builds a contained inspection DTO from immutable observations", () => {
+    const store = openForgeStore({ path: temporaryDatabase().path })
+    const fixture = fixtures()
+    store.snapshots.put(fixture.snapshot)
+    store.snapshots.putProvenance(fixture.provenance)
+    store.projections.replaceInventory(fixture.projection)
+
+    expect(store.inventory.inspect(fixture.installation.id)).toMatchObject({
+      installation: {
+        installationId: fixture.installation.id,
+        adapterId: "codex",
+        status: {
+          validity: "warning",
+          runtimeState: "unknown",
+          source: "managed",
+          update: "unknown",
+          usage: "unavailable",
+        },
+      },
+      snapshotId: fixture.snapshot.id,
+      locationLabel: "/workspace/project-one/.agents/skills/example",
+      entryFile: "SKILL.md",
+      rawEntryContent: fixture.snapshot.rawSource,
+      files: [{
+        relativePath: "SKILL.md",
+        byteLength: 42,
+        sha256: HASH_A,
+        kind: "entry",
+      }],
+      findings: [{
+        code: "example-warning",
+        relativeFile: "SKILL.md",
+        source: { kind: "adapter", adapterId: "codex" },
+      }],
+      requirements: [{
+        kind: "runtime",
+        name: "codex",
+        evidence: { kind: "observed" },
+        resolution: "satisfied",
+      }],
+      provenance: {
+        id: fixture.provenance.id,
+        kind: "forge-import",
+        sourceLabel: { state: "unknown", evidence: { kind: "unknown" } },
+        managedBy: "forge",
+      },
+      capabilities: {
+        canInstallSibling: true,
+        canUpdateFromSource: true,
+        canEditEntry: true,
+        unavailableReasons: [],
+      },
+    })
+    expect(store.inventory.inspect("installation_missing")).toBeUndefined()
+    store.close()
+  })
+
+  it("never exposes edit capability for a managed read-only installation", () => {
+    const store = openForgeStore({ path: temporaryDatabase().path })
+    const fixture = fixtures()
+    const managedRoot: SourceRoot = {
+      id: fixture.root.id,
+      adapterId: fixture.root.adapterId,
+      canonicalPath: fixture.root.canonicalPath,
+      kind: "managed",
+      access: "read-only",
+      discovery: fixture.root.discovery,
+    }
+    const managedInstallation: SkillInstallation = {
+      ...fixture.installation,
+      scope: "managed",
+      access: "read-only",
+    }
+    store.snapshots.put(fixture.snapshot)
+    store.snapshots.putProvenance(fixture.provenance)
+    store.projections.replaceInventory({
+      projects: [fixture.project],
+      roots: [managedRoot],
+      installations: [managedInstallation],
+    })
+
+    expect(store.inventory.inspect(managedInstallation.id)).toMatchObject({
+      installation: { status: { source: "read-only" } },
+      capabilities: {
+        canEditEntry: false,
+        canUpdateFromSource: false,
+        unavailableReasons: ["Solo lectura"],
+      },
+    })
+    store.close()
+  })
 })

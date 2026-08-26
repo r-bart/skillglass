@@ -7,6 +7,7 @@ export const IPC_INVOKE_CHANNELS = {
   onboardingApproveRoots: "forge:onboarding:approve-roots",
   inventoryList: "forge:inventory:list",
   inventoryInspect: "forge:inventory:inspect",
+  inventoryOpenEntry: "forge:inventory:open-entry",
   operationsSelectLocalSource: "forge:operations:select-local-source",
   operationsPlan: "forge:operations:plan",
   operationsConfirm: "forge:operations:confirm",

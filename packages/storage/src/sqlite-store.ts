@@ -12,6 +12,7 @@ import {
 } from "@forge/domain"
 
 import { migrate } from "./migrations.js"
+import { StoredInventoryQueryRepository } from "./inventory-query.js"
 import type {
   ForgeStore,
   InventoryProjection,
@@ -604,10 +605,13 @@ export function openForgeStore(options: OpenForgeStoreOptions): ForgeStore {
       database.exec("PRAGMA journal_mode = WAL")
     }
 
+    const projections = new SqliteProjectionRepository(database)
+    const snapshots = new SqliteSnapshotRepository(database)
     const store: ForgeStore = {
       path: options.path,
-      projections: new SqliteProjectionRepository(database),
-      snapshots: new SqliteSnapshotRepository(database),
+      projections,
+      inventory: new StoredInventoryQueryRepository(projections, snapshots),
+      snapshots,
       operations: new SqliteOperationJournalRepository(database),
       settings: new SqliteSettingsRepository(database),
       close: () => {

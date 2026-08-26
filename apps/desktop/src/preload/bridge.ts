@@ -41,6 +41,7 @@ export function createForgeBridge(port: IpcRendererPort): ForgeBridge {
     inventory: {
       list: (input) => invoke(port, IPC_INVOKE_CHANNELS.inventoryList, input) as ReturnType<ForgeBridge["inventory"]["list"]>,
       inspect: (input) => invoke(port, IPC_INVOKE_CHANNELS.inventoryInspect, input) as ReturnType<ForgeBridge["inventory"]["inspect"]>,
+      openEntry: (input) => invoke(port, IPC_INVOKE_CHANNELS.inventoryOpenEntry, input) as ReturnType<ForgeBridge["inventory"]["openEntry"]>,
     },
     operations: {
       selectLocalSource: (input) => invoke(port, IPC_INVOKE_CHANNELS.operationsSelectLocalSource, input) as ReturnType<ForgeBridge["operations"]["selectLocalSource"]>,

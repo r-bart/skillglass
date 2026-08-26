@@ -1,0 +1,458 @@
+import {
+  createElement,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react"
+
+import type {
+  Evidence,
+  ForgeBridge,
+  InstallationDetailDto,
+  InventoryItemDto,
+} from "@forge/contracts"
+
+type Finding = InstallationDetailDto["findings"][number]
+type SourceView = "preview" | "source"
+
+const validityLabels: Record<InventoryItemDto["status"]["validity"], string> = {
+  valid: "Válida",
+  warning: "Con avisos",
+  invalid: "Inválida",
+  unknown: "Validez desconocida",
+}
+
+const runtimeLabels: Record<InventoryItemDto["status"]["runtimeState"], string> = {
+  enabled: "Activada (observada)",
+  disabled: "Desactivada (observada)",
+  inherited: "Heredada",
+  shadowed: "Oculta por precedencia",
+  unsupported: "No soportado",
+  unknown: "Sin datos",
+}
+
+const sourceLabels: Record<InventoryItemDto["status"]["source"], string> = {
+  local: "Local",
+  managed: "Gestionada",
+  "read-only": "Solo lectura",
+  modified: "Modificada",
+  unknown: "Origen desconocido",
+}
+
+const updateLabels: Record<InventoryItemDto["status"]["update"], string> = {
+  current: "Actualizada",
+  available: "Actualización disponible",
+  diverged: "Cambios locales",
+  unavailable: "No disponible",
+  unknown: "No observado",
+}
+
+const provenanceLabels: Record<InstallationDetailDto["provenance"]["kind"], string> = {
+  local: "Local",
+  "forge-import": "Importada por Forge",
+  registry: "Registro",
+  package: "Paquete",
+  plugin: "Plugin",
+  system: "Sistema",
+  unknown: "Procedencia desconocida",
+}
+
+const managerLabels: Record<InstallationDetailDto["provenance"]["managedBy"], string> = {
+  forge: "Forge",
+  external: "Herramienta externa",
+  runtime: "Runtime",
+  user: "Usuario",
+  unknown: "Gestor desconocido",
+}
+
+function adapterLabel(adapterId: string): string {
+  if (adapterId === "codex") return "Codex"
+  if (adapterId === "folder") return "Carpetas Agent Skills"
+  return adapterId
+}
+
+function evidenceLabel(evidence: Evidence): string {
+  switch (evidence.kind) {
+    case "observed": return "Observado"
+    case "derived": return "Derivado"
+    case "inferred": return "Inferido"
+    case "unknown": return "Evidencia desconocida"
+  }
+}
+
+function evidencedValue(
+  claim: InstallationDetailDto["provenance"]["release"],
+): string {
+  return claim.state === "known" ? claim.value : "No observado"
+}
+
+function entryPath(detail: InstallationDetailDto): string {
+  const windows = detail.locationLabel.includes("\\") &&
+    !detail.locationLabel.includes("/")
+  const separator = windows ? "\\" : "/"
+  const base = detail.locationLabel.replace(/[\\/]+$/u, "")
+  return `${base}${separator}${detail.entryFile.replaceAll("/", separator)}`
+}
+
+function scopeLabel(scope: InventoryItemDto["scope"]): string {
+  switch (scope.kind) {
+    case "global": return "Global"
+    case "managed": return "Gestionada"
+    case "system": return "Sistema"
+    case "project": return `Proyecto · ${scope.projectId}`
+  }
+}
+
+function precedenceText(scope: InventoryItemDto["scope"]): string {
+  if (scope.kind === "global") {
+    return "Instalación global. El adaptador no aportó una precedencia efectiva para esta vista."
+  }
+  if (scope.kind === "project") {
+    return "Instalación propia del proyecto. El ganador efectivo depende del adaptador."
+  }
+  return "La ubicación es de inventario; no se afirma una precedencia efectiva."
+}
+
+function findingTitle(finding: Finding): string {
+  return finding.code.startsWith("FRONTMATTER_")
+    ? "No se pudo leer el frontmatter"
+    : finding.message
+}
+
+function markdownBody(source: string): string {
+  const opening = /^(?:\uFEFF)?---(?:\r\n|\n|\r)/u.exec(source)
+  if (opening === null) return source
+  const closing = /^(?:---|\.\.\.)[ \t]*(?:\r\n|\n|\r|$)/gmu
+  closing.lastIndex = opening[0].length
+  const match = closing.exec(source)
+  return match === null ? source : source.slice(match.index + match[0].length)
+}
+
+/**
+ * Intentionally small read-only renderer. Every token is emitted as React text;
+ * raw HTML, links, images, directives and scripts are never interpreted.
+ */
+export function SafeMarkdown({ source }: { readonly source: string }) {
+  const nodes: ReactNode[] = []
+  const lines = markdownBody(source).split(/\r\n|\n|\r/u)
+  let code: string[] | undefined
+  for (const line of lines) {
+    if (/^\s*```/u.test(line)) {
+      if (code === undefined) code = []
+      else {
+        nodes.push(createElement("pre", { key: nodes.length }, createElement("code", null, code.join("\n"))))
+        code = undefined
+      }
+      continue
+    }
+    if (code !== undefined) {
+      code.push(line)
+      continue
+    }
+    const heading = /^(#{1,6})\s+(.+)$/u.exec(line)
+    if (heading !== null) {
+      const level = Math.min(6, heading[1]?.length ?? 3)
+      nodes.push(createElement(`h${level}`, { key: nodes.length }, heading[2]))
+      continue
+    }
+    const listItem = /^\s*[-*+]\s+(.+)$/u.exec(line)
+    if (listItem !== null) {
+      nodes.push(createElement("ul", { key: nodes.length }, createElement("li", null, listItem[1])))
+      continue
+    }
+    if (line.trim().length > 0) {
+      nodes.push(createElement("p", { key: nodes.length }, line))
+    }
+  }
+  if (code !== undefined) {
+    nodes.push(createElement("pre", { key: nodes.length }, createElement("code", null, code.join("\n"))))
+  }
+  return createElement("div", { className: "safe-markdown" }, ...nodes)
+}
+
+function EmptyInspector() {
+  return createElement(
+    "div",
+    { className: "inspector-empty" },
+    createElement("p", { className: "inspector-empty-title" }, "Ninguna skill seleccionada"),
+    createElement(
+      "p",
+      null,
+      "Selecciona una skill del inventario para revisar su origen, ubicación y evidencia disponible.",
+    ),
+  )
+}
+
+function StatusList({ detail }: { readonly detail: InstallationDetailDto }) {
+  const status = detail.installation.status
+  const rows = [
+    ["Validez", validityLabels[status.validity]],
+    ["Estado del harness", runtimeLabels[status.runtimeState]],
+    ["Origen", sourceLabels[status.source]],
+    ["Actualización", updateLabels[status.update]],
+    ["Uso", status.usage === "observed" ? "Observado por el runtime" : "No disponible"],
+  ] as const
+  return createElement(
+    "dl",
+    { className: "inspector-status-grid" },
+    ...rows.map(([term, value]) => createElement(
+      "div",
+      { key: term },
+      createElement("dt", null, term),
+      createElement("dd", null, value),
+    )),
+  )
+}
+
+function Inspection({
+  detail,
+  inventoryBridge,
+}: {
+  readonly detail: InstallationDetailDto
+  readonly inventoryBridge: ForgeBridge["inventory"]
+}) {
+  const [sourceView, setSourceView] = useState<SourceView>("preview")
+  const [actionError, setActionError] = useState<string>()
+  const path = entryPath(detail)
+  const name = detail.installation.name.state === "known"
+    ? detail.installation.name.value
+    : detail.installation.key
+  const description = detail.installation.description.state === "known"
+    ? detail.installation.description.value
+    : "Descripción no observada"
+
+  const openEntry = async (): Promise<void> => {
+    setActionError(undefined)
+    try {
+      await inventoryBridge.openEntry({
+        installationId: detail.installation.installationId,
+      })
+    } catch (reason) {
+      setActionError(reason instanceof Error
+        ? reason.message
+        : "No se pudo mostrar el archivo")
+    }
+  }
+
+  return createElement(
+    "div",
+    { className: "inspector-detail" },
+    createElement(
+      "div",
+      { className: "inspector-title-row" },
+      createElement(
+        "div",
+        null,
+        createElement("p", { className: "inspector-skill-name" }, name),
+        createElement("p", { className: "inspector-description" }, description),
+      ),
+      createElement(
+        "span",
+        { className: `evidence-badge evidence-${detail.installation.name.evidence.kind}` },
+        evidenceLabel(detail.installation.name.evidence),
+      ),
+    ),
+    createElement(
+      "div",
+      { className: "inspector-actions" },
+      createElement(
+        "button",
+        {
+          type: "button",
+          className: "secondary-action",
+          onClick: () => { void openEntry() },
+        },
+        "Abrir archivo",
+      ),
+      detail.capabilities.canEditEntry
+        ? createElement("button", { type: "button", className: "primary-action" }, "Editar")
+        : null,
+    ),
+    actionError === undefined
+      ? null
+      : createElement("p", { className: "form-error", role: "alert" }, actionError),
+    createElement(
+      "section",
+      { className: "inspector-section", "aria-labelledby": "location-heading" },
+      createElement("h3", { id: "location-heading" }, "Ubicación"),
+      createElement("p", { className: "inspector-path" }, path),
+      createElement(
+        "dl",
+        { className: "inspector-metadata" },
+        createElement("div", null, createElement("dt", null, "Runtime"), createElement("dd", null, adapterLabel(detail.installation.adapterId))),
+        createElement("div", null, createElement("dt", null, "Ámbito"), createElement("dd", null, scopeLabel(detail.installation.scope))),
+        createElement("div", null, createElement("dt", null, "Carpeta canónica"), createElement("dd", null, detail.locationLabel)),
+        createElement("div", null, createElement("dt", null, "Archivo de entrada"), createElement("dd", null, detail.entryFile)),
+        createElement("div", null, createElement("dt", null, "Snapshot"), createElement("dd", null, detail.snapshotId)),
+        createElement("div", null, createElement("dt", null, "Hash observado"), createElement("dd", null, detail.contentHash)),
+        createElement("div", null, createElement("dt", null, "Versión declarada"), createElement("dd", null, detail.installation.declaredVersion.state === "known" ? detail.installation.declaredVersion.value : "No declarada")),
+      ),
+    ),
+    createElement(
+      "section",
+      { className: "inspector-section", "aria-labelledby": "status-heading" },
+      createElement("h3", { id: "status-heading" }, "Estados independientes"),
+      createElement(StatusList, { detail }),
+    ),
+    createElement(
+      "section",
+      { className: "inspector-section", "aria-labelledby": "precedence-heading" },
+      createElement("h3", { id: "precedence-heading" }, "Ámbito y precedencia"),
+      createElement("p", null, precedenceText(detail.installation.scope)),
+      createElement("p", { className: "evidence-note" }, "Evidencia de precedencia desconocida"),
+    ),
+    createElement(
+      "section",
+      { className: "inspector-section", "aria-labelledby": "provenance-heading" },
+      createElement("h3", { id: "provenance-heading" }, "Procedencia"),
+      createElement(
+        "dl",
+        { className: "inspector-metadata" },
+        createElement("div", null, createElement("dt", null, "Tipo"), createElement("dd", null, provenanceLabels[detail.provenance.kind])),
+        createElement("div", null, createElement("dt", null, "Gestionado por"), createElement("dd", null, managerLabels[detail.provenance.managedBy])),
+        createElement("div", null, createElement("dt", null, "Fuente"), createElement("dd", null, evidencedValue(detail.provenance.sourceLabel))),
+        createElement("div", null, createElement("dt", null, "Release"), createElement("dd", null, evidencedValue(detail.provenance.release))),
+        createElement("div", null, createElement("dt", null, "Commit"), createElement("dd", null, evidencedValue(detail.provenance.commit))),
+        createElement("div", null, createElement("dt", null, "Licencia"), createElement("dd", null, evidencedValue(detail.provenance.license))),
+      ),
+    ),
+    detail.findings.length === 0
+      ? null
+      : createElement(
+          "section",
+          { className: "inspector-section", "aria-labelledby": "findings-heading" },
+          createElement("h3", { id: "findings-heading" }, "Hallazgos de validación"),
+          createElement(
+            "ul",
+            { className: "inspector-list" },
+            ...detail.findings.map((finding, index) => createElement(
+              "li",
+              { key: `${finding.code}:${index}`, className: `finding finding-${finding.severity}` },
+              createElement("p", { className: "finding-title" }, findingTitle(finding)),
+              findingTitle(finding) === finding.message
+                ? null
+                : createElement("p", null, finding.message),
+              finding.relativeFile === undefined
+                ? null
+                : createElement("code", null, finding.relativeFile),
+            )),
+          ),
+        ),
+    createElement(
+      "section",
+      { className: "inspector-section", "aria-labelledby": "requirements-heading" },
+      createElement("h3", { id: "requirements-heading" }, "Requisitos"),
+      detail.requirements.length === 0
+        ? createElement("p", null, "Ningún requisito declarado")
+        : createElement(
+            "ul",
+            { className: "inspector-list" },
+            ...detail.requirements.map((requirement, index) => createElement(
+              "li",
+              { key: `${requirement.kind}:${requirement.name}:${index}` },
+              createElement("strong", null, requirement.name),
+              createElement("span", null, ` · ${requirement.resolution} · ${evidenceLabel(requirement.evidence).toLocaleLowerCase("es-ES")}`),
+            )),
+          ),
+    ),
+    createElement(
+      "section",
+      { className: "inspector-section", "aria-labelledby": "files-heading" },
+      createElement("h3", { id: "files-heading" }, `Archivos · ${detail.files.length}`),
+      createElement(
+        "ul",
+        { className: "inspector-list file-list" },
+        ...detail.files.map((file) => createElement(
+          "li",
+          { key: file.relativePath },
+          createElement("code", null, file.relativePath),
+          createElement("span", null, `${file.byteLength} bytes · ${file.kind === "entry" ? "Entrada" : "Recurso"}`),
+          createElement("code", { className: "file-hash" }, file.sha256),
+        )),
+      ),
+    ),
+    createElement(
+      "section",
+      { className: "inspector-section source-section", "aria-labelledby": "source-heading" },
+      createElement("h3", { id: "source-heading" }, "Contenido de SKILL.md"),
+      createElement(
+        "div",
+        { className: "source-switch", "aria-label": "Vista del contenido" },
+        createElement("button", {
+          type: "button",
+          "aria-pressed": sourceView === "preview",
+          onClick: () => setSourceView("preview"),
+        }, "Vista previa"),
+        createElement("button", {
+          type: "button",
+          "aria-pressed": sourceView === "source",
+          onClick: () => setSourceView("source"),
+        }, "Fuente"),
+      ),
+      sourceView === "preview"
+        ? createElement(SafeMarkdown, { source: detail.rawEntryContent })
+        : createElement(
+            "pre",
+            { className: "source-code", "aria-label": "Fuente de SKILL.md" },
+            createElement("code", null, detail.rawEntryContent),
+          ),
+    ),
+  )
+}
+
+export interface InspectorProps {
+  readonly installationId?: string
+  readonly inventoryBridge: ForgeBridge["inventory"]
+}
+
+export function Inspector({ installationId, inventoryBridge }: InspectorProps) {
+  const [detail, setDetail] = useState<InstallationDetailDto>()
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string>()
+
+  useEffect(() => {
+    let current = true
+    if (installationId === undefined) {
+      setDetail(undefined)
+      setError(undefined)
+      setLoading(false)
+      return () => { current = false }
+    }
+    setLoading(true)
+    setError(undefined)
+    inventoryBridge.inspect({ installationId }).then((next) => {
+      if (current) setDetail(next)
+    }).catch((reason: unknown) => {
+      if (current) {
+        setDetail(undefined)
+        setError(reason instanceof Error
+          ? reason.message
+          : "No se pudo inspeccionar la instalación")
+      }
+    }).finally(() => {
+      if (current) setLoading(false)
+    })
+    return () => { current = false }
+  }, [installationId, inventoryBridge])
+
+  const content = useMemo(() => {
+    if (installationId === undefined) return createElement(EmptyInspector)
+    if (loading) return createElement("p", { role: "status" }, "Cargando inspector…")
+    if (error !== undefined) return createElement("p", { role: "alert", className: "form-error" }, error)
+    if (detail === undefined) return createElement(EmptyInspector)
+    return createElement(Inspection, { detail, inventoryBridge })
+  }, [detail, error, installationId, inventoryBridge, loading])
+
+  return createElement(
+    "aside",
+    { className: "inspector", "aria-labelledby": "inspector-title" },
+    createElement(
+      "div",
+      { className: "inspector-heading" },
+      createElement("p", { className: "eyebrow" }, "Detalle"),
+      createElement("h2", { id: "inspector-title" }, "Inspector"),
+    ),
+    content,
+  )
+}

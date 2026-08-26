@@ -66,7 +66,21 @@ export const InventoryQuerySchema = z
     search: z.string().trim().max(200).optional(),
     adapterIds: z.array(AdapterIdSchema).max(32).optional(),
     validity: z.array(ValidityStatusSchema).max(4).optional(),
+    runtimeStates: z.array(RuntimeStatusSchema).max(6).optional(),
+    sourceStates: z.array(SourceStatusSchema).max(5).optional(),
     updates: z.array(UpdateStatusSchema).max(5).optional(),
+    provenanceKinds: z.array(z.enum([
+      "local",
+      "forge-import",
+      "registry",
+      "package",
+      "plugin",
+      "system",
+      "unknown",
+    ])).max(7).optional(),
+    authors: z.array(z.string().trim().min(1).max(256)).max(100).optional(),
+    packageIds: z.array(z.string().trim().min(1).max(256)).max(100).optional(),
+    groupBy: z.enum(["none", "author", "package"]).default("none"),
     sort: z
       .object({
         by: z.enum(["name", "observedAt", "validity", "update"]),
@@ -80,6 +94,7 @@ export const InventoryQuerySchema = z
   .strict()
 
 const EvidencedShortTextSchema = evidencedSchema(z.string().max(2_000))
+const OptionalEvidencedLabelSchema = evidencedSchema(z.string().min(1).max(512)).optional()
 
 export const InventoryItemDtoSchema = z
   .object({
@@ -98,6 +113,8 @@ export const InventoryItemDtoSchema = z
     name: EvidencedShortTextSchema,
     description: EvidencedShortTextSchema,
     declaredVersion: evidencedSchema(z.string().max(256)),
+    author: OptionalEvidencedLabelSchema,
+    packageId: OptionalEvidencedLabelSchema,
     status: SkillStatusDtoSchema,
     observedAt: IsoDateTimeSchema,
   })
@@ -106,6 +123,10 @@ export const InventoryItemDtoSchema = z
 export const InventoryPageDtoSchema = z
   .object({
     items: z.array(InventoryItemDtoSchema),
+    projects: z.array(z.object({
+      projectId: ProjectIdSchema,
+      displayName: DisplayLabelSchema,
+    }).strict()).max(256).optional(),
     nextCursor: OpaqueIdSchema.nullable(),
     total: z.number().int().nonnegative(),
     observedAt: IsoDateTimeSchema,

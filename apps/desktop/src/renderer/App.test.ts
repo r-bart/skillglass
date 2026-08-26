@@ -40,6 +40,21 @@ const completeState: OnboardingStateDto = {
   approvedRoots: [approved],
 }
 
+const inventoryBridge: ForgeBridge["inventory"] = {
+  list: () => Promise.resolve({
+    items: [], projects: [], nextCursor: null, total: 0, observedAt: "2026-08-26T10:00:00.000Z",
+  }),
+  inspect: () => Promise.reject(new Error("Not part of this renderer test")),
+  openEntry: () => Promise.resolve({ ok: true }),
+}
+
+const eventBridge: ForgeBridge["events"] = {
+  onRootsChanged: () => () => undefined,
+  onInventoryChanged: () => () => undefined,
+  onOperationProgress: () => () => undefined,
+  onOperationCompleted: () => () => undefined,
+}
+
 function buttonNamed(name: string): HTMLButtonElement {
   const button = Array.from(container.querySelectorAll("button")).find(
     (candidate) => candidate.textContent?.trim() === name || candidate.getAttribute("aria-label") === name,
@@ -56,7 +71,9 @@ beforeEach(async () => {
   container = document.createElement("div")
   document.body.append(container)
   root = createRoot(container)
-  await act(async () => root.render(createElement(App, { onboardingBridge: onboardingBridge(completeState) })))
+  await act(async () => root.render(createElement(App, {
+    onboardingBridge: onboardingBridge(completeState), inventoryBridge, eventBridge,
+  })))
 })
 
 afterEach(() => {
@@ -116,7 +133,7 @@ describe("Forge application shell", () => {
     }
     const approveRoots = vi.fn(() => Promise.resolve([approved]))
     const bridge = { ...onboardingBridge(required), approveRoots }
-    await act(async () => root.render(createElement(App, { onboardingBridge: bridge })))
+    await act(async () => root.render(createElement(App, { onboardingBridge: bridge, inventoryBridge, eventBridge })))
 
     expect(container.querySelector("h1")?.textContent).toBe("Carpetas de skills")
     expect(buttonNamed("Inventario").disabled).toBe(true)
