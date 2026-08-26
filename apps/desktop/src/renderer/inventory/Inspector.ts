@@ -365,6 +365,11 @@ function Inspection({
     }
   }
 
+  const closeContentPlan = (): void => {
+    setPlan(undefined)
+    requestAnimationFrame(() => reviewButtonRef.current?.focus())
+  }
+
   return createElement(
     "div",
     { className: "inspector-detail" },
@@ -491,8 +496,8 @@ function Inspection({
             AccessibleDialog,
             {
               labelledBy: "update-dialog-title",
-              returnFocus: reviewButtonRef.current,
-              ...(operationBusy ? {} : { onDismiss: () => setPlan(undefined) }),
+              returnFocus: reviewButtonRef,
+              ...(operationBusy ? {} : { onDismiss: closeContentPlan }),
             },
               createElement("h3", { id: "update-dialog-title" }, "Confirmar actualización"),
               createElement(OperationPlanDetails, { plan }),
@@ -512,7 +517,7 @@ function Inspection({
                   type: "button",
                   className: "secondary-action",
                   disabled: operationBusy,
-                  onClick: () => setPlan(undefined),
+                  onClick: closeContentPlan,
                 }, "Volver"),
               ),
           ),

@@ -95,6 +95,29 @@
   .inspector--empty {
     display: none;
   }
+
+  /* Preserve the compact visual rhythm while giving pointer and touch users a
+   * full WCAG-sized activation area at the minimum supported work area. */
+  :where(
+    button,
+    select,
+    summary,
+    .root-option,
+    .pending-row__selection
+  ) {
+    min-block-size: 44px !important;
+  }
+
+  :where(input[type="checkbox"], input[type="radio"]) {
+    min-width: 20px;
+    min-height: 20px;
+  }
+
+  .filter-chip__remove {
+    width: 32px;
+    height: 32px;
+    margin: -6px;
+  }
 }
 
 @media (max-width: 800px) {

@@ -4,6 +4,7 @@ import {
   createForgeBusinessFixture,
   launchForge,
 } from "./support/forge-test-app.js"
+import { launchForgeVisualScenario } from "./support/forge-visual-fixture.js"
 
 test.describe("Forge keyboard and accessibility acceptance", () => {
   test("keyboard-only onboarding works with contrast, reduced motion, and a resized window", async () => {
@@ -14,6 +15,20 @@ test.describe("Forge keyboard and accessibility acceptance", () => {
 
     await expect(app.page.locator("main#main-content")).toBeVisible()
     await expect(app.page.locator("html")).toHaveAttribute("lang", "es")
+    const skipLink = app.page.getByRole("link", { name: "Saltar al contenido" })
+    await skipLink.focus()
+    await app.page.keyboard.press("Tab")
+    await app.page.keyboard.press("Shift+Tab")
+    await expect(skipLink).toBeFocused()
+    const focusStyle = await skipLink.evaluate((element) => {
+      const style = getComputedStyle(element)
+      return { outlineStyle: style.outlineStyle, outlineWidth: Number.parseFloat(style.outlineWidth) }
+    })
+    expect(focusStyle.outlineStyle).toBe("solid")
+    expect(focusStyle.outlineWidth).toBeGreaterThanOrEqual(2)
+    const navigationToggle = app.page.getByRole("button", { name: "Abrir navegación" })
+    await navigationToggle.focus()
+    await navigationToggle.press("Enter")
     await expect(app.page.getByRole("navigation", { name: "Secciones principales" })).toBeVisible()
     await expect(app.page.getByRole("group", { name: "Ubicaciones que Forge puede observar" })).toBeVisible()
     expect(await app.page.evaluate(() => matchMedia("(prefers-reduced-motion: reduce)").matches)).toBe(true)
@@ -29,6 +44,50 @@ test.describe("Forge keyboard and accessibility acceptance", () => {
     await approve.press("Enter")
     await expect(app.page.getByRole("heading", { name: "Inventario" })).toBeVisible()
     await app.close()
+  })
+
+  test("pending remains operable by keyboard and statuses retain textual equivalents", async () => {
+    const scenario = await launchForgeVisualScenario("pending")
+    try {
+      const { page } = scenario.app
+      const update = page.getByRole("checkbox", { name: /Seleccionar local-installable/u })
+      await update.focus()
+      await update.press("Space")
+      await expect(update).toBeChecked()
+      await expect(page.getByText("Actualización", { exact: true }).first()).toBeVisible()
+      await expect(page.getByText("Origen divergente", { exact: true }).first()).toBeVisible()
+      await expect(page.getByText("No válida", { exact: true }).first()).toBeVisible()
+      const batch = page.getByRole("button", { name: "Actualizar 1" })
+      await batch.focus()
+      await batch.press("Enter")
+      await expect(page.getByRole("dialog", { name: "Confirmar actualización" })).toBeVisible()
+    } finally {
+      await scenario.close()
+    }
+  })
+
+  test("200% zoom and narrow mode retain reachable, touch-sized controls", async () => {
+    const fixture = await createForgeBusinessFixture()
+    const app = await launchForge(fixture, { onboarded: true })
+    try {
+      await app.page.setViewportSize({ width: 760, height: 520 })
+      await app.setZoomFactor(2)
+      await expect(app.page.locator("main#main-content")).toBeVisible()
+      const toggle = app.page.getByRole("button", { name: "Abrir navegación" })
+      await expect(toggle).toBeVisible()
+      const controls = await app.page.locator("button:visible, select:visible, summary:visible").evaluateAll((elements) => (
+        elements.map((element) => ({
+          height: element.getBoundingClientRect().height,
+          name: element.getAttribute("aria-label") ?? element.textContent?.trim() ?? element.tagName,
+        }))
+      ))
+      expect(controls.length).toBeGreaterThan(0)
+      for (const control of controls) {
+        expect(control.height, `${control.name} must expose a 44px narrow target`).toBeGreaterThanOrEqual(44)
+      }
+    } finally {
+      await app.close()
+    }
   })
 
   test("scope navigation, inventory rows, inspector, and search shortcut work without a pointer", async () => {

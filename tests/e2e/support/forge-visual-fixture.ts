@@ -228,11 +228,15 @@ async function preparePendingGroups(
     ),
     "utf8",
   )
-  await app.page.getByRole("button", { name: "Buscar actualizaciones" }).click()
-  await app.page.getByRole("button", { name: "Pendientes", exact: true }).click()
-  await app.page.getByRole("heading", { name: /Actualizaciones disponibles · 1/u }).waitFor()
-  await app.page.getByRole("heading", { name: /Conflictos de origen · 1/u }).waitFor()
-  await app.page.getByRole("heading", { name: /Validación pendiente/u }).waitFor()
+  const refresh = app.page.getByRole("button", { name: "Buscar actualizaciones" })
+  if (!await refresh.isVisible()) {
+    await app.page.locator('summary[aria-label="Abrir acciones de instalación"]').click()
+  }
+  await refresh.click()
+  await app.page.getByRole("banner").getByRole("button", { name: "Pendientes", exact: true }).click()
+  await app.page.getByText("Actualizaciones disponibles · 1", { exact: true }).waitFor()
+  await app.page.getByText("Conflictos de origen · 1", { exact: true }).waitFor()
+  await app.page.getByText("Validación pendiente · 1", { exact: true }).waitFor()
 }
 
 /**

@@ -71,6 +71,7 @@ export interface ForgeTestApplication {
   readonly page: Page
   close(): Promise<void>
   restart(): Promise<void>
+  setZoomFactor(factor: number): Promise<void>
   installFromDirectory(source: string): Promise<void>
   installFromZip(source: string): Promise<void>
   selectProject(project: string): Promise<void>
@@ -415,6 +416,7 @@ async function triggerLocalSourcePicker(page: Page, kind: "directory" | "zip"): 
     page.getByRole("button", { name: "Instalar skill", exact: true }),
     page.getByRole("button", { name: "Instalar", exact: true }),
     page.getByRole("button", { name: /Añadir skill/i }),
+    page.locator('summary[aria-label="Abrir acciones de instalación"]'),
   ])
   if (opener === undefined) {
     throw new Error("Forge must expose an accessible local-install action in the inventory toolbar")
@@ -459,6 +461,14 @@ class RunningForge implements ForgeTestApplication {
     this.#application = launched.application
     this.#page = launched.page
     await this.#page.getByRole("heading", { name: "Inventario" }).waitFor()
+  }
+
+  async setZoomFactor(factor: number): Promise<void> {
+    await this.#application.evaluate(({ BrowserWindow }, nextFactor) => {
+      const window = BrowserWindow.getAllWindows()[0]
+      if (window === undefined) throw new Error("Forge window is missing")
+      window.webContents.setZoomFactor(nextFactor)
+    }, factor)
   }
 
   async installFromDirectory(source: string): Promise<void> {
