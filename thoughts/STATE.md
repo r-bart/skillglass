@@ -2,9 +2,9 @@
 
 **Updated**: 2026-08-26
 **Branch**: `codex/forge-mvp`
-**Active Feature**: Forge handoff style fidelity
-**Workflow Position**: Executing the approved visual-fidelity plan; MVP behavior and release evidence remain protected
-**Active Plan**: `thoughts/plans/2026-08-26_forge-handoff-style-fidelity.md` (In Progress)
+**Active Feature**: Forge handoff style fidelity completed
+**Workflow Position**: Visual-fidelity implementation and verification complete; MVP behavior and release evidence remain protected
+**Active Plan**: `thoughts/plans/2026-08-26_forge-handoff-style-fidelity.md` (Complete)
 
 ## Key Decisions
 
@@ -19,6 +19,7 @@
 - License source, documentation, contributions, and binaries under Apache-2.0. (2026-08-26)
 - Require persisted operation plans and restart-safe undo for every mutation. (2026-08-26)
 - Limit the MVP to discovery, inspection, static validation, local editing, history, and reversible local operations. (2026-08-26)
+- Treat `thoughts/handoff/App.dc.html` as the visual source of truth at the canonical 1420×892 viewport while preserving semantic controls, native chrome and responsive behavior. (2026-08-26)
 
 ## Current Blockers
 
@@ -27,8 +28,9 @@
 
 ## Current Evidence
 
-- Unit/integration: 38 files, 270 tests passing on Node 24.19.0 arm64.
-- Electron acceptance: 17/17 passing; immutable BV suite 10/10 and hash unchanged.
+- Unit/integration: 40 files, 289 tests passing on Node 24.19.0 arm64.
+- Electron acceptance: 30/30 passing, including geometry, seven macOS visual baselines, accessibility, native packaged smoke and immutable BV suite 10/10; immutable hash unchanged.
+- Handoff comparison: twelve versioned 1420×892 side-by-side/overlay assets and eight intentional product-contract deviations recorded in `thoughts/reviews/2026-08-26_forge-handoff-style-fidelity.md`.
 - macOS package/make, strict code-sign verification, ASAR/fuses, bundled Apache-2.0 license, and packaged SQLite reopen smoke pass.
 - Native Linux ARM64 package/runtime, all Electron E2E scenarios, packaged SQLite reopen, DEB/RPM makers, and artifact verification pass.
 - Windows x64 cross-packaging produces a structurally valid PE GUI executable with the expected ASAR and hardened fuses; native launch, SQLite reopen, E2E, and Squirrel maker evidence remain pending.

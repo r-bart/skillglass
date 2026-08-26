@@ -1,7 +1,7 @@
 # Implementation Plan: Forge handoff style fidelity
 
 **Date**: 2026-08-26  
-**Status**: In Progress  
+**Status**: Complete  
 **Audit**: `thoughts/reviews/2026-08-26_forge-handoff-style-fidelity.md`
 
 ---
@@ -14,16 +14,16 @@ This is a visual-fidelity project, not authorization to restore features exclude
 
 ## Requirements
 
-- [ ] Treat `App.dc.html` as the visual source of truth for shared surfaces and primitives.
-- [ ] Preserve current product behavior, DTOs, IPC boundaries and immutable business-value tests.
-- [ ] Match the 1420×892 handoff geometry and density for desktop reference captures.
-- [ ] Use the handoff's exact colors, borders, radii, typography, glass and metal treatments.
-- [ ] Keep all interactions semantic, keyboard-operable and correctly labelled.
-- [ ] Keep the application resizable and usable at the existing minimum 760×520.
-- [ ] Preserve reduced-motion and forced-colors variants.
-- [ ] Prevent document-level scrolling; only content panels and sheets may scroll.
-- [ ] Add deterministic visual regression coverage and geometric assertions.
-- [ ] Do not modify `tests/spec/forge-mvp.e2e.spec.ts`.
+- [x] Treat `App.dc.html` as the visual source of truth for shared surfaces and primitives.
+- [x] Preserve current product behavior, DTOs, IPC boundaries and immutable business-value tests.
+- [x] Match the 1420×892 handoff geometry and density for desktop reference captures.
+- [x] Use the handoff's exact colors, borders, radii, typography, glass and metal treatments.
+- [x] Keep all interactions semantic, keyboard-operable and correctly labelled.
+- [x] Keep the application resizable and usable at the existing minimum 760×520.
+- [x] Preserve reduced-motion and forced-colors variants.
+- [x] Prevent document-level scrolling; only content panels and sheets may scroll.
+- [x] Add deterministic visual regression coverage and geometric assertions.
+- [x] Do not modify `tests/spec/forge-mvp.e2e.spec.ts`.
 
 ## Non-goals
 
@@ -396,43 +396,51 @@ Visual comparisons must run in the same pinned environment as their baseline, as
 
 ### Visual foundation
 
-- [ ] Computed reference tokens equal the values in the Visual Contract.
-- [ ] No undefined custom property is consumed by production CSS.
-- [ ] `rg "var\(--(radius|shadow-large|danger)" apps/desktop/src/renderer` finds no unresolved token use.
+- [x] Computed reference tokens equal the values in the Visual Contract.
+- [x] No undefined custom property is consumed by production CSS.
+- [x] `rg "var\(--(radius|shadow-large|danger)" apps/desktop/src/renderer` finds no unresolved token use.
 
 ### Reference desktop
 
-- [ ] At 1420×892, topbar is 46 px ±0.5 px.
-- [ ] Sidebar is 226 px ±1 px.
-- [ ] Selected inspector is 326 px ±1 px.
-- [ ] Main column is 868 px ±2 px with the inspector open.
-- [ ] Header actions remain on one line.
-- [ ] The document has no page-level overflow; list, inspector and sheets own their scroll.
-- [ ] Surface title computes to 22 px and inventory rows to 52 px in the reference state.
+- [x] At 1420×892, topbar is 46 px ±0.5 px.
+- [x] Sidebar is 226 px ±1 px.
+- [x] Selected inspector is 326 px ±1 px.
+- [x] Main column is 868 px ±2 px with the inspector open.
+- [x] Header actions remain on one line.
+- [x] The document has no page-level overflow; list, inspector and sheets own their scroll.
+- [x] Surface title computes to 22 px and inventory rows to 52 px in the reference state.
 
 ### Product and accessibility
 
-- [ ] No activation, deactivation, delete, uninstall, move, remote install, AI generation or synthetic usage control is introduced.
-- [ ] Exact evidence, paths, previews, journal state and undo remain visible.
-- [ ] Keyboard-only onboarding, inventory, inspector, editor and confirmation pass.
-- [ ] Reduced-motion and forced-colors tests pass.
-- [ ] 760×520 remains usable without inaccessible off-screen controls.
+- [x] No activation, deactivation, delete, uninstall, move, remote install, AI generation or synthetic usage control is introduced.
+- [x] Exact evidence, paths, previews, journal state and undo remain visible.
+- [x] Keyboard-only onboarding, inventory, inspector, editor and confirmation pass.
+- [x] Reduced-motion and forced-colors tests pass.
+- [x] 760×520 remains usable without inaccessible off-screen controls.
 
 ### Visual verification
 
-- [ ] Approved macOS snapshots exist for all reference states.
-- [ ] Initial side-by-side/overlay review records every intentional deviation from the handoff.
-- [ ] Subsequent `pnpm test:e2e` runs fail on unapproved visual drift.
+- [x] Approved macOS snapshots exist for all reference states.
+- [x] Initial side-by-side/overlay review records every intentional deviation from the handoff.
+- [x] Subsequent `pnpm test:e2e` runs fail on unapproved visual drift.
 
 ### Repository gates
 
-- [ ] Immutable suite hash remains `3528ff79a1e75b3ca5cfe012e7997d6d5dd04337c1258ac2e393cd6586cbaf6c`.
-- [ ] `pnpm typecheck` passes.
-- [ ] `pnpm lint` passes.
-- [ ] `pnpm test` passes.
-- [ ] `pnpm test:e2e` passes.
-- [ ] `pnpm package` and packaged launch smoke pass on the active native platform.
-- [ ] `git diff --check` passes.
+- [x] Immutable suite hash remains `3528ff79a1e75b3ca5cfe012e7997d6d5dd04337c1258ac2e393cd6586cbaf6c`.
+- [x] `pnpm typecheck` passes.
+- [x] `pnpm lint` passes.
+- [x] `pnpm test` passes.
+- [x] `pnpm test:e2e` passes.
+- [x] `pnpm package` and packaged launch smoke pass on the active native platform.
+- [x] `git diff --check` passes.
+
+## Execution Record
+
+- Implemented in dependency order from acceptance scaffolding through tokens, chrome, inventory, inspector, sheets, responsive/accessibility hardening and visual approval.
+- Approved seven macOS reference snapshots and twelve versioned comparison assets for inventory/inspector, pending, editor and history.
+- Stabilized visual fixtures without masking layout, and made equal-name inventory ordering deterministic by adapter, scope, canonical path and installation ID.
+- Final verification on Node 24.19.0 / pnpm 11.5.1: typecheck and lint pass; 40 test files and 289 unit/integration tests pass; 30/30 Electron E2E tests pass; native macOS package and SQLite reopen smoke pass.
+- Implementation commits: `209f517`, `b5f71fc`, `638a60e`, `2ac72a1`, `986185e`, `764bebb`, `e77cf3b`, `a384845`, `5a92d79`, `24e6cb4`, `fbf8d88`, `99ab1cd`, `a95754e`.
 
 ---
 
