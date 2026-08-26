@@ -1,4 +1,5 @@
-import { BrowserWindow, session, shell } from "electron"
+import { BrowserWindow, screen, session, shell } from "electron"
+import type { BrowserWindowConstructorOptions } from "electron"
 import { join } from "node:path"
 
 import { FORGE_APP_ORIGIN } from "./protocol.js"
@@ -7,6 +8,68 @@ import {
   createSecureWebPreferences,
   isAllowedExternalUrl,
 } from "./security.js"
+
+export const PREFERRED_CONTENT_SIZE = { width: 1420, height: 892 } as const
+export const MINIMUM_CONTENT_SIZE = { width: 760, height: 520 } as const
+
+export interface DisplayWorkAreaSize {
+  readonly width: number
+  readonly height: number
+}
+
+function clampPreferredDimension(preferred: number, minimum: number, available: number): number {
+  return Math.max(minimum, Math.min(preferred, Math.floor(available)))
+}
+
+/**
+ * Calculates the platform-specific, display-aware BrowserWindow options without
+ * accessing Electron runtime state. Keeping this pure lets the native chrome
+ * contract be verified in the regular unit-test process.
+ */
+export function calculateWindowOptions(
+  workArea: DisplayWorkAreaSize,
+  platform: NodeJS.Platform = process.platform,
+): BrowserWindowConstructorOptions {
+  const nativeChromeOptions: BrowserWindowConstructorOptions =
+    platform === "darwin"
+      ? {
+          // Retain the native traffic lights while allowing the app topbar to
+          // occupy the titlebar area.
+          titleBarStyle: "hiddenInset",
+        }
+      : platform === "win32" || platform === "linux"
+        ? {
+            // Electron supplies the native caption controls in this overlay;
+            // the renderer must reserve the matching topbar height.
+            titleBarStyle: "hidden",
+            titleBarOverlay: {
+              color: "#101013",
+              symbolColor: "#f4f4f6",
+              height: 46,
+            },
+          }
+        : {}
+
+  return {
+    title: "Forge",
+    width: clampPreferredDimension(
+      PREFERRED_CONTENT_SIZE.width,
+      MINIMUM_CONTENT_SIZE.width,
+      workArea.width,
+    ),
+    height: clampPreferredDimension(
+      PREFERRED_CONTENT_SIZE.height,
+      MINIMUM_CONTENT_SIZE.height,
+      workArea.height,
+    ),
+    minWidth: MINIMUM_CONTENT_SIZE.width,
+    minHeight: MINIMUM_CONTENT_SIZE.height,
+    useContentSize: true,
+    show: false,
+    backgroundColor: "#0b0b0d",
+    ...nativeChromeOptions,
+  }
+}
 
 function openAllowedExternalUrl(candidate: string): void {
   if (!isAllowedExternalUrl(candidate)) return
@@ -39,14 +102,10 @@ export async function createMainWindow(isPackaged: boolean): Promise<BrowserWind
   installDefaultDenyPermissions()
   installContentSecurityPolicy(isPackaged)
 
+  const activeDisplay = screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
+
   const window = new BrowserWindow({
-    title: "Forge",
-    width: 1180,
-    height: 760,
-    minWidth: 760,
-    minHeight: 520,
-    show: false,
-    backgroundColor: "#111318",
+    ...calculateWindowOptions(activeDisplay.workArea),
     webPreferences: createSecureWebPreferences(join(__dirname, "preload.js"), isPackaged),
   })
 
