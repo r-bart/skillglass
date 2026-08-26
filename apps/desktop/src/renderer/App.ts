@@ -10,126 +10,15 @@ import type {
 } from "@forge/contracts"
 
 import { AccessibleDialog } from "./AccessibleDialog.js"
+import {
+  AppSidebar,
+  AppTopbar,
+  PrimaryNavigation,
+  type Surface,
+} from "./AppChrome.js"
 import { Inspector, Inventory } from "./inventory/index.js"
 import { OperationPlanDetails } from "./OperationPlanDetails.js"
 import { Pending } from "./Pending.js"
-
-type Surface = "onboarding" | "inventory" | "pending"
-
-interface NavigationProps {
-  activeSurface: Surface
-  onNavigate: (surface: Surface) => void
-  onboardingRequired: boolean
-}
-
-const surfaceLabels: Record<Surface, string> = {
-  onboarding: "Configuración inicial",
-  inventory: "Inventario",
-  pending: "Pendientes",
-}
-
-function Brand() {
-  return createElement(
-    "a",
-    { className: "brand", href: "/", "aria-label": "Página de inicio de Forge" },
-    createElement("span", { className: "brand-mark", "aria-hidden": "true" }, "F"),
-    createElement("span", { className: "brand-name" }, "Forge"),
-  )
-}
-
-function PrimaryNavigation({ activeSurface, onNavigate, onboardingRequired }: NavigationProps) {
-  const navigationItems = Object.entries(surfaceLabels) as Array<[Surface, string]>
-
-  return createElement(
-    "nav",
-    { className: "primary-navigation", "aria-label": "Secciones principales" },
-    createElement("p", { className: "navigation-label" }, "Espacio local"),
-    createElement(
-      "ul",
-      { className: "navigation-list", role: "list" },
-      navigationItems.map(([surface, label]) =>
-        createElement(
-          "li",
-          { key: surface },
-          createElement(
-            "button",
-            {
-              className: "navigation-item",
-              type: "button",
-              disabled: surface !== "onboarding" && onboardingRequired,
-              "aria-current": activeSurface === surface ? "page" : undefined,
-              onClick: () => onNavigate(surface),
-            },
-            createElement("span", { className: "navigation-dot", "aria-hidden": "true" }),
-            createElement("span", { className: "navigation-text" }, label),
-          ),
-        ),
-      ),
-    ),
-  )
-}
-
-function AppHeader({
-  activeSurface,
-  mobileNavigationOpen,
-  onToggleMobileNavigation,
-  onOpenHistory,
-  operationsVisible,
-  operationBusy,
-  onInstallDirectory,
-  onInstallZip,
-  onRefreshUpdates,
-}: {
-  activeSurface: Surface
-  mobileNavigationOpen: boolean
-  onToggleMobileNavigation: () => void
-  onOpenHistory: () => void
-  operationsVisible: boolean
-  operationBusy: boolean
-  onInstallDirectory: () => void
-  onInstallZip: () => void
-  onRefreshUpdates: () => void
-}) {
-  return createElement(
-    "header",
-    { className: "app-header" },
-    createElement(Brand),
-    createElement(
-      "p",
-      { className: "header-context", "aria-live": "polite" },
-      surfaceLabels[activeSurface],
-    ),
-    createElement(
-      "div",
-      { className: "header-actions" },
-      createElement("p", { className: "local-status" }, "Datos locales"),
-      operationsVisible
-        ? createElement("button", { className: "secondary-action", type: "button", disabled: operationBusy, onClick: onInstallDirectory }, "Instalar desde carpeta")
-        : null,
-      operationsVisible
-        ? createElement("button", { className: "secondary-action", type: "button", disabled: operationBusy, onClick: onInstallZip }, "Instalar desde ZIP")
-        : null,
-      operationsVisible
-        ? createElement("button", { className: "secondary-action", type: "button", disabled: operationBusy, onClick: onRefreshUpdates }, "Buscar actualizaciones")
-        : null,
-      createElement("button", { className: "secondary-action history-button", type: "button", onClick: onOpenHistory }, "Historial"),
-      createElement(
-        "button",
-        {
-          className: "navigation-toggle",
-          type: "button",
-          "aria-controls": "mobile-navigation",
-          "aria-expanded": mobileNavigationOpen,
-          "aria-label": mobileNavigationOpen ? "Cerrar navegación" : "Abrir navegación",
-          onClick: onToggleMobileNavigation,
-        },
-        createElement("span", { "aria-hidden": "true" }),
-        createElement("span", { "aria-hidden": "true" }),
-        createElement("span", { "aria-hidden": "true" }),
-      ),
-    ),
-  )
-}
 
 const accessLabels: Record<RootCandidateDto["access"], string> = {
   "read-write": "Lectura y escritura",
@@ -512,9 +401,11 @@ export function App({
     "div",
     { className: "app-shell" },
     createElement("a", { className: "skip-link", href: "#main-content" }, "Saltar al contenido"),
-    createElement(AppHeader, {
+    createElement(AppTopbar, {
       activeSurface,
       mobileNavigationOpen,
+      onboardingRequired,
+      onNavigate: navigate,
       onToggleMobileNavigation: () => setMobileNavigationOpen((isOpen) => !isOpen),
       onOpenHistory: () => { void openHistory() },
       operationsVisible: activeSurface !== "onboarding" && !onboardingRequired,
@@ -633,16 +524,7 @@ export function App({
     createElement(
       "div",
       { className: "app-body" },
-      createElement(
-        "aside",
-        { className: "sidebar" },
-        createElement(PrimaryNavigation, { activeSurface, onNavigate: navigate, onboardingRequired }),
-        createElement(
-          "p",
-          { className: "sidebar-footnote" },
-          "Forge observa contenido local. El harness conserva el control de activación.",
-        ),
-      ),
+      createElement(AppSidebar, { activeSurface, onNavigate: navigate, onboardingRequired }),
       createElement(
         "main",
         { className: "main-content", id: "main-content", tabIndex: -1 },
