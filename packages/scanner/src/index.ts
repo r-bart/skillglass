@@ -1,4 +1,7 @@
+export * from "./coordinator/index.js"
 export * from "./hashing/index.js"
 export * from "./parser/index.js"
 export * from "./paths/index.js"
 export * from "./validation/index.js"
+export * from "./watcher/index.js"
+export * from "./workers/index.js"
