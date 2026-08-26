@@ -63,6 +63,7 @@ interface ForgeBusinessFixture {
 }
 
 export interface LaunchForgeOptions {
+  readonly keepUnapprovedRootsHidden?: boolean
   readonly onboarded?: boolean
   readonly workingDirectory?: string
 }
@@ -325,9 +326,12 @@ export async function createForgeBusinessFixture(): Promise<ForgeBusinessFixture
     readElevationAudit: () => readAuditLines(elevationAuditPath),
     async dispose() {
       if (process.platform !== "win32") {
-        await chmod(managedSkillsRoot, 0o755).catch(() => undefined)
-        await chmod(managedSkillRoot, 0o755).catch(() => undefined)
-        await chmod(path.join(managedSkillRoot, "SKILL.md"), 0o644).catch(() => undefined)
+        for (const candidateRoot of [managedSkillsRoot, `${managedSkillsRoot}.e2e-hidden`]) {
+          const candidateSkill = path.join(candidateRoot, "managed-audit")
+          await chmod(candidateRoot, 0o755).catch(() => undefined)
+          await chmod(candidateSkill, 0o755).catch(() => undefined)
+          await chmod(path.join(candidateSkill, "SKILL.md"), 0o644).catch(() => undefined)
+        }
       }
       await rm(root, { recursive: true, force: true })
     },
@@ -556,7 +560,7 @@ export async function launchForge(
     launched = await launchElectron(fixture, workingDirectory)
     await launched.page.getByRole("heading", { name: "Carpetas de skills" }).waitFor()
   } finally {
-    if (options.onboarded !== true) {
+    if (options.onboarded !== true && options.keepUnapprovedRootsHidden !== true) {
       await rename(hiddenProjectSkills, projectSkills)
       await rename(hiddenManagedSkills, fixture.managedSkillsRoot)
     }

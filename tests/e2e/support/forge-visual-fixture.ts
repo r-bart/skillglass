@@ -250,7 +250,10 @@ export async function launchForgeVisualScenario(
   const fixture = await createForgeVisualFixture()
   let app: ForgeTestApplication | undefined
   try {
-    app = await launchForge(fixture.business, { onboarded: name !== "onboarding" })
+    app = await launchForge(fixture.business, {
+      keepUnapprovedRootsHidden: name === "onboarding",
+      onboarded: name !== "onboarding",
+    })
     await configureVisualPage(app.page)
 
     switch (name) {

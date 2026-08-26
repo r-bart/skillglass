@@ -3,6 +3,8 @@ import { expect, test, type Locator, type Page } from "@playwright/test"
 import {
   launchForgeVisualScenario,
   settleForgeVisualState,
+  type ForgeVisualScenarioName,
+  type RunningForgeVisualScenario,
 } from "./support/forge-visual-fixture.js"
 
 interface Box {
@@ -16,6 +18,51 @@ const REFERENCE = { width: 1_420, height: 892 } as const
 const COMPACT = { width: 1_180, height: 760 } as const
 const NARROW = { width: 760, height: 520 } as const
 const TOPBAR_HEIGHT = 46
+
+const visualScenarios = [
+  "onboarding",
+  "inventory",
+  "inspector",
+  "pending",
+  "operation-confirmation",
+  "editor",
+  "history",
+] as const satisfies readonly ForgeVisualScenarioName[]
+
+const platformSnapshotSuffix = process.platform === "darwin"
+  ? "macos"
+  : process.platform === "win32"
+    ? "windows"
+    : "linux"
+
+function snapshotName(scenario: ForgeVisualScenarioName): string {
+  return `${scenario}-${platformSnapshotSuffix}.png`
+}
+
+function volatileSnapshotValues(scenario: RunningForgeVisualScenario): Locator[] {
+  const { page } = scenario.app
+  const temporaryRoot = scenario.fixture.business.root
+  const values = [
+    page.locator(".root-path, .inspector-path, dd").filter({ hasText: temporaryRoot }),
+    page.locator("dl > div", {
+      has: page.getByText("Snapshot", { exact: true }),
+    }).locator("dd"),
+  ]
+
+  if (scenario.name === "history") {
+    values.push(page.locator(".history-entry__content > small"))
+  }
+
+  return values
+}
+
+async function prepareVisualSnapshot(scenario: RunningForgeVisualScenario): Promise<void> {
+  if (scenario.name === "inventory") {
+    await scenario.app.page.getByRole("button", { name: "Global", exact: true }).click()
+    await scenario.app.page.getByRole("row", { name: /global-review/u }).waitFor()
+  }
+  await settleForgeVisualState(scenario.app.page)
+}
 
 async function boxOf(locator: Locator, label: string): Promise<Box> {
   const box = await locator.boundingBox()
@@ -266,4 +313,25 @@ test.describe("Forge geometric fidelity", () => {
       await scenario.close()
     }
   })
+})
+
+test.describe("Forge visual regression", () => {
+  for (const scenarioName of visualScenarios) {
+    test(`${scenarioName} matches its approved ${platformSnapshotSuffix} baseline`, async () => {
+      const scenario = await launchForgeVisualScenario(scenarioName)
+      try {
+        const { page } = scenario.app
+        await prepareVisualSnapshot(scenario)
+        await expect(page).toHaveScreenshot(snapshotName(scenarioName), {
+          animations: "disabled",
+          caret: "hide",
+          mask: volatileSnapshotValues(scenario),
+          maskColor: "#17171c",
+          scale: "css",
+        })
+      } finally {
+        await scenario.close()
+      }
+    })
+  }
 })
