@@ -14,6 +14,7 @@ import { EmptyInputSchema } from "./primitives.js"
 import {
   ApproveRootsInputSchema,
   ApprovedRootDtoSchema,
+  OnboardingStateDtoSchema,
   RootCandidateDtoSchema,
   SelectAdditionalRootInputSchema,
 } from "./roots.js"
@@ -30,6 +31,10 @@ const NullableRootCandidateSchema = RootCandidateDtoSchema.nullable()
 
 /** Runtime schemas keyed by the closed invoke-channel allowlist. */
 export const IPC_INVOKE_CONTRACTS = {
+  [IPC_INVOKE_CHANNELS.onboardingState]: {
+    input: EmptyInputSchema,
+    output: OnboardingStateDtoSchema,
+  },
   [IPC_INVOKE_CHANNELS.onboardingProposedRoots]: {
     input: EmptyInputSchema,
     output: z.array(RootCandidateDtoSchema),

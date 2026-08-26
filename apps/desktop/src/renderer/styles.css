@@ -253,6 +253,11 @@ button {
   background: var(--glass);
 }
 
+.navigation-item:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 .navigation-item[aria-current="page"] {
   border-color: var(--border-strong);
   color: var(--text);
@@ -347,6 +352,144 @@ h2 {
   color: var(--text-muted);
   font-size: 1rem;
   line-height: 1.65;
+}
+
+.root-form,
+.root-fieldset,
+.root-copy,
+.root-list {
+  display: grid;
+}
+
+.root-form {
+  gap: 1.1rem;
+}
+
+.root-fieldset {
+  gap: 0.8rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.root-fieldset legend {
+  margin-bottom: 0.8rem;
+  color: var(--text);
+  font-weight: 650;
+}
+
+.root-list {
+  gap: 0.65rem;
+}
+
+.root-option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 0.85rem;
+  padding: 1rem;
+  border: 0.0625rem solid var(--border);
+  border-radius: var(--radius-medium);
+  background: var(--glass);
+  cursor: pointer;
+}
+
+.root-option:has(input:checked) {
+  border-color: var(--border-strong);
+  background: var(--accent-soft);
+}
+
+.root-option input {
+  width: 1.15rem;
+  height: 1.15rem;
+  margin: 0.15rem 0 0;
+  accent-color: var(--accent);
+}
+
+.root-copy {
+  min-width: 0;
+  gap: 0.35rem;
+}
+
+.root-name {
+  font-weight: 650;
+}
+
+.root-path {
+  overflow-wrap: anywhere;
+  color: var(--text-muted);
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  font-size: 0.8125rem;
+}
+
+.root-meta,
+.root-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.root-meta {
+  gap: 0.5rem;
+  color: var(--text-subtle);
+  font-size: 0.75rem;
+}
+
+.access-badge {
+  padding: 0.2rem 0.45rem;
+  border: 0.0625rem solid var(--border);
+  border-radius: 999px;
+}
+
+.access-read-write {
+  color: var(--positive);
+}
+
+.access-denied,
+.form-error {
+  color: oklch(0.78 0.16 28);
+}
+
+.root-actions {
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.primary-action,
+.secondary-action {
+  min-height: 2.75rem;
+  padding: 0.65rem 0.95rem;
+  border-radius: var(--radius-small);
+  cursor: pointer;
+  font-weight: 650;
+}
+
+.primary-action {
+  color: oklch(0.18 0.02 88);
+  background: var(--accent);
+}
+
+.secondary-action {
+  border: 0.0625rem solid var(--border-strong);
+  background: var(--glass);
+}
+
+.primary-action:disabled,
+.secondary-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.root-safety-note,
+.form-error {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.root-safety-note {
+  color: var(--text-subtle);
 }
 
 .inventory-summary {

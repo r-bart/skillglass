@@ -1,6 +1,7 @@
 import { z } from "zod"
 
 export const IPC_INVOKE_CHANNELS = {
+  onboardingState: "forge:onboarding:state",
   onboardingProposedRoots: "forge:onboarding:proposed-roots",
   onboardingSelectAdditionalRoot: "forge:onboarding:select-additional-root",
   onboardingApproveRoots: "forge:onboarding:approve-roots",

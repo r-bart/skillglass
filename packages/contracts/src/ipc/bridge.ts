@@ -22,6 +22,7 @@ import type {
 import type {
   ApproveRootsInput,
   ApprovedRootDto,
+  OnboardingStateDto,
   RootCandidateDto,
   SelectAdditionalRootInput,
 } from "./roots.js"
@@ -31,6 +32,7 @@ export type Unsubscribe = () => void
 /** The only renderer-facing API. Implementations must validate both sides of IPC. */
 export interface ForgeBridge {
   onboarding: {
+    state(): Promise<OnboardingStateDto>
     proposedRoots(): Promise<RootCandidateDto[]>
     selectAdditionalRoot(
       input: SelectAdditionalRootInput,

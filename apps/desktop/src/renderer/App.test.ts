@@ -1,6 +1,8 @@
 import { act, createElement } from "react"
 import { createRoot, type Root } from "react-dom/client"
-import { afterEach, beforeEach, describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+
+import type { ForgeBridge, OnboardingStateDto } from "@forge/contracts"
 
 import { App } from "./App.js"
 
@@ -8,6 +10,35 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
 let container: HTMLDivElement
 let root: Root
+
+const candidate = {
+  candidateId: "candidate_fixture",
+  adapterId: "folder",
+  displayName: "Agent Skills folder · Añadida por ti",
+  displayPath: "/safe/skills",
+  kind: "user-added" as const,
+  access: "read-write" as const,
+  writableWithoutElevation: true,
+  discovery: { kind: "observed" as const, source: "native-directory-selection" },
+}
+
+const approved = { ...candidate, rootId: "root_fixture" }
+
+function onboardingBridge(state: OnboardingStateDto): ForgeBridge["onboarding"] {
+  return {
+    state: () => Promise.resolve(state),
+    proposedRoots: () => Promise.resolve(state.proposedRoots),
+    selectAdditionalRoot: () => Promise.resolve(null),
+    approveRoots: () => Promise.resolve([approved]),
+  }
+}
+
+const completeState: OnboardingStateDto = {
+  status: "complete",
+  proposedRoots: [candidate],
+  selectedCandidateIds: [candidate.candidateId],
+  approvedRoots: [approved],
+}
 
 function buttonNamed(name: string): HTMLButtonElement {
   const button = Array.from(container.querySelectorAll("button")).find(
@@ -21,11 +52,11 @@ function buttonNamed(name: string): HTMLButtonElement {
   return button
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   container = document.createElement("div")
   document.body.append(container)
   root = createRoot(container)
-  act(() => root.render(createElement(App)))
+  await act(async () => root.render(createElement(App, { onboardingBridge: onboardingBridge(completeState) })))
 })
 
 afterEach(() => {
@@ -52,7 +83,7 @@ describe("Forge application shell", () => {
 
     act(() => buttonNamed("Configuración inicial").click())
 
-    expect(container.querySelector("h1")?.textContent).toBe("Configura tus fuentes")
+    expect(container.querySelector("h1")?.textContent).toBe("Carpetas de skills")
     expect(buttonNamed("Configuración inicial").getAttribute("aria-current")).toBe("page")
   })
 
@@ -74,5 +105,26 @@ describe("Forge application shell", () => {
       .join(" ")
 
     expect(controlText).not.toMatch(/activar|desactivar|eliminar|borrar|desinstalar/i)
+  })
+
+  it("blocks inventory until approval and then saves only selected candidate IDs", async () => {
+    const required: OnboardingStateDto = {
+      status: "required",
+      proposedRoots: [candidate],
+      selectedCandidateIds: [candidate.candidateId],
+      approvedRoots: [],
+    }
+    const approveRoots = vi.fn(() => Promise.resolve([approved]))
+    const bridge = { ...onboardingBridge(required), approveRoots }
+    await act(async () => root.render(createElement(App, { onboardingBridge: bridge })))
+
+    expect(container.querySelector("h1")?.textContent).toBe("Carpetas de skills")
+    expect(buttonNamed("Inventario").disabled).toBe(true)
+    expect(container.textContent).toContain("Lectura y escritura")
+    expect(container.textContent).toContain("Evidencia observed")
+
+    await act(async () => buttonNamed("Escanear carpetas aprobadas").click())
+    expect(approveRoots).toHaveBeenCalledWith({ candidateIds: [candidate.candidateId] })
+    expect(container.querySelector("h1")?.textContent).toBe("Inventario")
   })
 })

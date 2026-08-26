@@ -23,6 +23,7 @@ import {
   OperationRequestDtoSchema,
   OperationResultDtoSchema,
   OperationProgressEventSchema,
+  OnboardingStateDtoSchema,
   RootCandidateDtoSchema,
   RootsChangedEventSchema,
   UndoOperationInputSchema,
@@ -143,6 +144,21 @@ describe("root onboarding contracts", () => {
         access: "read-only",
       }).success,
     ).toBe(false)
+  })
+
+  it("ties completion to persisted approvals and selections to proposed IDs", () => {
+    expectJsonRoundTrip(OnboardingStateDtoSchema, {
+      status: "required",
+      proposedRoots: [candidate],
+      selectedCandidateIds: [candidate.candidateId],
+      approvedRoots: [],
+    })
+    expect(OnboardingStateDtoSchema.safeParse({
+      status: "complete",
+      proposedRoots: [candidate],
+      selectedCandidateIds: [],
+      approvedRoots: [],
+    }).success).toBe(false)
   })
 })
 

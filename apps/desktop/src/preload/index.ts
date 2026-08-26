@@ -1,3 +1,5 @@
-// Task-specific, validated APIs will be exposed here as the typed IPC contract is implemented.
-// Intentionally expose no Electron or Node primitives to the renderer in the shell foundation.
-export {}
+import { contextBridge, ipcRenderer } from "electron"
+
+import { createForgeBridge } from "./bridge.js"
+
+contextBridge.exposeInMainWorld("forge", createForgeBridge(ipcRenderer))

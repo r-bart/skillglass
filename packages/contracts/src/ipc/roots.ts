@@ -80,9 +80,31 @@ export const SelectAdditionalRootInputSchema = z
   .object({ adapterId: AdapterIdSchema })
   .strict()
 
+export const OnboardingStateDtoSchema = z
+  .object({
+    status: z.enum(["required", "complete"]),
+    proposedRoots: z.array(RootCandidateDtoSchema).max(128),
+    selectedCandidateIds: z.array(CandidateIdSchema).max(128),
+    approvedRoots: z.array(ApprovedRootDtoSchema).max(128),
+  })
+  .strict()
+  .superRefine((state, context) => {
+    const proposed = new Set(state.proposedRoots.map(({ candidateId }) => candidateId))
+    if (new Set(state.selectedCandidateIds).size !== state.selectedCandidateIds.length) {
+      context.addIssue({ code: "custom", message: "Selected candidate IDs must be unique", path: ["selectedCandidateIds"] })
+    }
+    if (state.selectedCandidateIds.some((candidateId) => !proposed.has(candidateId))) {
+      context.addIssue({ code: "custom", message: "Every selected root must be proposed", path: ["selectedCandidateIds"] })
+    }
+    if ((state.status === "complete") !== (state.approvedRoots.length > 0)) {
+      context.addIssue({ code: "custom", message: "Complete onboarding requires persisted approved roots", path: ["status"] })
+    }
+  })
+
 export type RootCandidateDto = z.infer<typeof RootCandidateDtoSchema>
 export type ApprovedRootDto = z.infer<typeof ApprovedRootDtoSchema>
 export type ApproveRootsInput = z.infer<typeof ApproveRootsInputSchema>
 export type SelectAdditionalRootInput = z.infer<
   typeof SelectAdditionalRootInputSchema
 >
+export type OnboardingStateDto = z.infer<typeof OnboardingStateDtoSchema>

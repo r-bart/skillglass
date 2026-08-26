@@ -10,4 +10,4 @@ if (root === null) {
   throw new Error("Forge renderer root is missing")
 }
 
-createRoot(root).render(createElement(StrictMode, null, createElement(App)))
+createRoot(root).render(createElement(StrictMode, null, createElement(App, {})))
