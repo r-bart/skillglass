@@ -6,6 +6,10 @@
   "exports": {
     ".": "./src/index.ts"
   },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run src"
+  },
   "dependencies": {
     "@forge/contracts": "workspace:*",
     "@forge/domain": "workspace:*"

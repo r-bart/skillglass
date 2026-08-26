@@ -13,7 +13,7 @@
     "dev": "pnpm --filter @forge/desktop start",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "eslint .",
-    "test": "vitest run --workspace vitest.workspace.ts --passWithNoTests",
+    "test": "vitest run --passWithNoTests",
     "test:e2e": "playwright test",
     "package": "pnpm --filter @forge/desktop package",
     "make": "pnpm --filter @forge/desktop make"

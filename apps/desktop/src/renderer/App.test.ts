@@ -1,0 +1,78 @@
+import { act, createElement } from "react"
+import { createRoot, type Root } from "react-dom/client"
+import { afterEach, beforeEach, describe, expect, it } from "vitest"
+
+import { App } from "./App.js"
+
+Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
+
+let container: HTMLDivElement
+let root: Root
+
+function buttonNamed(name: string): HTMLButtonElement {
+  const button = Array.from(container.querySelectorAll("button")).find(
+    (candidate) => candidate.textContent?.trim() === name || candidate.getAttribute("aria-label") === name,
+  )
+
+  if (!(button instanceof HTMLButtonElement)) {
+    throw new Error(`Button not found: ${name}`)
+  }
+
+  return button
+}
+
+beforeEach(() => {
+  container = document.createElement("div")
+  document.body.append(container)
+  root = createRoot(container)
+  act(() => root.render(createElement(App)))
+})
+
+afterEach(() => {
+  act(() => root.unmount())
+  container.remove()
+})
+
+describe("Forge application shell", () => {
+  it("renders named landmarks and a keyboard skip link", () => {
+    const skipLink = container.querySelector<HTMLAnchorElement>('a[href="#main-content"]')
+    const main = container.querySelector<HTMLElement>("main#main-content")
+    const navigation = container.querySelector<HTMLElement>('nav[aria-label="Secciones principales"]')
+    const inspector = container.querySelector<HTMLElement>('aside[aria-labelledby="inspector-title"]')
+
+    expect(skipLink?.textContent).toBe("Saltar al contenido")
+    expect(main?.tabIndex).toBe(-1)
+    expect(navigation).not.toBeNull()
+    expect(inspector).not.toBeNull()
+  })
+
+  it("navigates between the MVP placeholder surfaces with semantic buttons", () => {
+    expect(container.querySelector("h1")?.textContent).toBe("Inventario")
+    expect(buttonNamed("Inventario").getAttribute("aria-current")).toBe("page")
+
+    act(() => buttonNamed("Configuración inicial").click())
+
+    expect(container.querySelector("h1")?.textContent).toBe("Configura tus fuentes")
+    expect(buttonNamed("Configuración inicial").getAttribute("aria-current")).toBe("page")
+  })
+
+  it("exposes the mobile navigation as an accessible disclosure", () => {
+    const toggle = buttonNamed("Abrir navegación")
+
+    expect(toggle.getAttribute("aria-expanded")).toBe("false")
+    expect(container.querySelector("#mobile-navigation")).toBeNull()
+
+    act(() => toggle.click())
+
+    expect(buttonNamed("Cerrar navegación").getAttribute("aria-expanded")).toBe("true")
+    expect(container.querySelector("#mobile-navigation nav")).not.toBeNull()
+  })
+
+  it("does not expose harness activation or destructive controls", () => {
+    const controlText = Array.from(container.querySelectorAll("button"))
+      .map((button) => button.textContent?.trim() ?? button.getAttribute("aria-label") ?? "")
+      .join(" ")
+
+    expect(controlText).not.toMatch(/activar|desactivar|eliminar|borrar|desinstalar/i)
+  })
+})
