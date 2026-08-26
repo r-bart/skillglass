@@ -16,6 +16,13 @@ import type {
   InventoryQuery,
 } from "@forge/contracts"
 
+import {
+  FilterChip,
+  SkillTile,
+  StatusPill,
+  type StatusTone,
+} from "../VisualPrimitives.js"
+
 type Scope = InventoryQuery["scope"]
 type GroupBy = "none" | "author" | "package"
 type ProvenanceKind = NonNullable<InventoryQuery["provenanceKinds"]>[number]
@@ -55,6 +62,35 @@ const scopeLabels: Record<Exclude<InventoryItemDto["scope"]["kind"], "project">,
   global: "Global",
   managed: "Gestionada",
   system: "Sistema",
+}
+
+const adapterOptions = [
+  { value: "", label: "Todos" }, { value: "codex", label: "Codex" }, { value: "folder", label: "Carpetas" },
+] as const
+const validityOptions = [
+  { value: "", label: "Todas" }, { value: "valid", label: "Válidas" }, { value: "warning", label: "Con avisos" }, { value: "invalid", label: "Inválidas" }, { value: "unknown", label: "Sin datos" },
+] as const
+const runtimeOptions = [
+  { value: "", label: "Todos" }, { value: "enabled", label: "Activada (observada)" }, { value: "disabled", label: "Desactivada (observada)" }, { value: "inherited", label: "Heredada" }, { value: "shadowed", label: "Oculta" }, { value: "unknown", label: "Sin datos" }, { value: "unsupported", label: "No soportado" },
+] as const
+const sourceOptions = [
+  { value: "", label: "Todos" }, { value: "local", label: "Local" }, { value: "managed", label: "Gestionada" }, { value: "read-only", label: "Instalaciones de solo lectura" }, { value: "modified", label: "Modificada" }, { value: "unknown", label: "Sin datos" },
+] as const
+const provenanceOptions = [
+  { value: "", label: "Todas" }, { value: "local", label: "Local" }, { value: "forge-import", label: "Importada por Forge" }, { value: "registry", label: "Registro" }, { value: "package", label: "Paquete" }, { value: "plugin", label: "Plugin" }, { value: "system", label: "Sistema" }, { value: "unknown", label: "Sin datos" },
+] as const
+const updateOptions = [
+  { value: "", label: "Todas" }, { value: "available", label: "Disponible" }, { value: "diverged", label: "Con cambios locales" }, { value: "current", label: "Actualizadas" }, { value: "unknown", label: "Sin datos" },
+] as const
+const sortOptions = [
+  { value: "name:asc", label: "Nombre A–Z" }, { value: "name:desc", label: "Nombre Z–A" }, { value: "observedAt:desc", label: "Observación reciente" }, { value: "validity:asc", label: "Validez" }, { value: "update:asc", label: "Actualización" },
+] as const
+
+function optionLabel(
+  options: readonly Readonly<{ value: string; label: string }>[],
+  value: string,
+): string {
+  return options.find((option) => option.value === value)?.label ?? value
 }
 
 function knownLabel(claim: InventoryItemDto["author"]): string | undefined {
@@ -133,18 +169,53 @@ function evidenceText(item: InventoryItemDto): string {
     : "Nombre observado"
 }
 
+function statusTone(
+  kind: "validity" | "source" | "update",
+  value: string,
+): StatusTone {
+  if (kind === "validity") {
+    if (value === "valid") return "ok"
+    if (value === "warning") return "attention"
+    if (value === "invalid") return "danger"
+    return "idle"
+  }
+  if (kind === "update") {
+    if (value === "current") return "ok"
+    if (value === "available" || value === "diverged") return "attention"
+    return "idle"
+  }
+  if (value === "modified") return "attention"
+  return value === "unknown" || value === "read-only" ? "idle" : "neutral"
+}
+
+function scopeText(
+  item: InventoryItemDto,
+  projects: ReadonlyMap<string, string>,
+): string {
+  if (item.scope.kind === "project") {
+    return projects.get(item.scope.projectId) ?? "Proyecto"
+  }
+  return scopeLabels[item.scope.kind]
+}
+
 function InventoryTable({
   items,
+  projects,
   groupBy,
   selectedId,
   onSelect,
 }: {
   items: readonly InventoryItemDto[]
+  projects: NonNullable<InventoryPageDto["projects"]>
   groupBy: GroupBy
   selectedId: string | undefined
   onSelect: (installationId: string) => void
 }) {
   const rowRefs = useRef(new Map<string, HTMLTableRowElement>())
+  const projectLabels = useMemo(
+    () => new Map(projects.map((project) => [project.projectId, project.displayName])),
+    [projects],
+  )
   const grouped = useMemo(() => {
     const groups = new Map<string | undefined, InventoryItemDto[]>()
     for (const item of items) {
@@ -186,8 +257,8 @@ function InventoryTable({
         : "Sin paquete observado")
       rows.push(createElement(
         "tr",
-        { className: "inventory-group-row", key: `group:${label}` },
-        createElement("th", { colSpan: 5, scope: "rowgroup" }, label),
+        { className: "inventory-group-row", key: `group:${label}`, role: "row" },
+        createElement("th", { scope: "rowgroup" }, label),
       ))
     }
     for (const item of entries) {
@@ -201,35 +272,61 @@ function InventoryTable({
             else rowRefs.current.set(item.installationId, node)
           },
           className: "inventory-row",
+          role: "row",
           tabIndex: selected || (selectedId === undefined && item === items[0]) ? 0 : -1,
           "aria-selected": selected,
           onClick: () => onSelect(item.installationId),
           onKeyDown: (event: KeyboardEvent<HTMLTableRowElement>) => move(event, item.installationId),
         },
-        createElement(
-          "th",
-          { scope: "row" },
-          createElement("span", { className: "skill-name" }, item.key),
-          createElement("span", { className: "skill-description" },
-            item.description.state === "unknown"
-              ? "Sin descripción observada"
-              : item.description.value,
+        createElement("th", { scope: "row" },
+          createElement("span", { className: "inventory-row__content" },
+            createElement(
+              "span",
+              {
+                className: `inventory-evidence-marker inventory-evidence-marker--${item.status.validity}`,
+                role: "img",
+                "aria-label": `Validez: ${validityLabels[item.status.validity]}. ${evidenceText(item)}`,
+              },
+            ),
+            createElement(SkillTile, {
+              adapterId: item.adapterId,
+              skillKey: item.key,
+            }),
+            createElement("span", { className: "inventory-row__copy" },
+              createElement("span", { className: "inventory-row__identity" },
+                createElement("span", { className: "skill-name" }, item.key),
+                createElement("span", { className: "skill-scope" }, scopeText(item, projectLabels)),
+              ),
+              createElement("span", { className: "skill-description" },
+                item.description.state === "unknown"
+                  ? "Sin descripción observada"
+                  : item.description.value,
+              ),
+            ),
+            createElement("span", { className: "inventory-row__evidence", "aria-label": "Evidencia de la instalación" },
+              createElement(StatusPill, {
+                ariaLabel: `Validez: ${validityLabels[item.status.validity]}`,
+                className: "inventory-evidence-pill inventory-evidence-pill--validity",
+                tone: statusTone("validity", item.status.validity),
+              }, validityLabels[item.status.validity]),
+              createElement(StatusPill, {
+                ariaLabel: `Origen: ${sourceLabels[item.status.source]}`,
+                className: "inventory-evidence-pill inventory-evidence-pill--source",
+                tone: statusTone("source", item.status.source),
+              }, sourceLabels[item.status.source]),
+              createElement(StatusPill, {
+                ariaLabel: `Actualización: ${updateLabels[item.status.update]}`,
+                className: "inventory-evidence-pill inventory-evidence-pill--update",
+                tone: statusTone("update", item.status.update),
+              }, updateLabels[item.status.update]),
+            ),
+            item.declaredVersion.state === "known"
+              ? createElement("span", {
+                  className: "inventory-row__version",
+                  title: `Versión declarada: ${item.declaredVersion.value}`,
+                }, item.declaredVersion.value)
+              : null,
           ),
-        ),
-        createElement("td", null, item.adapterId === "codex" ? "Codex" : item.adapterId),
-        createElement(
-          "td",
-          null,
-          item.scope.kind === "project"
-            ? "Proyecto"
-            : scopeLabels[item.scope.kind],
-        ),
-        createElement("td", null, validityLabels[item.status.validity]),
-        createElement(
-          "td",
-          null,
-          createElement("span", { className: `status-pill status-${item.status.update}` }, updateLabels[item.status.update]),
-          createElement("span", { className: "visually-hidden" }, ` · ${sourceLabels[item.status.source]} · ${evidenceText(item)}`),
         ),
       ))
     }
@@ -239,15 +336,11 @@ function InventoryTable({
     { className: "inventory-table-wrap" },
     createElement(
       "table",
-      { className: "inventory-table", "aria-label": "Skills instaladas" },
-      createElement("thead", null, createElement(
+      { className: "inventory-table", role: "grid", "aria-label": "Skills instaladas" },
+      createElement("thead", { className: "inventory-table-head" }, createElement(
         "tr",
         null,
-        createElement("th", { scope: "col" }, "Skill"),
-        createElement("th", { scope: "col" }, "Runtime"),
-        createElement("th", { scope: "col" }, "Ámbito"),
-        createElement("th", { scope: "col" }, "Validez"),
-        createElement("th", { scope: "col" }, "Actualización"),
+        createElement("th", { scope: "col" }, "Skill y evidencia observada"),
       )),
       createElement("tbody", null, ...rows),
     ),
@@ -401,6 +494,37 @@ export function Inventory({ inventoryBridge, eventBridge, onSelectionChange }: I
     author,
     packageId,
   ].some((value) => value.trim().length > 0)
+  const clearFilters = (): void => {
+    setSearch("")
+    setValidity("")
+    setRuntime("")
+    setUpdate("")
+    setAdapter("")
+    setSource("")
+    setProvenance("")
+    setAuthor("")
+    setPackageId("")
+  }
+  const activeFilters: readonly Readonly<{
+    clear: () => void
+    id: string
+    label: string
+  }>[] = [
+    ...(search.trim().length === 0 ? [] : [{ id: "search", label: `Búsqueda: “${search.trim()}”`, clear: () => setSearch("") }]),
+    ...(adapter.length === 0 ? [] : [{ id: "adapter", label: `Runtime: ${optionLabel(adapterOptions, adapter)}`, clear: () => setAdapter("") }]),
+    ...(validity.length === 0 ? [] : [{ id: "validity", label: `Validez: ${optionLabel(validityOptions, validity)}`, clear: () => setValidity("") }]),
+    ...(runtime.length === 0 ? [] : [{ id: "runtime", label: `Harness: ${optionLabel(runtimeOptions, runtime)}`, clear: () => setRuntime("") }]),
+    ...(source.length === 0 ? [] : [{ id: "source", label: `Origen: ${optionLabel(sourceOptions, source)}`, clear: () => setSource("") }]),
+    ...(provenance.length === 0 ? [] : [{ id: "provenance", label: `Procedencia: ${optionLabel(provenanceOptions, provenance)}`, clear: () => setProvenance("") }]),
+    ...(update.length === 0 ? [] : [{ id: "update", label: `Actualización: ${optionLabel(updateOptions, update)}`, clear: () => setUpdate("") }]),
+    ...(author.length === 0 ? [] : [{ id: "author", label: `Autor: ${author}`, clear: () => setAuthor("") }]),
+    ...(packageId.length === 0 ? [] : [{ id: "package", label: `Paquete: ${packageId}`, clear: () => setPackageId("") }]),
+  ]
+  const resultSummary = loading
+    ? "Consultando inventario…"
+    : page.items.length < page.total
+      ? `${page.items.length} de ${page.total} instalaciones`
+      : `${page.total} instalaciones`
 
   const scopeNavigation = createElement(ScopeNavigation, {
     scope,
@@ -442,67 +566,99 @@ export function Inventory({ inventoryBridge, eventBridge, onSelectionChange }: I
       { className: "page-heading inventory-heading" },
       createElement("p", { className: "eyebrow" }, "Skills observadas"),
       createElement("h1", { id: "inventory-title" }, "Inventario"),
-      createElement("p", { className: "page-description" }, "Consulta instalaciones reales y su evidencia sin alterar la activación del harness."),
+      createElement("p", { className: "page-description" }, "Instalaciones y evidencia observada en los ámbitos aprobados."),
     ),
     createElement(
       "div",
-      { className: "inventory-controls", "aria-label": "Filtros del inventario" },
-      createElement(FilterSelect, { label: "Runtime", value: adapter, onChange: setAdapter, options: [
-        { value: "", label: "Todos" }, { value: "codex", label: "Codex" }, { value: "folder", label: "Carpetas" },
-      ] }),
-      createElement(FilterSelect, { label: "Validez", value: validity, onChange: setValidity, options: [
-        { value: "", label: "Todas" }, { value: "valid", label: "Válidas" }, { value: "warning", label: "Con avisos" }, { value: "invalid", label: "Inválidas" }, { value: "unknown", label: "Sin datos" },
-      ] }),
-      createElement(FilterSelect, { label: "Estado del harness", value: runtime, onChange: setRuntime, options: [
-        { value: "", label: "Todos" }, { value: "enabled", label: "Activada (observada)" }, { value: "disabled", label: "Desactivada (observada)" }, { value: "inherited", label: "Heredada" }, { value: "shadowed", label: "Oculta" }, { value: "unknown", label: "Sin datos" }, { value: "unsupported", label: "No soportado" },
-      ] }),
-      createElement(FilterSelect, { label: "Estado de origen", value: source, onChange: setSource, options: [
-        { value: "", label: "Todos" }, { value: "local", label: "Local" }, { value: "managed", label: "Gestionada" }, { value: "read-only", label: "Instalaciones de solo lectura" }, { value: "modified", label: "Modificada" }, { value: "unknown", label: "Sin datos" },
-      ] }),
-      createElement(FilterSelect, { label: "Procedencia", value: provenance, onChange: setProvenance, options: [
-        { value: "", label: "Todas" }, { value: "local", label: "Local" }, { value: "forge-import", label: "Importada por Forge" }, { value: "registry", label: "Registro" }, { value: "package", label: "Paquete" }, { value: "plugin", label: "Plugin" }, { value: "system", label: "Sistema" }, { value: "unknown", label: "Sin datos" },
-      ] }),
-      createElement(FilterSelect, { label: "Actualización", value: update, onChange: setUpdate, options: [
-        { value: "", label: "Todas" }, { value: "available", label: "Disponible" }, { value: "diverged", label: "Con cambios locales" }, { value: "current", label: "Actualizadas" }, { value: "unknown", label: "Sin datos" },
-      ] }),
-      createElement(FilterSelect, { label: "Orden", value: sort, onChange: setSort, options: [
-        { value: "name:asc", label: "Nombre A–Z" }, { value: "name:desc", label: "Nombre Z–A" }, { value: "observedAt:desc", label: "Observación reciente" }, { value: "validity:asc", label: "Validez" }, { value: "update:asc", label: "Actualización" },
-      ] }),
-      createElement(FilterSelect, { label: "Agrupar", value: groupBy, onChange: (value) => setGroupBy(value as GroupBy), options: [
-        { value: "none", label: "Sin agrupar" },
-        ...(hasAuthor || groupBy === "author" ? [{ value: "author", label: "Autor observado" }] : []),
-        ...(hasPackage || groupBy === "package" ? [{ value: "package", label: "Paquete observado" }] : []),
-      ] }),
-      hasAuthor || author.length > 0
-        ? createElement(FilterSelect, {
-            label: "Autor",
-            value: author,
-            onChange: setAuthor,
-            options: [
-              { value: "", label: "Todos" },
-              ...[...new Set([author, ...authorOptions].filter(Boolean))]
-                .map((value) => ({ value, label: value })),
-            ],
-          })
-        : null,
-      hasPackage || packageId.length > 0
-        ? createElement(FilterSelect, {
-            label: "Paquete",
-            value: packageId,
-            onChange: setPackageId,
-            options: [
-              { value: "", label: "Todos" },
-              ...[...new Set([packageId, ...packageOptions].filter(Boolean))]
-                .map((value) => ({ value, label: value })),
-            ],
-          })
-        : null,
+      { className: "inventory-toolbar" },
+      createElement("p", { className: "inventory-result-summary", "aria-live": "polite" }, resultSummary),
+      createElement("div", { className: "inventory-toolbar__controls" },
+        createElement(FilterSelect, { label: "Orden", value: sort, onChange: setSort, options: sortOptions }),
+        createElement(FilterSelect, { label: "Agrupar", value: groupBy, onChange: (value) => setGroupBy(value as GroupBy), options: [
+          { value: "none", label: "Sin agrupar" },
+          ...(hasAuthor || groupBy === "author" ? [{ value: "author", label: "Autor observado" }] : []),
+          ...(hasPackage || groupBy === "package" ? [{ value: "package", label: "Paquete observado" }] : []),
+        ] }),
+        createElement("details", { className: "inventory-filter-disclosure" },
+          createElement("summary", {
+            className: "visual-action visual-action--quiet inventory-filter-trigger",
+            "aria-label": activeFilters.length === 0
+              ? "Mostrar filtros del inventario"
+              : `Mostrar filtros del inventario, ${activeFilters.length} activos`,
+          },
+          createElement("span", { "aria-hidden": "true", className: "inventory-filter-trigger__icon" }),
+          "Filtros",
+          activeFilters.length === 0
+            ? null
+            : createElement("span", { className: "inventory-filter-trigger__count" }, activeFilters.length),
+          ),
+          createElement("div", {
+            className: "inventory-filter-panel",
+            role: "group",
+            "aria-label": "Filtros del inventario",
+          },
+          createElement("div", { className: "inventory-filter-panel__heading" },
+            createElement("strong", null, "Filtrar inventario"),
+            createElement("span", null, "Solo evidencia observada"),
+          ),
+          createElement("div", { className: "inventory-filter-panel__fields" },
+            createElement(FilterSelect, { label: "Runtime", value: adapter, onChange: setAdapter, options: adapterOptions }),
+            createElement(FilterSelect, { label: "Validez", value: validity, onChange: setValidity, options: validityOptions }),
+            createElement(FilterSelect, { label: "Estado del harness", value: runtime, onChange: setRuntime, options: runtimeOptions }),
+            createElement(FilterSelect, { label: "Estado de origen", value: source, onChange: setSource, options: sourceOptions }),
+            createElement(FilterSelect, { label: "Procedencia", value: provenance, onChange: setProvenance, options: provenanceOptions }),
+            createElement(FilterSelect, { label: "Actualización", value: update, onChange: setUpdate, options: updateOptions }),
+            hasAuthor || author.length > 0
+              ? createElement(FilterSelect, {
+                  label: "Autor",
+                  value: author,
+                  onChange: setAuthor,
+                  options: [
+                    { value: "", label: "Todos" },
+                    ...[...new Set([author, ...authorOptions].filter(Boolean))]
+                      .map((value) => ({ value, label: value })),
+                  ],
+                })
+              : null,
+            hasPackage || packageId.length > 0
+              ? createElement(FilterSelect, {
+                  label: "Paquete",
+                  value: packageId,
+                  onChange: setPackageId,
+                  options: [
+                    { value: "", label: "Todos" },
+                    ...[...new Set([packageId, ...packageOptions].filter(Boolean))]
+                      .map((value) => ({ value, label: value })),
+                  ],
+                })
+              : null,
+          ),
+          activeFilters.length === 0
+            ? null
+            : createElement("button", {
+                type: "button",
+                className: "quiet-action inventory-filter-panel__clear",
+                onClick: clearFilters,
+              }, "Limpiar todos los filtros"),
+          ),
+        ),
+      ),
     ),
+    activeFilters.length === 0
+      ? null
+      : createElement("div", { className: "inventory-active-filters", "aria-label": "Filtros activos" },
+          ...activeFilters.map((filter) => createElement(FilterChip, {
+            key: filter.id,
+            label: filter.label,
+            onRemove: filter.clear,
+          })),
+          createElement("span", { className: "inventory-active-filters__summary" }, resultSummary),
+        ),
     error === undefined ? null : createElement("p", { role: "alert", className: "form-error" }, error),
     loading
       ? createElement("p", { "aria-live": "polite", className: "inventory-loading" }, "Consultando inventario…")
       : page.items.length > 0
-        ? createElement(InventoryTable, { items: page.items, groupBy, selectedId, onSelect: select })
+        ? createElement(InventoryTable, { items: page.items, projects: page.projects ?? [], groupBy, selectedId, onSelect: select })
         : createElement(
             "div",
             { className: "empty-state" },
@@ -512,17 +668,7 @@ export function Inventory({ inventoryBridge, eventBridge, onSelectionChange }: I
             filtered ? createElement("button", {
               type: "button",
               className: "secondary-action",
-              onClick: () => {
-                setSearch("")
-                setValidity("")
-                setRuntime("")
-                setUpdate("")
-                setAdapter("")
-                setSource("")
-                setProvenance("")
-                setAuthor("")
-                setPackageId("")
-              },
+              onClick: clearFilters,
             }, "Limpiar filtros") : null,
           ),
     !loading && page.nextCursor !== null
@@ -540,11 +686,7 @@ export function Inventory({ inventoryBridge, eventBridge, onSelectionChange }: I
     createElement(
       "p",
       { className: "inventory-count", "aria-live": "polite" },
-      loading
-        ? ""
-        : page.items.length < page.total
-          ? `${page.items.length} de ${page.total} instalaciones`
-          : `${page.total} instalaciones`,
+      loading ? "" : resultSummary,
     ),
   )
 }

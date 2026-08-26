@@ -272,6 +272,10 @@ html[data-platform="macos"] .app-topbar {
   backdrop-filter: var(--glass-popover-filter);
 }
 
+.chrome-action-menu:not([open]) .chrome-action-menu__popover {
+  display: none;
+}
+
 .chrome-action-menu__popover button {
   min-height: 2rem;
   padding: 0 0.625rem;
@@ -535,14 +539,19 @@ html[data-platform="macos"] .app-topbar {
   overflow: hidden;
 }
 
-.inventory-surface > :where(.inventory-heading, .inventory-controls, .form-error, .inventory-loading, .empty-state, .inventory-load-more, .inventory-count) {
+.inventory-surface > :where(.inventory-heading, .inventory-toolbar, .inventory-active-filters, .form-error, .inventory-loading, .empty-state, .inventory-load-more, .inventory-count) {
   flex: none;
 }
 
 .inventory-surface .inventory-table-wrap {
   min-height: 0;
   flex: 1;
+  margin-top: 4px;
+  padding: 0 0 8px;
   overflow: auto;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
 }

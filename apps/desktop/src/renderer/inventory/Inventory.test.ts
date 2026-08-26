@@ -37,8 +37,9 @@ function item(
       evidence: { kind: "observed", source: "SKILL.md" },
     },
     declaredVersion: {
-      state: "unknown",
-      evidence: { kind: "unknown", source: "frontmatter.version" },
+      ...(id === "global_review"
+        ? { state: "known" as const, value: "1.4.2", evidence: { kind: "observed" as const, source: "frontmatter.version" } }
+        : { state: "unknown" as const, evidence: { kind: "unknown" as const, source: "frontmatter.version" } }),
     },
     ...(author === undefined
       ? {}
@@ -53,7 +54,7 @@ function item(
       validity: id === "folder_skill" ? "invalid" : "valid",
       runtimeState: "unknown",
       source: id === "folder_skill" ? "read-only" : "local",
-      update: "unknown",
+      update: id === "global_review" ? "current" : id === "project_release" ? "available" : "unknown",
       usage: "unavailable",
     },
     observedAt: OBSERVED_AT,
@@ -217,6 +218,39 @@ describe("Inventory", () => {
     expect(container.textContent).toContain("Sin autor observado")
   })
 
+  it("keeps the full filter set behind disclosure and exposes removable active chips", async () => {
+    const list = vi.fn(() => Promise.resolve(basePage))
+    await act(async () => root.render(createElement(Inventory, {
+      inventoryBridge: bridge(list),
+    })))
+
+    const disclosure = container.querySelector<HTMLDetailsElement>(".inventory-filter-disclosure")
+    const trigger = disclosure?.querySelector<HTMLElement>("summary")
+    expect(disclosure?.open).toBe(false)
+    expect(trigger?.getAttribute("aria-label")).toBe("Mostrar filtros del inventario")
+    expect(disclosure?.querySelectorAll("select").length).toBeGreaterThanOrEqual(6)
+
+    await act(async () => trigger?.click())
+    expect(disclosure?.open).toBe(true)
+
+    const validity = selectLabeled("Validez")
+    await act(async () => {
+      validity.value = "invalid"
+      validity.dispatchEvent(new Event("change", { bubbles: true }))
+    })
+
+    expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ validity: ["invalid"] }))
+    expect(container.querySelector(".inventory-active-filters")?.textContent).toContain("Validez: Inválidas")
+    expect(disclosure?.querySelector("summary")?.getAttribute("aria-label")).toContain("1 activos")
+
+    const remove = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Quitar filtro Validez: Inválidas"]',
+    )
+    await act(async () => remove?.click())
+    expect(list).toHaveBeenLastCalledWith(expect.not.objectContaining({ validity: expect.anything() }))
+    expect(container.querySelector(".inventory-active-filters")).toBeNull()
+  })
+
   it("focuses and selects the real search field with the platform find shortcut", async () => {
     await act(async () => root.render(createElement(Inventory, {
       inventoryBridge: bridge(() => Promise.resolve(basePage)),
@@ -266,6 +300,36 @@ describe("Inventory", () => {
     expect(onSelectionChange).toHaveBeenLastCalledWith(
       "installation_project_release",
     )
+  })
+
+  it("renders semantic dense rows with stable tiles and independent observed evidence", async () => {
+    await act(async () => root.render(createElement(Inventory, {
+      inventoryBridge: bridge(() => Promise.resolve(basePage)),
+    })))
+
+    const table = container.querySelector<HTMLTableElement>('.inventory-table[role="grid"]')
+    const rows = [...container.querySelectorAll<HTMLTableRowElement>('.inventory-row[role="row"]')]
+    expect(table?.getAttribute("aria-label")).toBe("Skills instaladas")
+    expect(rows).toHaveLength(3)
+
+    const globalRow = rows[0]
+    expect(globalRow?.textContent).toContain("global-review")
+    expect(globalRow?.textContent).toContain("Global")
+    expect(globalRow?.textContent).toContain("Descripción de global-review")
+    expect(globalRow?.textContent).toContain("1.4.2")
+    expect(globalRow?.querySelector('[aria-label="Validez: Válida"]')).not.toBeNull()
+    expect(globalRow?.querySelector('[aria-label="Origen: Local"]')).not.toBeNull()
+    expect(globalRow?.querySelector('[aria-label="Actualización: Actualizada"]')).not.toBeNull()
+    expect(globalRow?.querySelector(".skill-tile")?.getAttribute("data-tile")).toMatch(/blue|green|amber|plum|steel/u)
+
+    const projectRow = rows[1]
+    expect(projectRow?.textContent).toContain("Acme Web")
+    expect(projectRow?.querySelector('[aria-label="Actualización: Actualización disponible"]')).not.toBeNull()
+    expect(projectRow?.querySelector(".inventory-row__version")).toBeNull()
+
+    const invalidMarker = rows[2]?.querySelector(".inventory-evidence-marker")
+    expect(invalidMarker?.getAttribute("aria-label")).toContain("Validez: Inválida")
+    expect(rows[2]?.querySelector('[aria-label="Origen: Solo lectura"]')).not.toBeNull()
   })
 
   it("loads the next deterministic cursor page without replacing visible rows", async () => {
