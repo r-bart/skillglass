@@ -1,0 +1,44 @@
+{
+  "name": "@forge/desktop",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": ".vite/build/main.js",
+  "scripts": {
+    "start": "electron-forge start",
+    "package": "electron-forge package",
+    "make": "electron-forge make"
+  },
+  "dependencies": {
+    "@codemirror/lang-markdown": "6.5.2",
+    "@codemirror/state": "6.7.1",
+    "@codemirror/view": "6.43.9",
+    "@forge/adapter-api": "workspace:*",
+    "@forge/adapter-codex": "workspace:*",
+    "@forge/adapter-folder": "workspace:*",
+    "@forge/contracts": "workspace:*",
+    "@forge/domain": "workspace:*",
+    "@forge/operations": "workspace:*",
+    "@forge/scanner": "workspace:*",
+    "@forge/storage": "workspace:*",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "zustand": "5.0.15",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@electron-forge/cli": "7.11.2",
+    "@electron-forge/maker-deb": "7.11.2",
+    "@electron-forge/maker-rpm": "7.11.2",
+    "@electron-forge/maker-squirrel": "7.11.2",
+    "@electron-forge/maker-zip": "7.11.2",
+    "@electron-forge/plugin-fuses": "7.11.2",
+    "@electron-forge/plugin-vite": "7.11.2",
+    "@electron/fuses": "1.8.0",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.5",
+    "@vitejs/plugin-react": "4.7.0",
+    "electron": "43.4.1",
+    "vite": "5.4.21"
+  }
+}

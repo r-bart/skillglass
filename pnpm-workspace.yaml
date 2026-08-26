@@ -1,0 +1,17 @@
+packages:
+  - apps/*
+  - packages/*
+
+catalog:
+  zod: 4.4.3
+  chokidar: 5.0.0
+  fflate: 0.8.3
+
+allowBuilds:
+  electron: true
+  electron-winstaller: true
+  esbuild: true
+
+# Electron Forge currently reaches @electron/node-gyp through @electron/rebuild.
+# Keep this explicit and remove it when Forge no longer needs a Git subdependency.
+blockExoticSubdeps: false
