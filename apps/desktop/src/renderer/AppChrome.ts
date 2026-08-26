@@ -118,16 +118,19 @@ export function AppTopbar({
                 },
                 type: "button",
               }, "Instalar desde ZIP"),
-              createElement("span", { className: "chrome-action-menu__separator", role: "separator" }),
-              createElement("button", {
-                disabled: operationBusy,
-                onClick: (event) => {
-                  event.currentTarget.closest("details")?.removeAttribute("open")
-                  onRefreshUpdates()
-                },
-                type: "button",
-              }, "Buscar actualizaciones"),
             ),
+          )
+        : null,
+      operationsVisible
+        ? createElement(
+            QuietAction,
+            {
+              "aria-label": "Buscar actualizaciones",
+              className: "refresh-button",
+              disabled: operationBusy,
+              onClick: onRefreshUpdates,
+            },
+            createElement("span", { "aria-hidden": "true", className: "refresh-button__icon" }, "↻"),
           )
         : null,
       createElement(

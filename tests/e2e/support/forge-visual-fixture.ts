@@ -234,9 +234,9 @@ async function preparePendingGroups(
   }
   await refresh.click()
   await app.page.getByRole("banner").getByRole("button", { name: "Pendientes", exact: true }).click()
-  await app.page.getByText("Actualizaciones disponibles · 1", { exact: true }).waitFor()
-  await app.page.getByText("Conflictos de origen · 1", { exact: true }).waitFor()
-  await app.page.getByText("Validación pendiente · 1", { exact: true }).waitFor()
+  await app.page.getByRole("heading", { name: "Actualizaciones disponibles · 1" }).waitFor()
+  await app.page.getByRole("heading", { name: "Conflictos de origen · 1" }).waitFor()
+  await app.page.getByRole("heading", { name: "Validación pendiente · 1" }).waitFor()
 }
 
 /**

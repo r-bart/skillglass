@@ -303,7 +303,10 @@ function InventoryTable({
                   : item.description.value,
               ),
             ),
-            createElement("span", { className: "inventory-row__evidence", "aria-label": "Evidencia de la instalación" },
+            createElement("span", {
+              className: "inventory-row__evidence",
+              "aria-label": `Evidencia de la instalación. Validez: ${validityLabels[item.status.validity]}. Origen: ${sourceLabels[item.status.source]}. Actualización: ${updateLabels[item.status.update]}`,
+            },
               createElement(StatusPill, {
                 ariaLabel: `Validez: ${validityLabels[item.status.validity]}`,
                 className: "inventory-evidence-pill inventory-evidence-pill--validity",

@@ -45,7 +45,7 @@ function volatileSnapshotValues(scenario: RunningForgeVisualScenario): Locator[]
   const values = [
     page.locator(".root-path, .inspector-path, dd").filter({ hasText: temporaryRoot }),
     page.locator("dl > div", {
-      has: page.getByText("Snapshot", { exact: true }),
+      has: page.getByText(/^(?:Snapshot|Hash observado)$/u),
     }).locator("dd"),
   ]
 

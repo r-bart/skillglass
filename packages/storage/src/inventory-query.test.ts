@@ -405,6 +405,18 @@ describe("StoredInventoryQueryRepository", () => {
     ])
   })
 
+  it("uses scope as a stable tie-breaker when primary values and adapters match", () => {
+    expect(store.inventory.list({
+      scope: { kind: "all" },
+      sort: { by: "validity", direction: "asc" },
+    }).items.map(({ installationId }) => installationId)).toEqual([
+      "installation_broken_frontmatter",
+      "installation_global_review",
+      "installation_project_release",
+      "installation_folder_global",
+    ])
+  })
+
   it("projects persisted local-source refresh state into list and inspector status", () => {
     store.updates.put({
       installationId: "installation_project_release",

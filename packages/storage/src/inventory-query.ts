@@ -223,6 +223,16 @@ function compareText(left: string, right: string): number {
   return left.localeCompare(right, "es", { sensitivity: "base", numeric: true })
 }
 
+function compareScope(left: InventoryItemDto["scope"], right: InventoryItemDto["scope"]): number {
+  const rank = { global: 0, project: 1, managed: 2, system: 3 } as const
+  const priority = rank[left.kind] - rank[right.kind]
+  if (priority !== 0) return priority
+  if (left.kind === "project" && right.kind === "project") {
+    return compareText(left.projectId, right.projectId)
+  }
+  return 0
+}
+
 function compareRecords(
   left: InventoryRecord,
   right: InventoryRecord,
@@ -247,7 +257,13 @@ function compareRecords(
   }
   if (primary !== 0) return query.sort.direction === "asc" ? primary : -primary
   const adapter = left.item.adapterId.localeCompare(right.item.adapterId)
-  return adapter !== 0 ? adapter : left.item.installationId.localeCompare(right.item.installationId)
+  if (adapter !== 0) return adapter
+  const scope = compareScope(left.item.scope, right.item.scope)
+  if (scope !== 0) return scope
+  const canonicalPath = left.installation.canonicalPath.localeCompare(right.installation.canonicalPath)
+  return canonicalPath !== 0
+    ? canonicalPath
+    : left.item.installationId.localeCompare(right.item.installationId)
 }
 
 /** Read-only query over reconstructible projections plus immutable observations. */

@@ -312,6 +312,16 @@ html[data-platform="macos"] .app-topbar {
   font-size: 14px;
 }
 
+.refresh-button {
+  width: 1.75rem;
+  padding: 0 !important;
+}
+
+.refresh-button__icon {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
 .navigation-toggle {
   display: none;
   width: 1.75rem;

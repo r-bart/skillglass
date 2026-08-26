@@ -573,6 +573,7 @@ export async function launchForge(
     await launched.page.getByRole("heading", { name: "Inventario" }).waitFor()
   } else {
     const checkboxes = launched.page.getByRole("checkbox")
+    await checkboxes.first().waitFor()
     for (let index = 0; index < await checkboxes.count(); index += 1) {
       const checkbox = checkboxes.nth(index)
       if (await checkbox.isChecked()) await checkbox.uncheck()

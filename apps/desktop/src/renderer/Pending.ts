@@ -223,13 +223,14 @@ export function Pending({ inventoryBridge, operationBridge, eventBridge, onSelec
           : grouped.map(({ kind, entries }) => createElement(
               "section",
               { className: `pending-group pending-group--${groupTones[kind]}`, key: kind, "aria-labelledby": `pending-${kind}` },
+              createElement("h2", { className: "visually-hidden", id: `pending-${kind}` }, `${labels[kind]} · ${entries.length}`),
               createElement(
                 "div",
                 { className: "pending-group__heading" },
                 createElement(
                   StatusPill,
                   { className: "pending-group__status", tone: groupTones[kind] },
-                  createElement(SectionLabel, { as: "span", id: `pending-${kind}` }, `${labels[kind]} · ${entries.length}`),
+                  createElement(SectionLabel, { as: "span" }, `${labels[kind]} · ${entries.length}`),
                 ),
                 createElement("span", { className: "pending-group__note" }, notes[kind]),
               ),
