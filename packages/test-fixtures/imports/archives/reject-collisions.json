@@ -1,0 +1,10 @@
+{
+  "case": "reject-collisions",
+  "entries": [
+    { "kind": "file", "name": "SKILL.md", "content": "# First\n" },
+    { "kind": "file", "name": "skill.md", "content": "# Case alias\n" },
+    { "kind": "file", "name": "references/café.md", "content": "NFC\n" },
+    { "kind": "file", "name": "references/café.md", "content": "NFD\n" }
+  ],
+  "expected": { "admitted": false, "reason": "portable-path-collision" }
+}

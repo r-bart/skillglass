@@ -1,0 +1,9 @@
+{
+  "case": "valid-wrapper",
+  "entries": [
+    { "kind": "directory", "name": "wrapped/" },
+    { "kind": "file", "name": "wrapped/SKILL.md", "content": "---\nname: wrapped\ndescription: Valid wrapped ZIP.\n---\n\n# Wrapped\n" },
+    { "kind": "file", "name": "wrapped/assets/icon.txt", "content": "inert fixture\n" }
+  ],
+  "expected": { "admitted": true, "wrapper": "wrapped/" }
+}

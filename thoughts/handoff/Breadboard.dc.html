@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics><meta name="design_doc_mode" content="canvas"><link href="https://fonts.googleapis.com/css2?family=Architects+Daughter&family=Caveat:wght@500;600&display=swap" rel="stylesheet"><style>
+body{margin:0;background:#f0eee9;font-family:system-ui,sans-serif}
+a{color:#2a78d6}a:hover{color:#1a5aa8}
+.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(0,0,0,.08);scroll-margin-top:16px}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 20px}
+.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#1a1a1a;color:#fff;border-radius:4px;text-decoration:none}
+.dv-tname{font:600 13px/1.2 system-ui,sans-serif;color:#1a1a1a}
+.dv-opts{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:9px;scroll-margin-top:16px}
+.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#1a1a1a;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 11px/1.3 system-ui,sans-serif;color:rgba(0,0,0,.55)}
+.dv-card{max-width:100%;background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow:hidden}
+.dv-opt:target .dv-oid{background:#2a78d6;color:#fff}
+.dv-next{margin:22px 0 0;font:12px/1.5 system-ui,sans-serif;color:rgba(0,0,0,.5)}
+.wf{width:100%;background:#fffdf8}
+.tb{height:27px;border-bottom:1.5px solid #14140f;display:flex;align-items:center;gap:5px;padding:0 9px}
+.tb i{width:7px;height:7px;border-radius:50%;border:1.5px solid #14140f;display:block}
+.tb u{margin-left:8px;text-decoration:none;font:400 12.5px/1 'Caveat',cursive;color:#8a8578}
+.bbwrap{padding:24px;display:grid;grid-template-columns:repeat(5,208px);gap:20px 22px}
+.bbp{border:1.5px solid #14140f;border-radius:3px;padding:9px 10px 10px;background:#fffdf8;display:flex;flex-direction:column}
+.bbp.acc{border-color:#2a78d6;box-shadow:3px 3px 0 #dbe8f7}
+.bbp h4{margin:0 0 7px;font:400 14.5px/1.1 'Architects Daughter',cursive;color:#14140f;border-bottom:1.5px solid #14140f;padding-bottom:5px;display:flex;justify-content:space-between;gap:6px;align-items:baseline}
+.bbp h4 em{font:600 9.5px/1 ui-monospace,monospace;font-style:normal;color:#a8a294;flex:none}
+.bbp ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:4px}
+.bbp li{font:400 12.5px/1.25 'Architects Daughter',cursive;color:#33312a;display:flex;gap:5px}
+.bbp li b{font-weight:400;color:#2a78d6;flex:none}
+.bbp .to{margin-top:auto;padding-top:10px;display:flex;flex-direction:column;gap:2px}
+.bbp .to i{font:400 12.5px/1.15 'Caveat',cursive;font-style:normal;color:#8a8578}
+.bbnote{grid-column:1/-1;margin:0;font:400 15px/1.4 'Caveat',cursive;color:#8a8578}
+.flow{padding:28px 34px;display:grid;grid-template-columns:repeat(5,178px);gap:30px 46px;width:1180px;align-items:start}
+.fcol{display:flex;flex-direction:column;gap:10px;position:relative}
+.fcol>h5{margin:0 0 2px;font:600 9.5px/1 ui-monospace,monospace;letter-spacing:.11em;text-transform:uppercase;color:#a8a294}
+.fn{border:1.5px solid #14140f;border-radius:3px;background:#fffdf8;padding:7px 9px;font:400 13px/1.2 'Architects Daughter',cursive;color:#14140f}
+.fn small{display:block;margin-top:3px;font:400 12.5px/1.15 'Caveat',cursive;color:#8a8578}
+.fn.gh{border-style:dashed;background:none;color:#8a8578}
+.fn.acc{border-color:#2a78d6;box-shadow:2px 2px 0 #dbe8f7}
+.arw{position:absolute;top:28px;right:-31px;font:400 15px/1 system-ui;color:#c2bcae}
+.sk{padding:0;display:flex;height:238px}
+.sknav{width:74px;border-right:1.5px solid #14140f;padding:9px 8px;display:flex;flex-direction:column;gap:6px}
+.skmain{flex:1;padding:10px 11px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.skside{width:112px;border-left:1.5px solid #14140f;padding:10px 9px;display:flex;flex-direction:column;gap:6px}
+.bar{height:9px;border-radius:2px;background:#e6e3da}
+.bar.w{background:#f0ede5}
+.bar.d{background:#14140f}
+.bar.b{background:#bcd4ef}
+.box{border:1.5px solid #14140f;border-radius:3px;flex:1;min-height:0}
+.box.ph{background:repeating-linear-gradient(45deg,#eeebe3 0 5px,#f8f6f0 5px 10px)}
+.cap{font:400 12px/1.15 'Architects Daughter',cursive;color:#14140f}
+.cap.d{color:#a8a294}
+.rowg{display:flex;gap:6px;align-items:center}
+.node{width:34px;height:34px;border:1.5px solid #14140f;border-radius:50%;flex:none}
+.node.f{background:#14140f}
+.node.b{border-color:#2a78d6;background:#dbe8f7}
+.dot{width:6px;height:6px;border-radius:50%;flex:none}
+.pill{border:1.2px solid #14140f;border-radius:9px;padding:1px 6px;font:400 10.5px/1.35 'Architects Daughter',cursive;flex:none}
+.wsc{padding:10px;display:flex;flex-direction:column;gap:7px;height:198px}
+.hd{font:400 13px/1.15 'Architects Daughter',cursive;color:#14140f}
+.mono{font:600 9px/1.4 ui-monospace,monospace;letter-spacing:.08em;text-transform:uppercase;color:#a8a294}
+.btn{border:1.5px solid #14140f;border-radius:3px;padding:2px 8px;font:400 12px/1.3 'Architects Daughter',cursive;color:#14140f;flex:none}
+.btn.p{background:#14140f;color:#fffdf8}
+.btn.b{border-color:#2a78d6;color:#2a78d6;background:#eef4fc}
+.fld{border:1.5px solid #14140f;border-radius:3px;min-height:22px;display:flex;align-items:center;gap:6px;padding:2px 7px;flex:none}
+.chk{width:11px;height:11px;border:1.5px solid #14140f;border-radius:2px;flex:none}
+.chk.on{background:#14140f}
+.tbl{border:1.5px solid #14140f;border-radius:3px;flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0}
+.tr{display:flex;gap:7px;align-items:center;padding:4px 7px;border-bottom:1px dashed #d8d4c9}
+.tr:last-child{border-bottom:0}
+.tr.sel{background:#eef4fc}
+.sp{flex:1}
+</style></helmet>
+
+<section class="dv-turn" id="t4">
+<div class="dv-thd"><a class="dv-tid" href="#t4">4</a><span class="dv-tname">Plugin seleccionado → sus skills como nodos en el canvas de <a class="dv-oid" href="#2c">2c</a></span></div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="4a">
+<div class="dv-olabel"><a class="dv-oid" href="#4a">4a</a>Radial · el plugin es el centro, las skills orbitan</div>
+<div class="dv-card" style="width:462px"><div class="wf"><div class="tb"><i></i><i></i><i></i><u>plugin → 6 skills · una seleccionada</u></div>
+<div class="sk" style="height:236px">
+<div class="sknav"><div class="cap d">plugins</div><div class="bar"></div><div class="bar b"></div><div class="bar"></div><div class="cap d">skills</div><div class="bar w"></div><div class="bar w"></div></div>
+<div class="skmain" style="gap:6px">
+<div class="rowg"><div class="cap">acme-toolkit</div><div class="pill">plugin</div><div class="sp"></div><div class="cap d">⁂</div></div>
+<div class="box" style="position:relative;overflow:hidden">
+<div style="position:absolute;left:50%;top:50%;width:60px;border-top:1.5px dashed #bdb8ab;transform-origin:0 0;transform:rotate(-90deg)"></div>
+<div style="position:absolute;left:50%;top:50%;width:60px;border-top:1.5px dashed #bdb8ab;transform-origin:0 0;transform:rotate(-30deg)"></div>
+<div style="position:absolute;left:50%;top:50%;width:60px;border-top:1.5px dashed #bdb8ab;transform-origin:0 0;transform:rotate(30deg)"></div>
+<div style="position:absolute;left:50%;top:50%;width:60px;border-top:1.5px dashed #bdb8ab;transform-origin:0 0;transform:rotate(90deg)"></div>
+<div style="position:absolute;left:50%;top:50%;width:60px;border-top:1.5px solid #2a78d6;transform-origin:0 0;transform:rotate(150deg)"></div>
+<div style="position:absolute;left:50%;top:50%;width:60px;border-top:1.5px dashed #bdb8ab;transform-origin:0 0;transform:rotate(210deg)"></div>
+<div class="node f" style="position:absolute;left:calc(50% - 19px);top:calc(50% - 19px);width:38px;height:38px"></div>
+<div class="node" style="position:absolute;left:calc(50% - 11px);top:calc(50% - 71px);width:22px;height:22px"></div>
+<div class="node" style="position:absolute;left:calc(50% + 41px);top:calc(50% - 41px);width:22px;height:22px"></div>
+<div class="node" style="position:absolute;left:calc(50% + 41px);top:calc(50% + 19px);width:22px;height:22px"></div>
+<div class="node" style="position:absolute;left:calc(50% - 11px);top:calc(50% + 49px);width:22px;height:22px"></div>
+<div class="node b" style="position:absolute;left:calc(50% - 67px);top:calc(50% + 17px);width:26px;height:26px"></div>
+<div class="node" style="position:absolute;left:calc(50% - 63px);top:calc(50% - 41px);width:22px;height:22px"></div>
+</div>
+<div class="cap d">nodo relleno = plugin · hueco = skill · azul = seleccionada</div>
+</div>
+<div class="skside"><div class="cap">inspector</div><div class="tbl" style="flex:none"><div class="tr"><div class="bar b" style="flex:1"></div></div><div class="tr"><div class="cap d">del plugin</div></div></div><div class="box ph"></div></div>
+</div></div></div>
+</div>
+
+<div class="dv-opt" id="4b">
+<div class="dv-olabel"><a class="dv-oid" href="#4b">4b</a>Por niveles · el aire de árbol RPG, sin serlo</div>
+<div class="dv-card" style="width:462px"><div class="wf"><div class="tb"><i></i><i></i><i></i><u>plugin → skills → deps</u></div>
+<div class="sk" style="height:236px">
+<div class="sknav"><div class="cap d">plugins</div><div class="bar"></div><div class="bar b"></div><div class="bar"></div><div class="cap d">skills</div><div class="bar w"></div></div>
+<div class="skmain" style="gap:6px">
+<div class="rowg"><div class="cap">acme-toolkit</div><div class="pill">plugin</div><div class="sp"></div><div class="cap d">⁂</div></div>
+<div class="box" style="display:flex;align-items:center;gap:0;padding:8px 6px">
+<div style="display:flex;flex-direction:column;justify-content:center"><div class="node f" style="width:30px;height:30px"></div></div>
+<div style="width:20px;border-top:1.5px dashed #bdb8ab"></div>
+<div style="display:flex;flex-direction:column;gap:9px"><div class="node" style="width:20px;height:20px"></div><div class="node b" style="width:24px;height:24px"></div><div class="node" style="width:20px;height:20px"></div><div class="node" style="width:20px;height:20px"></div></div>
+<div style="width:18px;border-top:1.5px dashed #bdb8ab"></div>
+<div style="display:flex;flex-direction:column;gap:14px"><div class="node" style="width:16px;height:16px"></div><div class="node" style="width:16px;height:16px"></div><div style="width:16px;height:16px;border:1.5px solid #14140f;background:#e6e3da"></div></div>
+<div class="sp"></div>
+<div class="cap d" style="writing-mode:vertical-rl">tier 3 · MCPs</div>
+</div>
+<div class="cap d">cuadrado = MCP · profundidad = dependencia</div>
+</div>
+<div class="skside"><div class="cap">inspector</div><div class="tbl" style="flex:none"><div class="tr"><div class="bar b" style="flex:1"></div></div><div class="tr"><div class="cap d">tier 2</div></div></div><div class="box ph"></div></div>
+</div></div></div>
+</div>
+
+<div class="dv-opt" id="4c">
+<div class="dv-olabel"><a class="dv-oid" href="#4c">4c</a>Racimos · agrupa por capacidad, no por jerarquía</div>
+<div class="dv-card" style="width:462px"><div class="wf"><div class="tb"><i></i><i></i><i></i><u>plugin → 3 racimos</u></div>
+<div class="sk" style="height:236px">
+<div class="sknav"><div class="cap d">plugins</div><div class="bar"></div><div class="bar b"></div><div class="bar"></div><div class="cap d">skills</div><div class="bar w"></div></div>
+<div class="skmain" style="gap:6px">
+<div class="rowg"><div class="cap">acme-toolkit</div><div class="pill">plugin</div><div class="sp"></div><div class="cap d">⁂</div></div>
+<div class="box" style="display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:8px">
+<div style="border:1.5px dashed #bdb8ab;border-radius:6px;padding:6px;display:flex;flex-wrap:wrap;gap:5px;align-content:flex-start"><div class="cap d" style="width:100%">código</div><div class="node b" style="width:20px;height:20px"></div><div class="node" style="width:18px;height:18px"></div><div class="node" style="width:16px;height:16px"></div></div>
+<div style="border:1.5px dashed #bdb8ab;border-radius:6px;padding:6px;display:flex;flex-wrap:wrap;gap:5px;align-content:flex-start"><div class="cap d" style="width:100%">datos</div><div class="node" style="width:18px;height:18px"></div><div style="width:16px;height:16px;border:1.5px solid #14140f;background:#e6e3da"></div></div>
+<div style="grid-column:1/-1;border:1.5px dashed #bdb8ab;border-radius:6px;padding:6px;display:flex;gap:5px;align-items:center"><div class="cap d">sin categoría</div><div class="sp"></div><div class="node" style="width:16px;height:16px"></div><div class="node" style="width:16px;height:16px"></div></div>
+</div>
+<div class="cap d">el racimo se colapsa a una burbuja al alejar</div>
+</div>
+<div class="skside"><div class="cap">inspector</div><div class="tbl" style="flex:none"><div class="tr"><div class="bar b" style="flex:1"></div></div><div class="tr"><div class="cap d">racimo: código</div></div></div><div class="box ph"></div></div>
+</div></div></div>
+</div>
+
+<div class="dv-opt" id="4d">
+<div class="dv-olabel"><a class="dv-oid" href="#4d">4d</a>Flujo de la interacción · dos clics, ningún cambio de pantalla</div>
+<div class="dv-card" style="width:850px"><div class="wf"><div class="tb"><i></i><i></i><i></i><u>plugin → nodo → inspector</u></div>
+<div class="flow" style="width:780px;grid-template-columns:repeat(4,152px);gap:22px 40px">
+<div class="fcol"><h5>Clic 1</h5><div class="fn">Plugin en el sidebar<small>o fila en modo lista</small></div><span class="arw">→</span></div>
+<div class="fcol"><h5>Reencuadre</h5><div class="fn acc">El canvas se centra en ese plugin<small>lo demás baja a fondo, no desaparece</small></div><span class="arw">→</span></div>
+<div class="fcol"><h5>Clic 2</h5><div class="fn">Nodo de skill<small>el inspector cambia; el grafo no se mueve</small></div><span class="arw">→</span></div>
+<div class="fcol"><h5>Salida</h5><div class="fn">Inspector = 05 Detalle</div><div class="fn gh">Esc vuelve al plugin completo</div></div>
+</div></div></div>
+</div>
+
+</div>
+<p class="dv-next">Prueba: “sigo con <a class="dv-oid" href="#4a">4a</a>” · “los plugins necesitan su propia pantalla de detalle” · “ahora el design system”</p>
+</section>
+
+<section class="dv-turn" id="t3">
+<div class="dv-thd"><a class="dv-tid" href="#t3">3</a><span class="dv-tname">Wireframes de las 15 pantallas + los tres flujos que las cosen</span></div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="3a">
+<div class="dv-olabel"><a class="dv-oid" href="#3a">3a</a>01 Escaneo inicial</div>
+<div class="dv-card" style="width:302px"><div class="wf"><div class="tb"><i></i><i></i><i></i><u>01</u></div>
+<div class="wsc" style="align-items:center;justify-content:center;gap:10px">
+<div class="hd" style="font-size:20px">47 skills · 9 MCPs</div>
+<div class="cap d">encontrados en 4 rutas</div>
+<div class="tbl" style="width:100%;flex:none">
+<div class="tr"><div class="cap">~/.claude</div><div class="sp"></div><div class="cap d">global</div></div>
+<div class="tr"><div class="cap">~/dev</div><div class="sp"></div><div class="cap d">12 proy.</div></div>
+<div class="tr"><div class="cap d">+ añadir ruta</div></div>
+</div>
+<div class="btn p">Entrar</div>
+</div></div></div>
+</div>
+
+<div class="dv-opt" id="3b">
+<div class="dv-olabel"><a class="dv-oid" href="#3b">3b</a>02 Vista general · la pantalla de casa</div>
+<div class="dv-card" style="width:302px"><div class="wf"><div class="tb"><i></i><i></i><i></i><u>02</u></div>
+<div class="sk" style="height:198px">
+<div class="sknav"><div class="cap">Global</div><div class="bar b"></div><div class="cap d">proyectos</div><div class="bar"></div><div class="bar"></div><div class="bar w"></div></div>
+<div class="skmain">
+<div class="rowg"><div class="pill">41 al día</div><div class="pill" style="border-color:#2a78d6;color:#2a78d6">5 atrasadas</div><div class="pill">2 rotas</div></div>
+<div class="tbl">
+<div class="tr"><div class="dot" style="background:#14140f"></div><div class="cap">Global</div><div class="sp"></div><div class="cap d">23</div></div>
+<div class="tr"><div class="dot" style="background:#bcd4ef"></div><div class="cap">acme-web</div><div class="sp"></div><div class="cap d">9</div></div>
+<div class="tr"><div class="dot" style="background:#14140f"></div><div class="cap">ledger</div><div class="sp"></div><div class="cap d">6</div></div>
+<div class="tr"><div class="dot" style="background:#e6e3da"></div><div class="cap d">3 sin usar 60d</div></div>
+</div>
+<div class="cap d">⌘K para buscar</div>
+</div></div></div></div>
+</div>
+
+<div class="dv-opt" id="3c">
+<div class="dv-olabel"><a class="dv-oid" href="#3c">3c</a>03 Proyecto · propias vs heredadas</div>
+<div class="dv-card" style="width:462px"><div class="wf"><div class="tb"><i></i><i></i><i></i><u>03</u></div>
+<div class="sk" style="height:198px">
+<div class="sknav"><div class="bar"></div><div class="bar b"></div><div class="bar"></div><div class="bar w"></div></div>
+<div class="skmain">
+<div class="rowg"><div class="hd">acme-web</div><div class="sp"></div><div class="btn">+ añadir</div></div>
+<div class="tbl">
+<div class="tr"><div class="mono">SKILLS</div></div>
+<div class="tr sel"><div class="dot" style="background:#14140f"></div><div class="bar" style="flex:1"></div></div>
+<div class="tr"><div class="dot" style="background:#14140f"></div><div class="bar" style="flex:1"></div></div>
+<div class="tr"><div class="mono">MCPs</div></div>
+<div class="tr"><div class="dot" style="background:#bcd4ef"></div><div class="bar" style="flex:1"></div></div>
+<div class="tr" style="opacity:.45"><div class="cap d">heredadas de Global · 23</div></div>
+</div></div>
+<div class="skside"><div class="cap d">inspector</div><div class="box ph"></div></div>
+</div></div></div>
+</div>
+
+<div class="dv-opt" id="3d">
+<div class="dv-olabel"><a class="dv-oid" href="#3d">3d</a>04 Global · ordenado por uso real</div>
+<div class="dv-card" style="width:302px"><div class="wf"><div class="tb"><i></i><i></i><i></i><u>04</u></div>
+<div class="sk" style="height:198px">
+<div class="sknav"><div class="bar b"></div><div class="bar"></div><div class="bar"></div><div class="bar w"></div></div>
+<div class="skmain">
+<div class="rowg"><div class="hd">Global</div><div class="sp"></div><div class="cap d">uso ▾</div></div>
+<div class="tbl">
+<div class="tr"><div class="bar" style="width:70px"></div><div class="sp"></div><div class="cap d">6 proy.</div></div>
+<div class="tr"><div class="bar" style="width:56px"></div><div class="sp"></div><div class="cap d">4 proy.</div></div>
+<div class="tr"><div class="bar w" style="width:64px"></div><div class="sp"></div><div class="cap d">1 proy.</div></div>
+<div class="tr" style="opacity:.5"><div class="bar w" style="width:48px"></div><div class="sp"></div><div class="cap d">nunca</div></div>
+</div>
+<div class="cap d">archivar las que nunca usas</div>
+</div></div></div></div>
+</div>
+
+<div class="dv-opt" id="3e">
+<div class="dv-olabel"><a class="dv-oid" href="#3e">3e</a>05 Detalle de skill · qué hace, primero</div>
+<div class="dv-card" style="width:302px"><div class="wf"><div class="tb"><i></i><i></i><i></i><u>05</u></div>
+<div class="wsc">
+<div class="rowg"><div class="hd">nombre-de-skill</div><div class="pill">v2.1</div><div class="sp"></div><div class="cap d">×</div></div>
+<div class="cap">Una frase de qué hace, en lenguaje llano.</div>
+<div class="fld"><div class="mono">SE DISPARA</div><div class="bar w" style="flex:1"></div></div>
+<div class="tbl">
+<div class="tr"><div class="mono">ARCHIVOS</div><div class="sp"></div><div class="cap d">4</div></div>
+<div class="tr"><div class="mono">ACTIVA EN</div><div class="sp"></div><div class="cap d">3 proy.</div></div>
+<div class="tr"><div class="mono">ORIGEN</div><div class="sp"></div><div class="cap d">skills.sh</div></div>
+</div>
+<div class="rowg"><div class="btn b">Actualizar → v3</div><div class="sp"></div><div class="btn">Editar con IA</div></div>
+</div></div></div>
+</div>
+
+<div class="dv-opt" id="3f">
+<div class="dv-olabel"><a class="dv-oid" href="#3f">3f</a>06 Detalle de MCP · las tools son el contenido</div>
+<div class="dv-card" style="width:302px"><div class="wf"><div class="tb"><i></i><i></i><i></i><u>06</u></div>
+<div class="wsc">
+<div class="rowg"><div class="hd">servidor-mcp</div><div class="pill">stdio</div><div class="sp"></div><div class="dot" style="background:#14140f"></div><div class="cap d">activo</div></div>
+<div class="fld"><div class="cap d">npx -y @algo/servidor</div></div>
+<div class="tbl">
+<div class="tr"><div class="mono">TOOLS · 7</div></div>
+<div class="tr"><div class="bar" style="width:74px"></div><div class="sp"></div><div class="cap d">lee</div></div>
+<div class="tr"><div class="bar" style="width:60px"></div><div class="sp"></div><div class="cap d">escribe</div></div>
+<div class="tr"><div class="bar w" style="width:82px"></div><div class="sp"></div><div class="cap d">red</div></div>
+</div>
+<div class="rowg"><div class="cap d">1 credencial requerida</div><div class="sp"></div><div class="btn">Auditar</div></div>
+</div></div></div>
+</div>
+
+<div class="dv-opt" id="3g">
+<div class="dv-olabel"><a class="dv-oid" href="#3g">3g</a>07 Grafo · huérfanos y ciclos visibles</div>
+<div class="dv-card" style="width:302px"><div class="wf"><div class="tb"><i></i><i></i><i></i><u>07</u></div>
+<div class="wsc">
+<div class="rowg"><div class="btn">aislar rama</div><div class="sp"></div><div class="cap d">⁂</div></div>
+<div class="box" style="position:relative;display:flex;align-items:center;justify-content:center;gap:14px"><div class="node" style="width:22px;height:22px"></div><div class="node b" style="width:32px;height:32px"></div><div class="node f" style="width:22px;height:22px"></div><div class="cap d" style="position:absolute;bottom:6px;left:8px">2 huérfanos</div><div class="cap d" style="position:absolute;top:6px;right:8px">1 ciclo</div></div>
+<div class="cap d">clic en nodo = fila activa en lista</div>
+</div></div></div>
+</div>
+
+<div class="dv-opt" id="3h">
+<div class="dv-olabel"><a class="dv-oid" href="#3h">3h</a>08 Pendientes · agrupado por causa</div>
+<div class="dv-card" style="width:302px"><div class="wf"><div class="tb"><i></i><i></i><i></i><u>08</u></div>
+<div class="wsc">
+<div class="rowg"><div class="hd">Pendientes · 7</div><div class="sp"></div><div class="btn p">Actualizar 3</div></div>
+<div class="tbl">
+<div class="tr"><div class="mono">DESACTUALIZADAS · 5</div></div>
+<div class="tr"><div class="chk on"></div><div class="bar" style="flex:1"></div><div class="cap d">v1→v3</div></div>
+<div class="tr"><div class="chk on"></div><div class="bar" style="flex:1"></div><div class="cap d">v2→v2.4</div></div>
+<div class="tr"><div class="mono">ROTAS · 2</div></div>
+<div class="tr"><div class="chk"></div><div class="bar w" style="flex:1"></div><div class="cap d">falta key</div></div>
+</div></div></div></div>
+</div>
+
+<div class="dv-opt" id="3i">
+<div class="dv-olabel"><a class="dv-oid" href="#3i">3i</a>09 Diff · el único paso que escribe</div>
+<div class="dv-card" style="width:302px"><div class="wf"><div class="tb"><i></i><i></i><i></i><u>09</u></div>
+<div class="wsc">
+<div class="rowg"><div class="cap">v2.1</div><div class="cap d">→</div><div class="cap">v3.0</div><div class="sp"></div><div class="cap d">3 proy. afectados</div></div>
+<div class="box" style="display:flex;padding:0"><div style="flex:1;padding:7px;border-right:1.5px dashed #d8d4c9;display:flex;flex-direction:column;gap:5px"><div class="bar w"></div><div class="bar w" style="width:70%"></div><div class="bar w" style="width:50%"></div></div><div style="flex:1;padding:7px;display:flex;flex-direction:column;gap:5px"><div class="bar b"></div><div class="bar" style="width:80%"></div><div class="bar b" style="width:60%"></div></div></div>
+<div class="rowg"><div class="btn">Cancelar</div><div class="sp"></div><div class="btn p">Confirmar</div></div>
+</div></div></div>
+</div>
+
+<div class="dv-opt" id="3j">
+<div class="dv-olabel"><a class="dv-oid" href="#3j">3j</a>10 ⌘K · busca por lo que hace</div>
+<div class="dv-card" style="width:302px"><div class="wf"><div class="tb"><i></i><i></i><i></i><u>10</u></div>
+<div class="wsc" style="background:repeating-linear-gradient(45deg,#eeebe3 0 5px,#f8f6f0 5px 10px);justify-content:center">
+<div style="background:#fffdf8;border:1.5px solid #14140f;border-radius:4px;box-shadow:4px 4px 0 rgba(20,20,15,.12);display:flex;flex-direction:column">
+<div class="tr" style="border-bottom:1.5px solid #14140f"><div class="cap">algo que revise SQL…</div></div>
+<div class="tr sel"><div class="bar" style="flex:1"></div><div class="cap d">skill · global</div></div>
+<div class="tr"><div class="bar w" style="flex:1"></div><div class="cap d">mcp · acme</div></div>
+<div class="tr"><div class="bar w" style="flex:1"></div><div class="cap d">skills.sh</div></div>
+</div>
+<div class="cap d" style="text-align:center">→ el resultado se previsualiza al lado</div>
+</div></div></div>
+</div>
+
+<div class="dv-opt" id="3k">
+<div class="dv-olabel"><a class="dv-oid" href="#3k">3k</a>11 Instalar · ámbito explícito</div>
+<div class="dv-card" style="width:302px"><div class="wf"><div class="tb"><i></i><i></i><i></i><u>11</u></div>
+<div class="wsc">
+<div class="hd">Añadir</div>
+<div class="fld"><div class="cap d">pega URL, ruta o nombre</div></div>
+<div class="rowg"><div class="cap d">ámbito</div><div class="btn b">Global</div><div class="btn">acme-web</div></div>
+<div class="tbl"><div class="tr"><div class="mono">DECLARA</div></div><div class="tr"><div class="bar w" style="width:80px"></div><div class="sp"></div><div class="cap d">2 tools</div></div><div class="tr"><div class="bar w" style="width:66px"></div><div class="sp"></div><div class="cap d">1 dep</div></div></div>
+<div class="rowg"><div class="sp"></div><div class="btn p">Instalar</div></div>
+</div></div></div>
+</div>
+
+<div class="dv-opt" id="3l">
+<div class="dv-olabel"><a class="dv-oid" href="#3l">3l</a>12 Auditoría · matriz MCP × permiso</div>
+<div class="dv-card" style="width:302px"><div class="wf"><div class="tb"><i></i><i></i><i></i><u>12</u></div>
+<div class="wsc">
+<div class="rowg"><div class="hd">Auditoría</div><div class="sp"></div><div class="pill">solo lectura</div></div>
+<div class="tbl">
+<div class="tr" style="gap:0"><div class="sp"></div><div class="mono" style="width:28px;text-align:center">FS</div><div class="mono" style="width:28px;text-align:center">NET</div><div class="mono" style="width:28px;text-align:center">KEY</div></div>
+<div class="tr" style="gap:0"><div class="bar" style="width:60px"></div><div class="sp"></div><div style="width:28px;display:flex;justify-content:center"><div class="dot" style="background:#14140f"></div></div><div style="width:28px;display:flex;justify-content:center"><div class="dot" style="background:#e6e3da"></div></div><div style="width:28px;display:flex;justify-content:center"><div class="dot" style="background:#14140f"></div></div></div>
+<div class="tr" style="gap:0"><div class="bar" style="width:52px"></div><div class="sp"></div><div style="width:28px;display:flex;justify-content:center"><div class="dot" style="background:#e6e3da"></div></div><div style="width:28px;display:flex;justify-content:center"><div class="dot" style="background:#14140f"></div></div><div style="width:28px;display:flex;justify-content:center"><div class="dot" style="background:#e6e3da"></div></div></div>
+<div class="tr" style="gap:0"><div class="bar w" style="width:66px"></div><div class="sp"></div><div style="width:28px;display:flex;justify-content:center"><div class="dot" style="background:#14140f"></div></div><div style="width:28px;display:flex;justify-content:center"><div class="dot" style="background:#14140f"></div></div><div style="width:28px;display:flex;justify-content:center"><div class="dot" style="background:#bcd4ef"></div></div></div>
+</div>
+<div class="cap d">azul = credencial en texto plano</div>
+</div></div></div>
+</div>
+
+<div class="dv-opt" id="3m">
+<div class="dv-olabel"><a class="dv-oid" href="#3m">3m</a>13 Descubrir · más descargadas de skills.sh</div>
+<div class="dv-card" style="width:302px"><div class="wf"><div class="tb"><i></i><i></i><i></i><u>13</u></div>
+<div class="wsc">
+<div class="rowg"><div class="btn b">Populares</div><div class="btn">Nuevas</div><div class="btn">Tendencia</div></div>
+<div class="tbl">
+<div class="tr"><div class="bar" style="width:66px"></div><div class="sp"></div><div class="cap d">14k ↓</div><div class="pill">tienes</div></div>
+<div class="tr"><div class="bar" style="width:78px"></div><div class="sp"></div><div class="cap d">9.2k ↓</div><div class="pill" style="border-color:#2a78d6;color:#2a78d6">v1→v3</div></div>
+<div class="tr"><div class="bar w" style="width:58px"></div><div class="sp"></div><div class="cap d">7.8k ↓</div><div class="btn">+</div></div>
+<div class="tr"><div class="bar w" style="width:70px"></div><div class="sp"></div><div class="cap d">5.1k ↓</div><div class="btn">+</div></div>
+</div>
+<div class="cap d">categoría · autor · licencia</div>
+</div></div></div>
+</div>
+
+<div class="dv-opt" id="3n">
+<div class="dv-olabel"><a class="dv-oid" href="#3n">3n</a>14 Generar skill · checklist en vivo + IA</div>
+<div class="dv-card" style="width:302px"><div class="wf"><div class="tb"><i></i><i></i><i></i><u>14</u></div>
+<div class="wsc">
+<div class="rowg"><div class="hd">Nueva skill</div><div class="sp"></div><div class="cap d">paso 2/4</div></div>
+<div class="fld"><div class="cap d">¿qué debería saber hacer?</div></div>
+<div class="box" style="padding:7px;display:flex;flex-direction:column;gap:5px"><div class="bar w"></div><div class="bar w" style="width:88%"></div><div class="bar w" style="width:64%"></div><div class="cap d" style="margin-top:auto">borrador redactado por IA</div></div>
+<div class="tbl" style="flex:none"><div class="tr"><div class="chk on"></div><div class="cap d">nombre y trigger claros</div></div><div class="tr"><div class="chk"></div><div class="cap d">ejemplos de uso</div></div></div>
+<div class="rowg"><div class="btn b">Claude Code ▾</div><div class="sp"></div><div class="btn p">Guardar</div></div>
+</div></div></div>
+</div>
+
+<div class="dv-opt" id="3o">
+<div class="dv-olabel"><a class="dv-oid" href="#3o">3o</a>15 Motores y claves</div>
+<div class="dv-card" style="width:302px"><div class="wf"><div class="tb"><i></i><i></i><i></i><u>15</u></div>
+<div class="wsc">
+<div class="hd">Motores</div>
+<div class="tbl">
+<div class="tr"><div class="dot" style="background:#14140f"></div><div class="cap">Claude Code</div><div class="sp"></div><div class="pill">por defecto</div></div>
+<div class="tr"><div class="dot" style="background:#14140f"></div><div class="cap">Codex</div><div class="sp"></div><div class="cap d">detectado</div></div>
+<div class="tr"><div class="dot" style="background:#e6e3da"></div><div class="cap d">OpenCode</div><div class="sp"></div><div class="cap d">no está</div></div>
+</div>
+<div class="fld"><div class="mono">API KEY</div><div class="cap d">sk-··········</div></div>
+<div class="rowg"><div class="sp"></div><div class="btn">Probar conexión</div></div>
+</div></div></div>
+</div>
+
+<div class="dv-opt" id="3p">
+<div class="dv-olabel"><a class="dv-oid" href="#3p">3p</a>Flujo · generar una skill de cero</div>
+<div class="dv-card" style="width:1030px"><div class="wf"><div class="tb"><i></i><i></i><i></i><u>flujo 14</u></div>
+<div class="flow" style="width:960px;grid-template-columns:repeat(5,152px);gap:22px 40px">
+<div class="fcol"><h5>Intención</h5><div class="fn">Describe el trabajo<small>en una frase, sin formato</small></div><div class="fn gh">o parte de una plantilla</div><span class="arw">→</span></div>
+<div class="fcol"><h5>Andamiaje</h5><div class="fn">La app propone nombre, trigger y estructura</div><div class="fn gh">checklist de buenas prácticas se marca sola</div><span class="arw">→</span></div>
+<div class="fcol"><h5>Redacción</h5><div class="fn acc">Motor IA escribe el borrador<small>Claude Code · Codex · OpenCode</small></div><div class="fn gh">editable a mano en todo momento</div><span class="arw">→</span></div>
+<div class="fcol"><h5>Prueba</h5><div class="fn">Prueba en seco<small>¿se dispara cuando debe?</small></div><div class="fn gh">avisa de solape con skills existentes</div><span class="arw">→</span></div>
+<div class="fcol"><h5>Aterrizaje</h5><div class="fn acc">Guardar en Global o proyecto</div><div class="fn">→ 05 Detalle</div><div class="fn gh">publicar en skills.sh (después)</div></div>
+</div></div></div>
+</div>
+
+<div class="dv-opt" id="3q">
+<div class="dv-olabel"><a class="dv-oid" href="#3q">3q</a>Flujo · descubrir e instalar</div>
+<div class="dv-card" style="width:850px"><div class="wf"><div class="tb"><i></i><i></i><i></i><u>flujo 13 → 11</u></div>
+<div class="flow" style="width:780px;grid-template-columns:repeat(4,152px);gap:22px 40px">
+<div class="fcol"><h5>Entrada</h5><div class="fn">02 Vista general → Descubrir</div><div class="fn gh">o ⌘K encuentra algo que no tienes</div><span class="arw">→</span></div>
+<div class="fcol"><h5>Registro</h5><div class="fn acc">13 Más descargadas<small>estado cruzado con lo tuyo</small></div><span class="arw">→</span></div>
+<div class="fcol"><h5>Decisión</h5><div class="fn">Ficha: qué hace, autor, deps</div><div class="fn gh">si ya la tienes, ofrece Diff en vez de Instalar</div><span class="arw">→</span></div>
+<div class="fcol"><h5>Instalación</h5><div class="fn acc">11 Ámbito + Instalar</div><div class="fn">→ 05 Detalle</div></div>
+</div></div></div>
+</div>
+
+<div class="dv-opt" id="3r">
+<div class="dv-olabel"><a class="dv-oid" href="#3r">3r</a>Flujo · mantenimiento en lote</div>
+<div class="dv-card" style="width:850px"><div class="wf"><div class="tb"><i></i><i></i><i></i><u>flujo 08 → 09</u></div>
+<div class="flow" style="width:780px;grid-template-columns:repeat(4,152px);gap:22px 40px">
+<div class="fcol"><h5>Señal</h5><div class="fn">02 “5 atrasadas · 2 rotas”</div><span class="arw">→</span></div>
+<div class="fcol"><h5>Cola</h5><div class="fn">08 Pendientes<small>agrupado por causa</small></div><div class="fn gh">selección múltiple</div><span class="arw">→</span></div>
+<div class="fcol"><h5>Revisión</h5><div class="fn acc">09 Diff apilado<small>uno por skill, confirmas en serie</small></div><span class="arw">→</span></div>
+<div class="fcol"><h5>Cierre</h5><div class="fn">Resumen: 3 al día, 1 falló</div><div class="fn gh">las rotas van a 15 Motores si falta una key</div></div>
+</div></div></div>
+</div>
+
+</div>
+<p class="dv-next">Prueba: “ahora el design system” · “falta una pantalla para X” · “cambia <a class="dv-oid" href="#3n">3n</a>: el checklist debería ir arriba”</p>
+</section>
+
+<section class="dv-turn" id="t2">
+<div class="dv-thd"><a class="dv-tid" href="#t2">2</a><span class="dv-tname">A con el grafo de <a class="dv-oid" href="#1d">1d</a> como tercer modo de la columna central</span></div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="2a">
+<div class="dv-olabel"><a class="dv-oid" href="#2a">2a</a>Modo lista — el estado por defecto</div>
+<div class="dv-card" style="width:452px">
+<div class="wf"><div class="tb"><i></i><i></i><i></i><u>sidebar · centro conmutable · inspector</u></div>
+<div class="sk" style="height:252px">
+<div class="sknav"><div class="cap">Global</div><div class="bar b"></div><div class="cap d">proyectos</div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar w"></div><div class="cap d" style="margin-top:auto">+ ruta</div></div>
+<div class="skmain">
+<div class="rowg"><div class="bar b" style="width:20px;height:11px"></div><div class="bar" style="width:20px;height:11px"></div><div class="bar" style="width:20px;height:11px"></div><div class="bar" style="flex:1"></div></div>
+<div class="cap d" style="margin-top:-3px">≡ ▦ ⁂ &nbsp;·&nbsp; filtros</div>
+<div class="box" style="display:flex;flex-direction:column;gap:6px;padding:7px"><div class="rowg"><div class="dot" style="background:#14140f"></div><div class="bar" style="flex:1"></div></div><div class="rowg"><div class="dot" style="background:#bcd4ef"></div><div class="bar w" style="flex:1"></div></div><div class="rowg"><div class="dot" style="background:#14140f"></div><div class="bar" style="flex:1"></div></div><div class="rowg"><div class="dot" style="background:#e6e3da"></div><div class="bar w" style="flex:1"></div></div><div class="rowg"><div class="dot" style="background:#14140f"></div><div class="bar" style="flex:1"></div></div></div>
+<div class="cap d">densa, escaneable, con salud a la izquierda</div>
+</div>
+<div class="skside"><div class="cap">inspector</div><div class="box ph"></div><div class="bar b"></div><div class="cap d">persiste entre modos</div></div>
+</div></div>
+</div>
+</div>
+
+<div class="dv-opt" id="2b">
+<div class="dv-olabel"><a class="dv-oid" href="#2b">2b</a>Modo rejilla — para reconocer por forma cuando no recuerdas el nombre</div>
+<div class="dv-card" style="width:452px">
+<div class="wf"><div class="tb"><i></i><i></i><i></i><u>mismo chrome, centro en tarjetas</u></div>
+<div class="sk" style="height:252px">
+<div class="sknav"><div class="cap">Global</div><div class="bar b"></div><div class="cap d">proyectos</div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar w"></div><div class="cap d" style="margin-top:auto">+ ruta</div></div>
+<div class="skmain">
+<div class="rowg"><div class="bar" style="width:20px;height:11px"></div><div class="bar b" style="width:20px;height:11px"></div><div class="bar" style="width:20px;height:11px"></div><div class="bar" style="flex:1"></div></div>
+<div class="cap d" style="margin-top:-3px">≡ ▦ ⁂</div>
+<div class="box" style="display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:7px"><div class="bar" style="height:auto"></div><div class="bar w" style="height:auto"></div><div class="bar w" style="height:auto"></div><div class="bar" style="height:auto"></div></div>
+<div class="cap d">tarjeta = nombre + una frase de qué hace</div>
+</div>
+<div class="skside"><div class="cap">inspector</div><div class="box ph"></div><div class="bar b"></div></div>
+</div></div>
+</div>
+</div>
+
+<div class="dv-opt" id="2c">
+<div class="dv-olabel"><a class="dv-oid" href="#2c">2c</a>Modo grafo — 1d encajado, sin perder sidebar ni inspector</div>
+<div class="dv-card" style="width:452px">
+<div class="wf"><div class="tb"><i></i><i></i><i></i><u>el lienzo ocupa el centro, no la ventana</u></div>
+<div class="sk" style="height:252px">
+<div class="sknav"><div class="cap">Global</div><div class="bar b"></div><div class="cap d">proyectos</div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar w"></div><div class="cap d" style="margin-top:auto">+ ruta</div></div>
+<div class="skmain">
+<div class="rowg"><div class="bar" style="width:20px;height:11px"></div><div class="bar" style="width:20px;height:11px"></div><div class="bar b" style="width:20px;height:11px"></div><div class="bar" style="flex:1"></div></div>
+<div class="cap d" style="margin-top:-3px">≡ ▦ ⁂ &nbsp;·&nbsp; aislar rama</div>
+<div class="box" style="position:relative;display:flex;align-items:center;justify-content:center;gap:16px"><div class="node" style="width:26px;height:26px"></div><div class="node b" style="width:34px;height:34px"></div><div class="node f" style="width:26px;height:26px"></div><div class="node" style="width:22px;height:22px"></div><div class="cap d" style="position:absolute;right:7px;bottom:6px">huérfanos ↘</div></div>
+<div class="cap d">selección compartida: el nodo activo es la fila activa</div>
+</div>
+<div class="skside"><div class="cap">inspector</div><div class="box ph"></div><div class="bar b"></div><div class="cap d">mismo panel</div></div>
+</div></div>
+</div>
+</div>
+
+</div>
+<p class="dv-next">Prueba: “píntame <a class="dv-oid" href="#2a">2a</a> en alta fidelidad” · “el grafo mejor a pantalla completa que en el centro” · “desarrolla 14 Generar skill”</p>
+</section>
+
+<section class="dv-turn" id="t1">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">Breadboard, flujo y tres estructuras de ventana</span></div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="1a">
+<div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>Breadboard · 15 places, sus affordances y a dónde llevan</div>
+<div class="dv-card" style="width:1180px">
+<div class="wf"><div class="tb"><i></i><i></i><i></i><u>places · affordances · conexiones — sin pintar nada todavía</u></div>
+<div class="bbwrap">
+
+<div class="bbp"><h4>Escaneo inicial<em>01</em></h4>
+<ul><li><b>·</b>rutas detectadas (global, ~/dev)</li><li><b>·</b>contador en vivo: 47 skills, 9 MCPs</li><li><b>·</b>añadir ruta</li><li><b>·</b>Entrar</li></ul>
+<div class="to"><i>→ 02 Vista general</i></div></div>
+
+<div class="bbp"><h4>Vista general<em>02</em></h4>
+<ul><li><b>·</b>salud: al día / desactualizado / roto</li><li><b>·</b>bloque Global</li><li><b>·</b>lista de proyectos</li><li><b>·</b>“3 sin usar en 60 días”</li><li><b>·</b>buscar (⌘K)</li></ul>
+<div class="to"><i>→ 03 · 04 · 08</i><i>→ 10 Buscar</i></div></div>
+
+<div class="bbp"><h4>Proyecto<em>03</em></h4>
+<ul><li><b>·</b>skills del proyecto</li><li><b>·</b>MCPs del proyecto</li><li><b>·</b>heredadas de Global (atenuadas)</li><li><b>·</b>filtro: solo conflictos</li><li><b>·</b>añadir al proyecto</li></ul>
+<div class="to"><i>→ 05 · 06 Detalle</i><i>→ 11 Instalar</i></div></div>
+
+<div class="bbp"><h4>Global<em>04</em></h4>
+<ul><li><b>·</b>todo lo instalado a nivel usuario</li><li><b>·</b>“usada en 6 proyectos”</li><li><b>·</b>ordenar por uso / fecha / peso</li><li><b>·</b>marcar como archivada</li></ul>
+<div class="to"><i>→ 05 · 06 · 07</i></div></div>
+
+<div class="bbp"><h4>Detalle de skill<em>05</em></h4>
+<ul><li><b>·</b>qué hace, en una frase</li><li><b>·</b>cuándo se dispara</li><li><b>·</b>versión y origen</li><li><b>·</b>archivos que incluye</li><li><b>·</b>dónde está activa</li><li><b>·</b>Actualizar · Eliminar</li></ul>
+<div class="to"><i>→ 09 Diff · 07 Grafo</i><i>→ 14 Editar con IA</i></div></div>
+
+<div class="bbp"><h4>Detalle de MCP<em>06</em></h4>
+<ul><li><b>·</b>transporte y comando</li><li><b>·</b>tools que expone</li><li><b>·</b>estado del handshake</li><li><b>·</b>credenciales requeridas</li><li><b>·</b>Actualizar · Eliminar</li></ul>
+<div class="to"><i>→ 12 Auditoría · 09 Diff</i></div></div>
+
+<div class="bbp"><h4>Grafo de dependencias<em>07</em></h4>
+<ul><li><b>·</b>nodo seleccionado al centro</li><li><b>·</b>de qué depende / quién lo usa</li><li><b>·</b>huérfanos y ciclos marcados</li><li><b>·</b>aislar rama</li></ul>
+<div class="to"><i>→ 05 · 06 cualquier nodo</i></div></div>
+
+<div class="bbp"><h4>Pendientes<em>08</em></h4>
+<ul><li><b>·</b>cola: desactualizado / roto / duplicado</li><li><b>·</b>agrupado por causa</li><li><b>·</b>selección múltiple</li><li><b>·</b>Actualizar todo</li></ul>
+<div class="to"><i>→ 09 Diff</i></div></div>
+
+<div class="bbp"><h4>Diff de actualización<em>09</em></h4>
+<ul><li><b>·</b>versión actual → nueva</li><li><b>·</b>qué cambia en el prompt</li><li><b>·</b>proyectos afectados</li><li><b>·</b>Confirmar · Cancelar</li></ul>
+<div class="to"><i>→ vuelve al origen</i></div></div>
+
+<div class="bbp"><h4>Buscar (⌘K)<em>10</em></h4>
+<ul><li><b>·</b>una caja, nada más</li><li><b>·</b>busca por lo que hace, no por nombre</li><li><b>·</b>resultado con tipo y ámbito</li><li><b>·</b>previsualización lateral</li></ul>
+<div class="to"><i>→ 05 · 06 · 13</i></div></div>
+
+<div class="bbp"><h4>Instalar / añadir<em>11</em></h4>
+<ul><li><b>·</b>pegar URL o ruta</li><li><b>·</b>ámbito: global o proyecto</li><li><b>·</b>previsualizar qué declara</li><li><b>·</b>Instalar</li></ul>
+<div class="to"><i>→ 05 recién creada</i></div></div>
+
+<div class="bbp"><h4>Auditoría<em>12</em></h4>
+<ul><li><b>·</b>matriz MCP × permiso</li><li><b>·</b>credenciales: cuáles y dónde viven</li><li><b>·</b>alcance de archivos y red</li><li><b>·</b>solo lectura</li></ul>
+<div class="to"><i>→ 06 Detalle de MCP</i></div></div>
+
+<div class="bbp acc"><h4>Descubrir<em>13</em></h4>
+<ul><li><b>·</b>registro remoto (skills.sh)</li><li><b>·</b>más descargadas · tendencia · nuevas</li><li><b>·</b>“ya la tienes” / “tienes v1, hay v3”</li><li><b>·</b>categorías y autor</li><li><b>·</b>Instalar en…</li></ul>
+<div class="to"><i>→ 11 Instalar</i><i>→ 14 usar como plantilla</i></div></div>
+
+<div class="bbp acc"><h4>Generar skill<em>14</em></h4>
+<ul><li><b>·</b>“¿qué debería saber hacer?”</li><li><b>·</b>plantilla o desde cero</li><li><b>·</b>checklist de buenas prácticas en vivo</li><li><b>·</b>borrador redactado por IA</li><li><b>·</b>elegir motor: Claude Code · Codex · OpenCode</li><li><b>·</b>probar en seco · Guardar</li></ul>
+<div class="to"><i>→ 15 Motores · 05 Detalle</i></div></div>
+
+<div class="bbp acc"><h4>Motores y claves<em>15</em></h4>
+<ul><li><b>·</b>CLIs detectados en la máquina</li><li><b>·</b>API keys por proveedor</li><li><b>·</b>motor por defecto para generar</li><li><b>·</b>probar conexión</li></ul>
+<div class="to"><i>→ 14 Generar</i></div></div>
+
+<p class="bbnote">Escribe (Actualizar · Instalar · Eliminar · Guardar skill) solo en 09, 11, 13, 14. Todo lo demás es lectura. 13 y 14 son los dos añadidos de tus últimos mensajes.</p>
+</div></div>
+</div>
+</div>
+
+<div class="dv-opt" id="1b">
+<div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>Flujo · cinco carriles, de arrancar a crear</div>
+<div class="dv-card" style="width:1260px">
+<div class="wf"><div class="tb"><i></i><i></i><i></i><u>flujo de pantallas — el carril de creación es nuevo</u></div>
+<div class="flow">
+
+<div class="fcol"><h5>Arranque</h5>
+<div class="fn">01 Escaneo<small>una vez, o al añadir ruta</small></div>
+<div class="fn">02 Vista general<small>la pantalla de casa</small></div>
+<div class="fn gh">10 ⌘K<small>flota sobre todo</small></div>
+<span class="arw">→</span></div>
+
+<div class="fcol"><h5>Ámbito</h5>
+<div class="fn">03 Proyecto</div>
+<div class="fn">04 Global</div>
+<div class="fn gh">Global es un proyecto más en la lista</div>
+<span class="arw">→</span></div>
+
+<div class="fcol"><h5>Entender</h5>
+<div class="fn">05 Detalle de skill</div>
+<div class="fn">06 Detalle de MCP</div>
+<div class="fn">07 Grafo de dependencias</div>
+<div class="fn">12 Auditoría</div>
+<span class="arw">→</span></div>
+
+<div class="fcol"><h5>Mantener</h5>
+<div class="fn">08 Pendientes</div>
+<div class="fn acc">09 Diff → Confirmar</div>
+<div class="fn gh">única acción destructiva pasa por aquí</div>
+<span class="arw">→</span></div>
+
+<div class="fcol"><h5>Crecer</h5>
+<div class="fn acc">13 Descubrir · skills.sh</div>
+<div class="fn acc">11 Instalar</div>
+<div class="fn acc">14 Generar skill</div>
+<div class="fn">15 Motores y claves</div></div>
+
+</div></div>
+</div>
+</div>
+
+<div class="dv-opt" id="1c">
+<div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a>Estructura A · sidebar de proyectos + lista + inspector</div>
+<div class="dv-card" style="width:432px">
+<div class="wf"><div class="tb"><i></i><i></i><i></i><u>tres columnas fijas</u></div>
+<div class="sk">
+<div class="sknav"><div class="cap">Global</div><div class="bar b"></div><div class="cap d">proyectos</div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar w"></div><div style="margin-top:auto" class="cap d">+ ruta</div></div>
+<div class="skmain"><div class="rowg"><div class="bar d" style="width:64px"></div><div class="bar" style="flex:1"></div></div><div class="box" style="border-style:solid"></div><div class="cap d">lista · agrupada por tipo</div></div>
+<div class="skside"><div class="cap">inspector</div><div class="box ph"></div><div class="bar b"></div></div>
+</div></div>
+</div>
+</div>
+
+<div class="dv-opt" id="1d">
+<div class="dv-olabel"><a class="dv-oid" href="#1d">1d</a>Estructura B · el grafo es la pantalla, el detalle es una hoja</div>
+<div class="dv-card" style="width:432px">
+<div class="wf"><div class="tb"><i></i><i></i><i></i><u>lienzo primero</u></div>
+<div class="sk" style="flex-direction:column;padding:11px;gap:9px">
+<div class="rowg"><div class="bar d" style="width:52px"></div><div class="bar" style="width:40px"></div><div class="bar" style="width:40px"></div><div class="bar b" style="margin-left:auto;width:64px"></div></div>
+<div class="box" style="position:relative;display:flex;align-items:center;justify-content:center;gap:22px"><div class="node"></div><div class="node b"></div><div class="node f"></div><div class="node"></div><div style="position:absolute;right:9px;bottom:8px" class="cap d">huérfanos ↘</div></div>
+<div class="rowg"><div class="cap d">clic en nodo → hoja inferior con el detalle</div></div>
+<div class="box" style="height:52px;flex:none;background:#f6f4ee"></div>
+</div></div>
+</div>
+</div>
+
+<div class="dv-opt" id="1e">
+<div class="dv-olabel"><a class="dv-oid" href="#1e">1e</a>Estructura C · vista plana + ⌘K como navegación real</div>
+<div class="dv-card" style="width:432px">
+<div class="wf"><div class="tb"><i></i><i></i><i></i><u>sin sidebar; filtros arriba</u></div>
+<div class="sk" style="flex-direction:column;padding:11px;gap:9px">
+<div class="rowg"><div class="bar b" style="flex:1"></div></div>
+<div class="rowg"><div class="cap d">ámbito</div><div class="bar" style="width:34px"></div><div class="cap d">tipo</div><div class="bar" style="width:34px"></div><div class="cap d">salud</div><div class="bar" style="width:34px"></div></div>
+<div class="box" style="display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:8px;border:1.5px solid #14140f"><div class="bar" style="height:100%"></div><div class="bar w" style="height:100%"></div><div class="bar w" style="height:100%"></div><div class="bar" style="height:100%"></div></div>
+<div class="cap d">todo en una rejilla; el detalle abre en modal</div>
+</div></div>
+</div>
+</div>
+
+</div>
+<p class="dv-next">Prueba: “sigo con <a class="dv-oid" href="#1c">1c</a>, píntala en alta fidelidad” · “desarrolla 14 Generar skill paso a paso” · “otras ideas para 13 Descubrir”</p>
+</section>
+</x-dc>
+</body>
+</html>

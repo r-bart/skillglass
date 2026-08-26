@@ -1,0 +1,15 @@
+{
+  "contract": "local-source-v1",
+  "cases": [
+    { "resource": "directoryIncludedBytes", "admitted": 104857600, "rejected": 104857601 },
+    { "resource": "zipArchiveBytes", "admitted": 26214400, "rejected": 26214401 },
+    { "resource": "zipExpandedIncludedBytes", "admitted": 104857600, "rejected": 104857601 },
+    { "resource": "singleIncludedFileBytes", "admitted": 10485760, "rejected": 10485761 },
+    { "resource": "includedRegularFiles", "admitted": 2000, "rejected": 2001 },
+    { "resource": "includedDirectories", "admitted": 512, "rejected": 513 },
+    { "resource": "relativeNestingSegments", "admitted": 16, "rejected": 17 },
+    { "resource": "relativePathUtf8Bytes", "admitted": 1024, "rejected": 1025 },
+    { "resource": "pathSegmentUtf8Bytes", "admitted": 255, "rejected": 256 },
+    { "resource": "zipCompressionRatio", "admitted": 100, "rejected": 100.0001 }
+  ]
+}

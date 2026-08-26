@@ -1,0 +1,9 @@
+{
+  "case": "reject-limits",
+  "entries": [
+    { "kind": "file", "name": "SKILL.md", "content": "# Fixture\n" },
+    { "kind": "generated-files", "prefix": "references/item-", "count": 2001, "content": "x", "materialize": false },
+    { "kind": "file", "name": "assets/oversize.bin", "declaredCompressedBytes": 104858, "declaredExpandedBytes": 10485761, "materialize": false }
+  ],
+  "expected": { "admitted": false, "reason": "resource-limit" }
+}

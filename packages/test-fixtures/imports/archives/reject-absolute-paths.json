@@ -1,0 +1,10 @@
+{
+  "case": "reject-absolute-paths",
+  "entries": [
+    { "kind": "file", "name": "SKILL.md", "content": "# Fixture\n" },
+    { "kind": "file", "name": "/tmp/escape", "content": "absolute POSIX\n" },
+    { "kind": "file", "name": "C:\\escape.txt", "content": "drive path\n" },
+    { "kind": "file", "name": "\\\\server\\share\\escape.txt", "content": "UNC path\n" }
+  ],
+  "expected": { "admitted": false, "reason": "absolute-or-device-path" }
+}

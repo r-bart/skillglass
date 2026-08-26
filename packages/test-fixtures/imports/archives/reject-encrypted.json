@@ -1,0 +1,8 @@
+{
+  "case": "reject-encrypted",
+  "archive": { "encrypted": true },
+  "entries": [
+    { "kind": "file", "name": "SKILL.md", "content": "# Fixture\n" }
+  ],
+  "expected": { "admitted": false, "reason": "encrypted-archive" }
+}

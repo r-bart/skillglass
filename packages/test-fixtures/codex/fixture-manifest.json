@@ -1,0 +1,131 @@
+{
+  "schemaVersion": 1,
+  "context": {
+    "fixtureHome": "home",
+    "repositoryRoot": "workspace",
+    "currentWorkingDirectory": "workspace/services/api/src"
+  },
+  "roots": [
+    {
+      "path": "workspace/services/api/src/.agents/skills",
+      "scope": "REPO",
+      "discoveryOrder": 0,
+      "mutableByForge": true
+    },
+    {
+      "path": "workspace/services/api/.agents/skills",
+      "scope": "REPO",
+      "discoveryOrder": 1,
+      "mutableByForge": true
+    },
+    {
+      "path": "workspace/services/.agents/skills",
+      "scope": "REPO",
+      "discoveryOrder": 2,
+      "mutableByForge": true
+    },
+    {
+      "path": "workspace/.agents/skills",
+      "scope": "REPO",
+      "discoveryOrder": 3,
+      "mutableByForge": true
+    },
+    {
+      "path": "home/.agents/skills",
+      "scope": "USER",
+      "discoveryOrder": 4,
+      "mutableByForge": true
+    },
+    {
+      "path": "admin/etc/codex/skills",
+      "scope": "ADMIN",
+      "discoveryOrder": 5,
+      "mutableByForge": false
+    }
+  ],
+  "abstractSources": [
+    {
+      "scope": "SYSTEM",
+      "filesystemPath": null,
+      "mutableByForge": false,
+      "reason": "Codex bundles system skills but does not document a filesystem location."
+    }
+  ],
+  "negativeRoots": [
+    {
+      "path": "home/.codex/skills",
+      "reason": "Present in the fixture to prove the Codex adapter does not infer an undocumented native root."
+    }
+  ],
+  "expectedInstallations": [
+    {
+      "path": "workspace/services/api/src/.agents/skills/cwd-skill",
+      "name": "cwd-skill",
+      "scope": "REPO",
+      "runtimeState": "unknown"
+    },
+    {
+      "path": "workspace/services/api/.agents/skills/api-skill",
+      "name": "api-skill",
+      "scope": "REPO",
+      "runtimeState": "unknown"
+    },
+    {
+      "path": "workspace/services/api/.agents/skills/duplicate-api",
+      "name": "duplicate-skill",
+      "scope": "REPO",
+      "runtimeState": "unknown"
+    },
+    {
+      "path": "workspace/services/.agents/skills/service-skill",
+      "name": "service-skill",
+      "scope": "REPO",
+      "runtimeState": "unknown"
+    },
+    {
+      "path": "workspace/.agents/skills/root-skill",
+      "name": "root-skill",
+      "scope": "REPO",
+      "runtimeState": "unknown"
+    },
+    {
+      "path": "workspace/.agents/skills/duplicate-root",
+      "name": "duplicate-skill",
+      "scope": "REPO",
+      "runtimeState": "unknown"
+    },
+    {
+      "path": "home/.agents/skills/personal-skill",
+      "name": "personal-skill",
+      "scope": "USER",
+      "runtimeState": "unknown"
+    },
+    {
+      "path": "home/.agents/skills/duplicate-user",
+      "name": "duplicate-skill",
+      "scope": "USER",
+      "runtimeState": "unknown"
+    },
+    {
+      "path": "home/.agents/skills/disabled-skill",
+      "name": "disabled-skill",
+      "scope": "USER",
+      "runtimeState": "disabled",
+      "stateEvidence": "home/.codex/config.toml"
+    },
+    {
+      "path": "admin/etc/codex/skills/admin-skill",
+      "name": "admin-skill",
+      "scope": "ADMIN",
+      "runtimeState": "unknown"
+    }
+  ],
+  "duplicateGroups": [
+    {
+      "name": "duplicate-skill",
+      "resolution": "coexist",
+      "winner": null,
+      "installationCount": 3
+    }
+  ]
+}

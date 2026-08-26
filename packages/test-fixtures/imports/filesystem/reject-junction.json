@@ -1,0 +1,8 @@
+{
+  "case": "directory-junction",
+  "source": "directories/basic-skill",
+  "materialize": [
+    { "kind": "junction", "relativePath": "references/outside", "target": "outside-directory", "platform": "win32" }
+  ],
+  "expected": { "admitted": false, "reason": "unsupported-entry-type" }
+}

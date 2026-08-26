@@ -1,0 +1,13 @@
+{
+  "case": "equivalent-basic-tree",
+  "entries": [
+    { "kind": "file", "name": "SKILL.md", "content": "---\nname: basic-skill\ndescription: A minimal local import fixture.\n---\n\n# Basic skill\n\nRead [the guide](references/guide.md) without executing bundled content.\n" },
+    { "kind": "file", "name": "references/guide.md", "content": "# Guide\n\nThis exact LF-terminated text is part of the raw-byte hash fixture.\n" }
+  ],
+  "expected": {
+    "admitted": true,
+    "wrapper": null,
+    "sameTreeAs": "directories/basic-skill",
+    "treeHash": "27877defd4097e9e55c159b85a73efec6da404404280f74a044affe1fc16edee"
+  }
+}

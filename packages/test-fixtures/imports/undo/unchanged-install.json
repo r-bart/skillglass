@@ -1,0 +1,6 @@
+{
+  "case": "undo-unchanged-install",
+  "journalOwnsDestination": true,
+  "postInstallMutation": null,
+  "expected": { "undoAllowed": true, "destinationRemoved": true }
+}

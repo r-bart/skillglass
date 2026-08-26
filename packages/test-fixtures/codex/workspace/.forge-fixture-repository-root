@@ -1,0 +1,1 @@
+This marker lets tests inject `workspace` as the repository root without nesting a real `.git` directory.

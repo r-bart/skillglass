@@ -1,0 +1,6 @@
+{
+  "case": "undo-added-entry",
+  "journalOwnsDestination": true,
+  "postInstallMutation": { "kind": "add-file", "path": ".DS_Store", "content": "external metadata\n" },
+  "expected": { "undoAllowed": false, "reason": "unowned-entry", "destinationUntouched": true }
+}

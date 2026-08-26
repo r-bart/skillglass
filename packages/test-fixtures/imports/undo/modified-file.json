@@ -1,0 +1,6 @@
+{
+  "case": "undo-modified-file",
+  "journalOwnsDestination": true,
+  "postInstallMutation": { "kind": "replace-bytes", "path": "SKILL.md", "content": "user change\n" },
+  "expected": { "undoAllowed": false, "reason": "installed-tree-changed", "destinationUntouched": true }
+}

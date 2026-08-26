@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "name": "approved-internal-target",
+      "link": "home/.agents/skills/linked-personal-skill",
+      "target": "home/.agents/skills/personal-skill",
+      "codexBehavior": "follow",
+      "forgeBehavior": "scan"
+    },
+    {
+      "name": "unapproved-external-target",
+      "link": "workspace/.agents/skills/external-skill",
+      "target": "outside-approved-roots/external-skill",
+      "codexBehavior": "follow",
+      "forgeBehavior": "report-and-block-until-target-approved"
+    },
+    {
+      "name": "cycle",
+      "link": "workspace/.agents/skills/cycle-a/cycle-b",
+      "target": "workspace/.agents/skills/cycle-a",
+      "codexBehavior": "not-documented",
+      "forgeBehavior": "report-cycle-and-stop"
+    }
+  ]
+}

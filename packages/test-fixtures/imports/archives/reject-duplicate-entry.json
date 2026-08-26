@@ -1,0 +1,8 @@
+{
+  "case": "reject-duplicate-entry",
+  "entries": [
+    { "kind": "file", "name": "SKILL.md", "content": "# First\n" },
+    { "kind": "file", "name": "SKILL.md", "content": "# Duplicate\n" }
+  ],
+  "expected": { "admitted": false, "reason": "duplicate-entry" }
+}

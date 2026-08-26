@@ -1,0 +1,8 @@
+{
+  "case": "reject-bomb",
+  "entries": [
+    { "kind": "file", "name": "SKILL.md", "content": "# Fixture\n" },
+    { "kind": "file", "name": "assets/repeated.bin", "declaredCompressedBytes": 1024, "declaredExpandedBytes": 1048577, "materialize": false }
+  ],
+  "expected": { "admitted": false, "reason": "compression-ratio-limit" }
+}

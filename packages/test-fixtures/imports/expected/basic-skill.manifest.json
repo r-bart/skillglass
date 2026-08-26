@@ -1,0 +1,17 @@
+{
+  "contract": "local-source-v1",
+  "hashAlgorithm": "forge-tree-v1",
+  "files": [
+    {
+      "path": "SKILL.md",
+      "byteLength": 160,
+      "sha256": "9540584b8270cf2e629dac2d352e1d07f440531a84c670ce6cb6fe11930bcaa8"
+    },
+    {
+      "path": "references/guide.md",
+      "byteLength": 77,
+      "sha256": "914ebcda0b78b0053c7fa834ec3c378817bca6cfb935667e7e4095ae31f84084"
+    }
+  ],
+  "treeHash": "27877defd4097e9e55c159b85a73efec6da404404280f74a044affe1fc16edee"
+}

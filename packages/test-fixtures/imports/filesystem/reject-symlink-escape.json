@@ -1,0 +1,8 @@
+{
+  "case": "directory-symlink-escape",
+  "source": "directories/basic-skill",
+  "materialize": [
+    { "kind": "symlink", "relativePath": "references/outside", "target": "../../outside" }
+  ],
+  "expected": { "admitted": false, "reason": "unsupported-entry-type" }
+}

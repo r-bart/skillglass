@@ -1,0 +1,11 @@
+{
+  "case": "destination-collision",
+  "source": "directories/basic-skill",
+  "target": {
+    "requestedSegment": "basic-skill",
+    "existingEntries": [
+      { "kind": "directory", "name": "Basic-Skill" }
+    ]
+  },
+  "expected": { "planAllowed": false, "reason": "portable-destination-collision", "targetUntouched": true }
+}

@@ -1,0 +1,1823 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics><style>
+body{margin:0;background:#050506;padding:28px}
+a{color:oklch(.68 .15 250);text-decoration:none}a:hover{color:oklch(.78 .13 250)}
+@keyframes halo{0%,100%{opacity:.5}50%{opacity:.8}}
+</style></helmet>
+
+<div style="position:relative;width:1420px;height:892px;border-radius:14px;overflow:hidden;background:#0b0b0d;border:.5px solid rgba(255,255,255,.14);box-shadow:0 0 0 1px rgba(0,0,0,.6),0 40px 90px rgba(0,0,0,.7);display:flex;flex-direction:column;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Helvetica Neue',Helvetica,sans-serif;color:#f4f4f6">
+
+<div style="height:46px;flex:none;display:flex;align-items:center;gap:16px;padding:0 14px;background:#101013;border-bottom:.5px solid rgba(255,255,255,.08)">
+<div style="display:flex;gap:8px;flex:none">
+<div style="width:12px;height:12px;border-radius:999px;background:radial-gradient(120% 130% at 50% 0%,#ff8a80,#ec5f56);border:.5px solid rgba(0,0,0,.35)"></div>
+<div style="width:12px;height:12px;border-radius:999px;background:radial-gradient(120% 130% at 50% 0%,#ffd98a,#e0a83c);border:.5px solid rgba(0,0,0,.35)"></div>
+<div style="width:12px;height:12px;border-radius:999px;background:radial-gradient(120% 130% at 50% 0%,#8fe08a,#4ba648);border:.5px solid rgba(0,0,0,.35)"></div>
+</div>
+<div style="width:1px;height:18px;background:rgba(255,255,255,.08);flex:none;margin-left:4px"></div>
+<div style="font-weight:600;font-size:12.5px;line-height:1.3;color:rgba(244,244,246,.72);flex:none">Forge</div>
+<div style="flex:1;display:flex;justify-content:center">
+<div style="display:flex;align-items:center;gap:9px;width:376px;height:28px;padding:0 11px;border-radius:8px;background:rgba(0,0,0,.5);border:.5px solid rgba(255,255,255,.09);box-shadow:inset 0 1px 2px rgba(0,0,0,.45)">
+<div style="width:10px;height:10px;border-radius:999px;border:1.5px solid rgba(244,244,246,.4);flex:none"></div>
+<input ref="{{ inputRef }}" value="{{ query }}" onChange="{{ setQuery }}" placeholder="Filtrar por nombre o descripción" style="flex:1;min-width:0;appearance:none;border:0;outline:none;background:transparent;font-family:inherit;font-weight:400;font-size:12.5px;line-height:1;color:#f4f4f6">
+<sc-if value="{{ hasQuery }}">
+<div onClick="{{ clearQuery }}" style="flex:none;width:15px;height:15px;border-radius:999px;background:rgba(244,244,246,.16);display:flex;align-items:center;justify-content:center;cursor:pointer;font-weight:600;font-size:10px;line-height:1;color:rgba(244,244,246,.75)">×</div>
+</sc-if>
+<div onClick="{{ openPalette }}" style="flex:none;font:500 10px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:rgba(244,244,246,.34);border:.5px solid rgba(255,255,255,.12);border-radius:4px;padding:3px 4px;cursor:pointer">⌘K</div>
+</div>
+</div>
+<div style="position:relative;display:flex;gap:8px;flex:none">
+<div onClick="{{ openPending }}" style="height:28px;display:flex;align-items:center;gap:7px;padding:0 11px;border-radius:999px;border:.5px solid rgba(255,255,255,.1);background:rgba(244,244,246,.06);cursor:pointer;transition:background 140ms ease" style-hover="background:rgba(244,244,246,.12)">
+<div style="width:5px;height:5px;border-radius:999px;background:oklch(.78 .15 82);box-shadow:0 0 7px oklch(.78 .15 82/.6)"></div>
+<div style="font-weight:500;font-size:12px;line-height:1.3;color:rgba(244,244,246,.78)">7 pendientes</div>
+</div>
+<button onClick="{{ toggleNew }}" style="{{ metalBtnSm }}">Nueva skill ▾</button>
+<sc-if value="{{ newOpen }}">
+<div style="position:absolute;right:0;top:34px;z-index:20;width:224px;padding:5px;border-radius:11px;border:.5px solid rgba(255,255,255,.14);background:rgba(26,26,32,.94);backdrop-filter:blur(24px) saturate(1.6);-webkit-backdrop-filter:blur(24px) saturate(1.6);box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 18px 44px rgba(0,0,0,.65);display:flex;flex-direction:column;gap:1px">
+<sc-for list="{{ newMenu }}" as="m" hint-placeholder-count="4">
+<div onClick="{{ m.pick }}" style="{{ m.style }}" style-hover="background:rgba(255,255,255,.08)">{{ m.label }}</div>
+</sc-for>
+</div>
+</sc-if>
+</div>
+</div>
+
+<div style="flex:1;display:flex;min-height:0">
+
+<div style="width:226px;flex:none;background:#0e0e11;border-right:.5px solid rgba(255,255,255,.07);display:flex;flex-direction:column;padding:14px 0 0">
+<div style="padding:0 14px 8px;font:600 9.5px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.12em;text-transform:uppercase;color:rgba(244,244,246,.3)">Ámbito</div>
+<div style="display:flex;flex-direction:column;gap:1px;padding:0 8px">
+<sc-for list="{{ scopes }}" as="s" hint-placeholder-count="5">
+<div onClick="{{ s.pick }}" style="{{ s.style }}">
+<div style="width:6px;height:6px;border-radius:999px;flex:none;background:{{ s.dot }}"></div>
+<div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;font-size:13px;line-height:1.35">{{ s.name }}</div>
+<div style="font:400 11px/1 ui-monospace,Menlo,monospace;color:rgba(244,244,246,.36);flex:none">{{ s.count }}</div>
+</div>
+</sc-for>
+</div>
+
+<div style="padding:20px 14px 8px;font:600 9.5px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.12em;text-transform:uppercase;color:rgba(244,244,246,.3)">Vistas</div>
+<div style="display:flex;flex-direction:column;gap:1px;padding:0 8px">
+<sc-for list="{{ views }}" as="v" hint-placeholder-count="3">
+<div onClick="{{ v.pick }}" style="{{ v.style }}">
+<div style="{{ v.markStyle }}"></div>
+<div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;font-size:13px;line-height:1.35">{{ v.name }}</div>
+<div style="{{ v.countStyle }}">{{ v.count }}</div>
+</div>
+</sc-for>
+</div>
+
+<div style="margin-top:auto;padding:12px;border-top:.5px solid rgba(255,255,255,.06);display:flex;flex-direction:column;gap:2px">
+<div onClick="{{ openEngines }}" style="display:flex;align-items:center;gap:9px;height:30px;padding:0 8px;border-radius:8px;cursor:pointer;transition:background 140ms ease" style-hover="background:rgba(244,244,246,.06)">
+<div style="width:14px;height:14px;flex:none;border-radius:5px;border:.5px solid rgba(255,255,255,.16);background:radial-gradient(120% 130% at 50% -10%,#4e4e58 0%,#2c2c34 45%,#1b1b21 100%)"></div>
+<div style="font-weight:500;font-size:12.5px;line-height:1.35;color:rgba(244,244,246,.62)">Motores y claves</div>
+</div>
+</div>
+</div>
+
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;background:#0b0b0d">
+
+<sc-if value="{{ isInventory }}" hint-placeholder-val="{{ true }}"><div style="position:relative;flex:1;min-height:0;display:flex;flex-direction:column">
+
+<div style="flex:none;padding:20px 24px 14px;display:flex;flex-direction:column;gap:16px;border-bottom:.5px solid rgba(255,255,255,.06)">
+<div style="display:flex;align-items:flex-end;gap:14px">
+<div style="display:flex;flex-direction:column;gap:5px;min-width:0">
+<div style="font-weight:600;font-size:22px;line-height:1.2;letter-spacing:-.018em">{{ scopeTitle }}</div>
+<div style="font-weight:400;font-size:12.5px;line-height:1.4;color:rgba(244,244,246,.5)">{{ scopeSub }}</div>
+</div>
+<div style="flex:1"></div>
+<div style="display:flex;gap:7px;align-items:center">
+<sc-for list="{{ healthPills }}" as="p" hint-placeholder-count="4">
+<div onClick="{{ p.pick }}" style="{{ p.style }}"><div style="{{ p.dot }}"></div><div>{{ p.text }}</div></div>
+</sc-for>
+</div>
+</div>
+<div style="display:flex;align-items:center;gap:12px">
+<div style="position:relative;display:flex;padding:3px;background:rgba(0,0,0,.42);border:.5px solid rgba(255,255,255,.07);border-radius:10px">
+<div style="position:absolute;top:3px;left:3px;width:72px;height:26px;border-radius:7px;border:.5px solid rgba(255,255,255,.14);background:linear-gradient(180deg,#45454f 0%,#303038 45%,#212127 54%,#292930 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 1px 3px rgba(0,0,0,.5);transition:transform 260ms cubic-bezier(.32,.72,0,1);transform:translateX({{ segX }}px)"></div>
+<div onClick="{{ viewList }}" style="position:relative;width:72px;height:26px;display:flex;align-items:center;justify-content:center;font-weight:500;font-size:12.5px;line-height:1;color:rgba(244,244,246,.8);cursor:pointer">Lista</div>
+<div onClick="{{ viewGraph }}" style="position:relative;width:72px;height:26px;display:flex;align-items:center;justify-content:center;font-weight:500;font-size:12.5px;line-height:1;color:rgba(244,244,246,.8);cursor:pointer">Grafo</div>
+</div>
+<div onClick="{{ toggleGroup }}" style="{{ groupStyle }}">Agrupar: {{ groupLabel }}</div>
+<sc-if value="{{ hasFilters }}">
+<div style="display:flex;align-items:center;gap:8px;margin-left:4px">
+<sc-for list="{{ filterChips }}" as="c" hint-placeholder-count="1">
+<div style="{{ c.style }}">{{ c.label }}<div onClick="{{ c.clear }}" style="width:14px;height:14px;border-radius:999px;background:rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:9.5px;line-height:1">×</div></div>
+</sc-for>
+<div style="font:400 11.5px/1.3 ui-monospace,Menlo,monospace;color:rgba(244,244,246,.4)">{{ filterCount }}</div>
+</div>
+</sc-if>
+<div style="flex:1"></div>
+<div style="font-weight:400;font-size:11.5px;line-height:1.3;color:rgba(244,244,246,.3)">⌘ + clic para seleccionar varias</div>
+</div>
+</div>
+
+<sc-if value="{{ isList }}" hint-placeholder-val="{{ true }}">
+<div style="flex:1;min-height:0;overflow:auto;padding:6px 12px 18px">
+<sc-for list="{{ rows }}" as="r" hint-placeholder-count="9">
+<div>
+<sc-if value="{{ r.isHeader }}">
+<div onClick="{{ r.toggle }}" style="{{ r.hStyle }}" style-hover="background:rgba(255,255,255,.04)">
+<div style="{{ r.chev }}"></div>
+<div style="font-weight:600;font-size:12.5px;line-height:1.3">{{ r.hName }}</div>
+<div style="font:400 11px/1.3 ui-monospace,Menlo,monospace;color:rgba(244,244,246,.4)">{{ r.hCount }}</div>
+<div style="{{ r.hNoteStyle }}">{{ r.hNote }}</div>
+<div style="flex:1"></div>
+<div onClick="{{ r.only }}" style="padding:4px 10px;border-radius:999px;border:.5px solid rgba(255,255,255,.09);background:rgba(244,244,246,.05);font-weight:500;font-size:11px;line-height:1.3;color:rgba(244,244,246,.6);cursor:pointer" style-hover="background:rgba(244,244,246,.12)">ver solo</div>
+</div>
+</sc-if>
+<sc-if value="{{ r.isItem }}">
+<div onClick="{{ r.pick }}" style="{{ r.style }}">
+<div style="width:6px;height:6px;border-radius:999px;flex:none;background:{{ r.dot }};box-shadow:0 0 8px {{ r.glow }}"></div>
+<div style="width:30px;height:30px;border-radius:9px;flex:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.26),0 1px 3px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;background:{{ r.tile }}">
+<div style="{{ r.glyph }}"></div>
+</div>
+<div style="display:flex;flex-direction:column;gap:2px;min-width:0;flex:1">
+<div style="display:flex;align-items:baseline;gap:8px"><div style="font-weight:600;font-size:13.5px;line-height:1.3">{{ r.name }}</div><div style="font:400 10.5px/1 ui-monospace,Menlo,monospace;color:rgba(244,244,246,.36)">{{ r.scope }}</div></div>
+<div style="font-weight:400;font-size:12px;line-height:1.35;color:rgba(244,244,246,.5);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.desc }}</div>
+</div>
+<div style="{{ r.badgeStyle }}">{{ r.badge }}</div>
+<div style="font:400 11px/1 ui-monospace,Menlo,monospace;color:rgba(244,244,246,.4);flex:none;width:40px;text-align:right">{{ r.version }}</div>
+<div onClick="{{ r.toggle }}" style="{{ r.switchStyle }}"><div style="{{ r.knobStyle }}"></div></div>
+</div>
+</sc-if>
+</div>
+</sc-for>
+<sc-if value="{{ isEmpty }}">
+<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:11px;padding:96px 24px;text-align:center">
+<div style="width:38px;height:38px;border-radius:11px;border:1px dashed rgba(255,255,255,.2)"></div>
+<div style="font-weight:600;font-size:15px;line-height:1.3">{{ empty.title }}</div>
+<div style="max-width:340px;font-weight:400;font-size:12.5px;line-height:1.5;color:rgba(244,244,246,.5);text-wrap:pretty">{{ empty.body }}</div>
+<button onClick="{{ empty.act }}" style="{{ metalBtn }}">{{ empty.action }}</button>
+</div>
+</sc-if>
+</div>
+</sc-if>
+
+<sc-if value="{{ isGraph }}">
+<div style="flex:1;min-height:0;position:relative;overflow:hidden;background:radial-gradient(90% 80% at 50% 20%,#111116 0%,#0a0a0c 100%)">
+<div style="position:absolute;inset:0">
+<sc-for list="{{ edges }}" as="e" hint-placeholder-count="8">
+<div style="{{ e.style }}"></div>
+</sc-for>
+<sc-for list="{{ nodes }}" as="n" hint-placeholder-count="9">
+<div onClick="{{ n.pick }}" style="{{ n.wrapStyle }}">
+<div style="{{ n.haloStyle }}"></div>
+<div style="{{ n.nodeStyle }}"></div>
+<div style="{{ n.subStyle }}">{{ n.sub }}</div>
+<div style="{{ n.labelStyle }}">{{ n.name }}</div>
+</div>
+</sc-for>
+</div>
+<div style="position:absolute;left:18px;bottom:16px;right:18px;display:flex;gap:10px;align-items:center">
+<div style="font-weight:400;font-size:11.5px;line-height:1.3;color:rgba(244,244,246,.4)">{{ graphHint }}</div>
+<div style="flex:1"></div>
+<div style="font-weight:400;font-size:11.5px;line-height:1.3;color:rgba(244,244,246,.32)">{{ graphMeta }}</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ multi }}">
+<div style="position:absolute;left:50%;bottom:18px;transform:translateX(-50%);z-index:14;display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:12px;border:.5px solid rgba(255,255,255,.15);background:rgba(26,26,32,.92);backdrop-filter:blur(24px) saturate(1.6);-webkit-backdrop-filter:blur(24px) saturate(1.6);box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 18px 44px rgba(0,0,0,.6)">
+<div style="font-weight:600;font-size:12.5px;line-height:1.3;padding:0 4px">{{ manyCount }}</div>
+<div style="width:1px;height:16px;background:rgba(255,255,255,.12)"></div>
+<sc-for list="{{ bulkActions }}" as="a" hint-placeholder-count="4">
+<div onClick="{{ a.pick }}" style="{{ a.style }}" style-hover="background:rgba(244,244,246,.12)">{{ a.label }}</div>
+</sc-for>
+<div onClick="{{ clearMany }}" style="padding:5px 10px;font-weight:500;font-size:11.5px;line-height:1.3;color:rgba(244,244,246,.45);cursor:pointer">Cancelar</div>
+</div>
+</sc-if>
+<sc-if value="{{ hasToast }}">
+<div style="position:absolute;left:50%;bottom:18px;transform:translateX(-50%);z-index:13;display:flex;align-items:center;gap:12px;padding:10px 12px 10px 15px;border-radius:11px;border:.5px solid rgba(255,255,255,.14);background:rgba(20,20,25,.94);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);box-shadow:0 16px 40px rgba(0,0,0,.6)">
+<div style="font-weight:500;font-size:12.5px;line-height:1.3;color:rgba(244,244,246,.86)">{{ toastText }}</div>
+<div onClick="{{ undo }}" style="padding:4px 11px;border-radius:999px;border:.5px solid rgba(255,255,255,.16);background:rgba(255,255,255,.08);font-weight:600;font-size:11.5px;line-height:1.3;cursor:pointer">Deshacer</div>
+<div onClick="{{ dismissToast }}" style="width:16px;height:16px;border-radius:999px;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:10px;line-height:1;color:rgba(244,244,246,.6)">×</div>
+</div>
+</sc-if>
+</div></sc-if>
+
+<sc-if value="{{ isPending }}"><div style="flex:1;min-height:0;display:flex;flex-direction:column">
+<div style="flex:none;padding:20px 24px 16px;border-bottom:.5px solid rgba(255,255,255,.06);display:flex;align-items:flex-end;gap:14px">
+<div style="display:flex;flex-direction:column;gap:5px">
+<div style="font-weight:600;font-size:22px;line-height:1.2;letter-spacing:-.018em">Pendientes</div>
+<div style="font-weight:400;font-size:12.5px;line-height:1.4;color:rgba(244,244,246,.5)">7 elementos piden atención · agrupados por causa</div>
+</div>
+<div style="flex:1"></div>
+<button onClick="{{ openDiff }}" style="{{ pendingBtnStyle }}">{{ pendingBtnLabel }}</button>
+</div>
+<div style="flex:1;min-height:0;overflow:auto;padding:10px 16px 20px">
+<sc-for list="{{ pendingGroups }}" as="g" hint-placeholder-count="4">
+<div style="margin-bottom:18px">
+<div style="display:flex;align-items:center;gap:9px;padding:6px 8px 8px">
+<div style="width:5px;height:5px;border-radius:999px;background:{{ g.dot }}"></div>
+<div style="font:600 9.5px/1.4 ui-monospace,Menlo,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgba(244,244,246,.42)">{{ g.title }}</div>
+<div style="font-weight:400;font-size:11.5px;line-height:1.3;color:rgba(244,244,246,.32)">{{ g.note }}</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:2px">
+<sc-for list="{{ g.rows }}" as="r" hint-placeholder-count="3">
+<div onClick="{{ r.toggle }}" style="{{ r.style }}">
+<div style="{{ r.checkStyle }}"></div>
+<div style="width:26px;height:26px;border-radius:8px;flex:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.24);background:{{ r.tile }}"></div>
+<div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0">
+<div style="font-weight:600;font-size:13px;line-height:1.3">{{ r.name }}</div>
+<div style="font-weight:400;font-size:11.5px;line-height:1.35;color:rgba(244,244,246,.48)">{{ r.reason }}</div>
+</div>
+<div style="{{ r.badgeStyle }}">{{ r.badge }}</div>
+<div onClick="{{ r.diff }}" style="flex:none;padding:5px 11px;border-radius:999px;border:.5px solid rgba(255,255,255,.09);background:rgba(244,244,246,.05);font-weight:500;font-size:11.5px;line-height:1.3;color:rgba(244,244,246,.66);cursor:pointer;transition:background 140ms ease" style-hover="background:rgba(244,244,246,.11)">{{ r.actLabel }}</div>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-for>
+</div>
+</div></sc-if>
+
+<sc-if value="{{ isDiscover }}"><div style="flex:1;min-height:0;display:flex;flex-direction:column">
+<div style="flex:none;padding:20px 24px 14px;border-bottom:.5px solid rgba(255,255,255,.06);display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;align-items:flex-end;gap:14px">
+<div style="display:flex;flex-direction:column;gap:5px">
+<div style="font-weight:600;font-size:22px;line-height:1.2;letter-spacing:-.018em">Descubrir</div>
+<div style="font-weight:400;font-size:12.5px;line-height:1.4;color:rgba(244,244,246,.5)">skills.sh · 2 148 skills públicas · sincronizado hace 20 min</div>
+</div>
+<div style="flex:1"></div>
+<div style="font-weight:400;font-size:11.5px;line-height:1.3;color:rgba(244,244,246,.36)">El estado se cruza con lo que ya tienes</div>
+</div>
+<div style="display:flex;gap:7px">
+<div style="padding:5px 12px;border-radius:999px;border:.5px solid rgba(255,255,255,.16);background:linear-gradient(180deg,#43434c 0%,#2e2e35 45%,#1f1f25 54%,#28282f 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.18);font-weight:500;font-size:11.5px;line-height:1.3">Más descargadas</div>
+<div style="padding:5px 12px;border-radius:999px;border:.5px solid rgba(255,255,255,.08);background:rgba(0,0,0,.4);font-weight:500;font-size:11.5px;line-height:1.3;color:rgba(244,244,246,.55);cursor:pointer">Tendencia</div>
+<div style="padding:5px 12px;border-radius:999px;border:.5px solid rgba(255,255,255,.08);background:rgba(0,0,0,.4);font-weight:500;font-size:11.5px;line-height:1.3;color:rgba(244,244,246,.55);cursor:pointer">Nuevas</div>
+<div style="padding:5px 12px;border-radius:999px;border:.5px solid rgba(255,255,255,.08);background:rgba(0,0,0,.4);font-weight:500;font-size:11.5px;line-height:1.3;color:rgba(244,244,246,.55);cursor:pointer">Para tu stack</div>
+</div>
+</div>
+<div style="flex:1;min-height:0;overflow:auto;padding:16px 18px 20px">
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+<sc-for list="{{ registry }}" as="k" hint-placeholder-count="9">
+<div style="box-sizing:border-box;display:flex;flex-direction:column;gap:8px;height:154px;padding:15px;border-radius:12px;border:.5px solid rgba(255,255,255,.08);background:#131317">
+<div style="display:flex;align-items:center;gap:10px">
+<div style="width:30px;height:30px;border-radius:9px;flex:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.26),0 1px 3px rgba(0,0,0,.5);background:{{ k.tile }}"></div>
+<div style="display:flex;flex-direction:column;gap:1px;min-width:0;flex:1">
+<div style="font-weight:600;font-size:13.5px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ k.name }}</div>
+<div style="font:400 10.5px/1.3 ui-monospace,Menlo,monospace;color:rgba(244,244,246,.4)">{{ k.author }}</div>
+</div>
+<div style="font:500 11px/1.3 ui-monospace,Menlo,monospace;color:rgba(244,244,246,.5);flex:none">{{ k.dl }}</div>
+</div>
+<div style="font-weight:400;font-size:12px;line-height:1.45;color:rgba(244,244,246,.55);text-wrap:pretty">{{ k.desc }}</div>
+<div style="margin-top:auto;display:flex;align-items:center;gap:8px">
+<div style="{{ k.stateStyle }}">{{ k.state }}</div>
+<div style="flex:1"></div>
+<div onClick="{{ k.fork }}" style="padding:5px 11px;border-radius:999px;border:.5px solid rgba(255,255,255,.09);background:rgba(244,244,246,.05);font-weight:500;font-size:11.5px;line-height:1.3;color:rgba(244,244,246,.6);cursor:pointer;transition:background 140ms ease" style-hover="background:rgba(244,244,246,.11)">Bifurcar</div>
+<button onClick="{{ k.act }}" style="{{ k.btnStyle }}">{{ k.action }}</button>
+</div>
+</div>
+</sc-for>
+</div>
+</div>
+</div></sc-if>
+
+</div>
+
+<div style="flex:none;overflow:hidden;transition:width 300ms cubic-bezier(.32,.72,0,1);{{ inspectorDyn }}">
+<div style="box-sizing:border-box;width:326px;height:100%;background:#0e0e11;display:flex;flex-direction:column;min-height:0">
+<div style="padding:18px 18px 14px;border-bottom:.5px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:11px">
+<div style="width:34px;height:34px;border-radius:10px;flex:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.26),0 1px 3px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;background:{{ sel.tile }}"><div style="{{ sel.glyph }}"></div></div>
+<div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:0">
+<div style="font-weight:600;font-size:15px;line-height:1.25;letter-spacing:-.008em">{{ sel.name }}</div>
+<div style="font:400 11px/1.3 ui-monospace,Menlo,monospace;color:rgba(244,244,246,.44)">{{ sel.sub }}</div>
+</div>
+<div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex:none">
+<div onClick="{{ sel.toggle }}" style="{{ sel.switchStyle }}"><div style="{{ sel.knobStyle }}"></div></div>
+<div style="font-weight:500;font-size:10.5px;line-height:1.3;color:{{ sel.stateColor }}">{{ sel.stateLabel }}</div>
+</div>
+</div>
+<div style="padding:16px 18px;border-bottom:.5px solid rgba(255,255,255,.06);font-weight:400;font-size:13px;line-height:1.55;color:rgba(244,244,246,.76);text-wrap:pretty">{{ sel.desc }}</div>
+<div style="display:flex;flex-direction:column;overflow:auto;min-height:0">
+<sc-for list="{{ sel.meta }}" as="m" hint-placeholder-count="6">
+<div onClick="{{ m.pick }}" style="{{ m.rowStyle }}" style-hover="background:rgba(255,255,255,.03)">
+<div style="width:82px;flex:none;font:600 9.5px/1.4 ui-monospace,Menlo,monospace;letter-spacing:.1em;text-transform:uppercase;color:rgba(244,244,246,.33)">{{ m.k }}</div>
+<div style="{{ m.vStyle }}">{{ m.v }}</div>
+</div>
+</sc-for>
+</div>
+<div style="position:relative;margin-top:auto;padding:14px 18px;border-top:.5px solid rgba(255,255,255,.07);background:rgba(0,0,0,.28);display:flex;align-items:center;gap:9px">
+<sc-if value="{{ menuOpen }}">
+<div style="position:absolute;right:14px;bottom:52px;z-index:12;width:212px;padding:5px;border-radius:11px;border:.5px solid rgba(255,255,255,.14);background:rgba(26,26,32,.92);backdrop-filter:blur(24px) saturate(1.6);-webkit-backdrop-filter:blur(24px) saturate(1.6);box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 18px 44px rgba(0,0,0,.65);display:flex;flex-direction:column;gap:1px">
+<sc-for list="{{ menu }}" as="m" hint-placeholder-count="6">
+<div onClick="{{ m.pick }}" style="{{ m.style }}">
+<div style="flex:1;min-width:0">{{ m.label }}</div>
+<div style="font:400 10.5px/1.3 ui-monospace,Menlo,monospace;color:rgba(244,244,246,.3);flex:none">{{ m.hint }}</div>
+</div>
+</sc-for>
+</div>
+</sc-if>
+<button onClick="{{ sel.act }}" style="{{ sel.btnStyle }}">{{ sel.action }}</button>
+<div onClick="{{ openEdit }}" style="padding:8px 15px;border-radius:999px;border:.5px solid rgba(255,255,255,.1);background:rgba(244,244,246,.06);font-weight:500;font-size:12.5px;line-height:1.2;color:rgba(244,244,246,.8);cursor:pointer;transition:background 140ms ease" style-hover="background:rgba(244,244,246,.12)">Editar</div>
+<div style="flex:1"></div>
+<div onClick="{{ toggleMenu }}" style="width:30px;height:30px;border-radius:999px;border:.5px solid rgba(255,255,255,.1);background:rgba(244,244,246,.06);display:flex;align-items:center;justify-content:center;gap:2.5px;cursor:pointer;transition:background 140ms ease" style-hover="background:rgba(244,244,246,.12)">
+<div style="width:2.5px;height:2.5px;border-radius:999px;background:rgba(244,244,246,.66)"></div>
+<div style="width:2.5px;height:2.5px;border-radius:999px;background:rgba(244,244,246,.66)"></div>
+<div style="width:2.5px;height:2.5px;border-radius:999px;background:rgba(244,244,246,.66)"></div>
+</div>
+</div>
+</div>
+</div>
+
+</div>
+
+<sc-if value="{{ sheetOpen }}">
+<div onClick="{{ closeSheet }}" style="position:absolute;inset:0;z-index:30;background:rgba(4,4,6,.62);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);display:flex;align-items:{{ sheetAlign }};justify-content:center;padding:64px 0">
+
+<sc-if value="{{ isPalette }}">
+<div onClick="{{ stop }}" style="box-sizing:border-box;width:632px;border-radius:14px;overflow:hidden;border:.5px solid rgba(255,255,255,.14);background:rgba(22,22,27,.86);backdrop-filter:blur(30px) saturate(1.6);-webkit-backdrop-filter:blur(30px) saturate(1.6);box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 24px 70px rgba(0,0,0,.7)">
+<div style="display:flex;align-items:center;gap:11px;padding:0 16px;height:52px;border-bottom:.5px solid rgba(255,255,255,.09)">
+<div style="width:12px;height:12px;border-radius:999px;border:1.5px solid rgba(244,244,246,.45);flex:none"></div>
+<input value="{{ pq }}" onChange="{{ setPq }}" placeholder="Busca por lo que hace…" style="flex:1;min-width:0;appearance:none;border:0;outline:none;background:transparent;font-family:inherit;font-weight:400;font-size:15px;line-height:1;color:#f4f4f6">
+<div style="font:500 10px/1 ui-monospace,Menlo,monospace;color:rgba(244,244,246,.34);border:.5px solid rgba(255,255,255,.12);border-radius:4px;padding:3px 5px">esc</div>
+</div>
+<div style="padding:6px 8px 10px;display:flex;flex-direction:column;gap:1px">
+<div style="padding:8px 10px 4px;font:600 9.5px/1.4 ui-monospace,Menlo,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgba(244,244,246,.34)">En tu máquina</div>
+<sc-for list="{{ paletteLocal }}" as="p" hint-placeholder-count="3">
+<div onClick="{{ p.pick }}" style="{{ p.style }}">
+<div style="width:24px;height:24px;border-radius:7px;flex:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.24);background:{{ p.tile }}"></div>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+<div style="font-weight:600;font-size:13px;line-height:1.3">{{ p.name }}</div>
+<div style="font-weight:400;font-size:11.5px;line-height:1.35;color:rgba(244,244,246,.48);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ p.desc }}</div>
+</div>
+<div style="font:400 10.5px/1.3 ui-monospace,Menlo,monospace;color:rgba(244,244,246,.4);flex:none">{{ p.where }}</div>
+</div>
+</sc-for>
+<div style="padding:12px 10px 4px;font:600 9.5px/1.4 ui-monospace,Menlo,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgba(244,244,246,.34)">En skills.sh</div>
+<sc-for list="{{ paletteRemote }}" as="p" hint-placeholder-count="2">
+<div style="display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:9px;cursor:pointer">
+<div style="width:24px;height:24px;border-radius:7px;flex:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.24);background:{{ p.tile }}"></div>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+<div style="font-weight:600;font-size:13px;line-height:1.3">{{ p.name }}</div>
+<div style="font-weight:400;font-size:11.5px;line-height:1.35;color:rgba(244,244,246,.48);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ p.desc }}</div>
+</div>
+<div style="font:400 10.5px/1.3 ui-monospace,Menlo,monospace;color:rgba(244,244,246,.4);flex:none">{{ p.where }}</div>
+</div>
+</sc-for>
+</div>
+<div style="display:flex;align-items:center;gap:16px;padding:10px 16px;border-top:.5px solid rgba(255,255,255,.08);background:rgba(0,0,0,.25)">
+<div style="font-weight:400;font-size:11px;line-height:1.3;color:rgba(244,244,246,.36)">↑↓ moverse</div>
+<div style="font-weight:400;font-size:11px;line-height:1.3;color:rgba(244,244,246,.36)">↵ abrir</div>
+<div style="font-weight:400;font-size:11px;line-height:1.3;color:rgba(244,244,246,.36)">⌘↵ instalar</div>
+<div style="flex:1"></div>
+<div style="font-weight:400;font-size:11px;line-height:1.3;color:rgba(244,244,246,.3)">busca por descripción, no por nombre</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isDiff }}">
+<div onClick="{{ stop }}" style="box-sizing:border-box;width:760px;border-radius:14px;overflow:hidden;border:.5px solid rgba(255,255,255,.13);background:#111115;box-shadow:0 30px 80px rgba(0,0,0,.7)">
+<div style="padding:18px 22px;border-bottom:.5px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:12px">
+<div style="width:30px;height:30px;border-radius:9px;flex:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.26);background:{{ diff.tile }}"></div>
+<div style="display:flex;flex-direction:column;gap:2px">
+<div style="font-weight:600;font-size:15px;line-height:1.25">{{ diff.name }}</div>
+<div style="font:400 11.5px/1.3 ui-monospace,Menlo,monospace;color:rgba(244,244,246,.45)">{{ diff.range }}</div>
+</div>
+<div style="flex:1"></div>
+<div style="padding:4px 10px;border-radius:999px;background:oklch(.78 .15 82/.13);border:.5px solid oklch(.78 .15 82/.28);font-weight:500;font-size:11.5px;line-height:1.3;color:oklch(.88 .12 82)">{{ diff.affected }}</div>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr">
+<div style="padding:16px 20px;border-right:.5px solid rgba(255,255,255,.07);display:flex;flex-direction:column;gap:9px">
+<div style="font:600 9.5px/1.4 ui-monospace,Menlo,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgba(244,244,246,.34)">Ahora · v2.4</div>
+<sc-for list="{{ diff.before }}" as="l" hint-placeholder-count="5">
+<div style="{{ l.style }}">{{ l.text }}</div>
+</sc-for>
+</div>
+<div style="padding:16px 20px;display:flex;flex-direction:column;gap:9px">
+<div style="font:600 9.5px/1.4 ui-monospace,Menlo,monospace;letter-spacing:.11em;text-transform:uppercase;color:oklch(.75 .15 250)">Nuevo · v3.0</div>
+<sc-for list="{{ diff.after }}" as="l" hint-placeholder-count="5">
+<div style="{{ l.style }}">{{ l.text }}</div>
+</sc-for>
+</div>
+</div>
+<div style="padding:14px 20px;border-top:.5px solid rgba(255,255,255,.08);background:rgba(0,0,0,.28);display:flex;align-items:center;gap:12px">
+<div style="font-weight:400;font-size:12px;line-height:1.4;color:rgba(244,244,246,.5)">Se aplica en acme-web, ledger e infra. Reversible mientras se conserve la versión anterior: 90 días.</div>
+<div style="flex:1"></div>
+<div onClick="{{ closeSheet }}" style="padding:8px 16px;border-radius:999px;border:.5px solid rgba(255,255,255,.1);background:rgba(244,244,246,.06);font-weight:500;font-size:12.5px;line-height:1.2;color:rgba(244,244,246,.8);cursor:pointer">Cancelar</div>
+<button onClick="{{ closeSheet }}" style="{{ metalBtn }}">Confirmar</button>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isInstall }}">
+<div onClick="{{ stop }}" style="box-sizing:border-box;width:560px;border-radius:14px;overflow:hidden;border:.5px solid rgba(255,255,255,.13);background:#111115;box-shadow:0 30px 80px rgba(0,0,0,.7)">
+<div style="padding:18px 22px 16px;border-bottom:.5px solid rgba(255,255,255,.08)">
+<div style="font-weight:600;font-size:16px;line-height:1.25">Instalar o añadir</div>
+<div style="font-weight:400;font-size:12.5px;line-height:1.45;color:rgba(244,244,246,.5);margin-top:4px">Pega una URL de skills.sh, un repositorio o una ruta local.</div>
+</div>
+<div style="padding:20px 22px;display:flex;flex-direction:column;gap:16px">
+<div style="display:flex;align-items:center;gap:9px;height:36px;padding:0 12px;border-radius:9px;background:rgba(0,0,0,.45);border:1px solid oklch(.62 .17 250);box-shadow:0 0 0 3px oklch(.62 .17 250/.18)">
+<div style="font:400 12.5px/1 ui-monospace,Menlo,monospace;color:rgba(244,244,246,.9)">skills.sh/pkg/pr-review</div>
+<div style="width:1.5px;height:15px;background:oklch(.7 .17 250)"></div>
+</div>
+<div style="display:flex;align-items:center;gap:9px">
+<div style="font:600 9.5px/1.4 ui-monospace,Menlo,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgba(244,244,246,.34)">Ámbito</div>
+<div style="padding:5px 12px;border-radius:999px;border:.5px solid rgba(255,255,255,.16);background:linear-gradient(180deg,#43434c 0%,#2e2e35 45%,#1f1f25 54%,#28282f 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.18);font-weight:500;font-size:11.5px;line-height:1.3">Global</div>
+<div style="padding:5px 12px;border-radius:999px;border:.5px solid rgba(255,255,255,.08);background:rgba(0,0,0,.4);font-weight:500;font-size:11.5px;line-height:1.3;color:rgba(244,244,246,.55);cursor:pointer">acme-web</div>
+<div style="padding:5px 12px;border-radius:999px;border:.5px solid rgba(255,255,255,.08);background:rgba(0,0,0,.4);font-weight:500;font-size:11.5px;line-height:1.3;color:rgba(244,244,246,.55);cursor:pointer">ledger</div>
+</div>
+<div style="border:.5px solid rgba(255,255,255,.08);border-radius:11px;overflow:hidden;background:#0d0d10">
+<div style="padding:10px 14px;border-bottom:.5px solid rgba(255,255,255,.06);font:600 9.5px/1.4 ui-monospace,Menlo,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgba(244,244,246,.34)">Declara</div>
+<div style="display:flex;flex-direction:column">
+<div style="display:flex;align-items:baseline;gap:12px;padding:10px 14px;border-bottom:.5px solid rgba(255,255,255,.04)"><div style="width:80px;flex:none;font-weight:400;font-size:11.5px;line-height:1.4;color:rgba(244,244,246,.42)">Dispara</div><div style="font-weight:400;font-size:12.5px;line-height:1.4;color:rgba(244,244,246,.78)">al abrir un pull request</div></div>
+<div style="display:flex;align-items:baseline;gap:12px;padding:10px 14px;border-bottom:.5px solid rgba(255,255,255,.04)"><div style="width:80px;flex:none;font-weight:400;font-size:11.5px;line-height:1.4;color:rgba(244,244,246,.42)">Depende de</div><div style="font-weight:400;font-size:12.5px;line-height:1.4;color:rgba(244,244,246,.78)">git-mcp · ya lo tienes</div></div>
+<div style="display:flex;align-items:baseline;gap:12px;padding:10px 14px"><div style="width:80px;flex:none;font-weight:400;font-size:11.5px;line-height:1.4;color:rgba(244,244,246,.42)">Permisos</div><div style="font-weight:400;font-size:12.5px;line-height:1.4;color:rgba(244,244,246,.78)">lectura de disco · sin red</div></div>
+</div>
+</div>
+</div>
+<div style="padding:14px 22px;border-top:.5px solid rgba(255,255,255,.08);background:rgba(0,0,0,.28);display:flex;align-items:center;gap:12px">
+<div style="font-weight:400;font-size:11.5px;line-height:1.4;color:rgba(244,244,246,.4)">3 archivos · 9 KB</div>
+<div style="flex:1"></div>
+<div onClick="{{ closeSheet }}" style="padding:8px 16px;border-radius:999px;border:.5px solid rgba(255,255,255,.1);background:rgba(244,244,246,.06);font-weight:500;font-size:12.5px;line-height:1.2;color:rgba(244,244,246,.8);cursor:pointer">Cancelar</div>
+<button onClick="{{ closeSheet }}" style="{{ metalBtn }}">Instalar</button>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isGenerate }}">
+<div onClick="{{ stop }}" style="box-sizing:border-box;width:820px;border-radius:14px;overflow:hidden;border:.5px solid rgba(255,255,255,.13);background:#111115;box-shadow:0 30px 80px rgba(0,0,0,.7)">
+<div style="padding:18px 22px;border-bottom:.5px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:14px">
+<div style="display:flex;flex-direction:column;gap:3px">
+<div style="font-weight:600;font-size:16px;line-height:1.25">Nueva skill</div>
+<div style="font-weight:400;font-size:12.5px;line-height:1.4;color:rgba(244,244,246,.5)">{{ wiz.caption }}</div>
+</div>
+<div style="flex:1"></div>
+<div style="display:flex;gap:5px">
+<sc-for list="{{ wiz.bars }}" as="b" hint-placeholder-count="3">
+<div style="{{ b.style }}"></div>
+</sc-for>
+</div>
+</div>
+<div style="display:grid;grid-template-columns:1fr 268px;min-height:286px">
+<div style="padding:20px 22px;display:flex;flex-direction:column;gap:16px;border-right:.5px solid rgba(255,255,255,.07)">
+
+<sc-if value="{{ wiz.s1 }}">
+<div style="display:flex;flex-direction:column;gap:16px">
+<div style="display:flex;flex-direction:column;gap:7px">
+<div style="font:600 9.5px/1.4 ui-monospace,Menlo,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgba(244,244,246,.34)">Descripción</div>
+<div style="box-sizing:border-box;min-height:92px;padding:12px 13px;border-radius:9px;background:rgba(0,0,0,.45);border:1px solid oklch(.62 .17 250);box-shadow:0 0 0 3px oklch(.62 .17 250/.16);font-weight:400;font-size:13px;line-height:1.55;color:rgba(244,244,246,.9)">Revisar los pull requests de infraestructura y avisar si tocan producción sin plan de rollback.</div>
+<div style="font-weight:400;font-size:11.5px;line-height:1.45;color:rgba(244,244,246,.4)">Una frase es suficiente. Abajo se proponen nombre y activación; puedes ajustarlos.</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ wiz.s1b }}">
+<div style="display:flex;flex-direction:column;gap:16px">
+<div style="display:flex;gap:12px">
+<div style="flex:1;display:flex;flex-direction:column;gap:7px">
+<div style="font:600 9.5px/1.4 ui-monospace,Menlo,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgba(244,244,246,.34)">Nombre</div>
+<div style="box-sizing:border-box;height:36px;display:flex;align-items:center;padding:0 12px;border-radius:9px;background:rgba(0,0,0,.45);border:.5px solid rgba(255,255,255,.11);font:400 12.5px/1 ui-monospace,Menlo,monospace;color:rgba(244,244,246,.9)">infra-pr-review</div>
+</div>
+<div style="width:132px;display:flex;flex-direction:column;gap:7px">
+<div style="font:600 9.5px/1.4 ui-monospace,Menlo,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgba(244,244,246,.34)">Versión</div>
+<div style="box-sizing:border-box;height:36px;display:flex;align-items:center;padding:0 12px;border-radius:9px;background:rgba(0,0,0,.45);border:.5px solid rgba(255,255,255,.11);font:400 12.5px/1 ui-monospace,Menlo,monospace;color:rgba(244,244,246,.9)">v1.0</div>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:7px">
+<div style="font:600 9.5px/1.4 ui-monospace,Menlo,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgba(244,244,246,.34)">Se activa cuando</div>
+<div style="box-sizing:border-box;min-height:36px;display:flex;align-items:center;padding:9px 12px;border-radius:9px;background:rgba(0,0,0,.45);border:.5px solid rgba(255,255,255,.11);font-weight:400;font-size:12.5px;line-height:1.4;color:rgba(244,244,246,.9)">se abre un pull request que toca terraform/ o k8s/</div>
+<div style="font-weight:400;font-size:11.5px;line-height:1.45;color:rgba(244,244,246,.4)">Sé explícito. Una activación vaga hace que la skill salte cuando no toca.</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px">
+<div style="font:600 9.5px/1.4 ui-monospace,Menlo,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgba(244,244,246,.34)">Ámbito</div>
+<div style="display:flex;gap:7px">
+<div style="padding:6px 13px;border-radius:999px;border:.5px solid rgba(255,255,255,.16);background:linear-gradient(180deg,#43434c 0%,#2e2e35 45%,#1f1f25 54%,#28282f 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.18);font-weight:500;font-size:12px;line-height:1.3">Global</div>
+<div style="padding:6px 13px;border-radius:999px;border:.5px solid rgba(255,255,255,.08);background:rgba(0,0,0,.4);font-weight:500;font-size:12px;line-height:1.3;color:rgba(244,244,246,.55);cursor:pointer">acme-web</div>
+<div style="padding:6px 13px;border-radius:999px;border:.5px solid rgba(255,255,255,.08);background:rgba(0,0,0,.4);font-weight:500;font-size:12px;line-height:1.3;color:rgba(244,244,246,.55);cursor:pointer">infra</div>
+</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ wiz.s2 }}">
+<div style="display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;align-items:center;gap:9px">
+<div style="font:600 9.5px/1.4 ui-monospace,Menlo,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgba(244,244,246,.34)">Contenido</div>
+<div style="padding:2px 8px;border-radius:999px;border:.5px solid rgba(255,255,255,.12);background:rgba(244,244,246,.05);font-weight:500;font-size:10.5px;line-height:1.4;color:rgba(244,244,246,.55)">Generado con Claude Code</div>
+<div style="flex:1"></div>
+<div style="padding:4px 10px;border-radius:999px;border:.5px solid rgba(255,255,255,.12);background:rgba(244,244,246,.05);font-weight:500;font-size:11px;line-height:1.3;color:rgba(244,244,246,.66);cursor:pointer;transition:background 140ms ease" style-hover="background:rgba(244,244,246,.11)">Regenerar</div>
+</div>
+<div style="position:relative">
+<div style="position:absolute;inset:-2px;border-radius:11px;background:conic-gradient(from 200deg,oklch(.7 .17 26),oklch(.8 .15 82),oklch(.75 .15 152),oklch(.68 .17 250),oklch(.65 .19 310),oklch(.7 .17 26));filter:blur(10px);opacity:.4;animation:halo 4s ease-in-out infinite"></div>
+<div style="position:relative;padding:14px;border-radius:10px;background:#0c0c0f;border:.5px solid rgba(255,255,255,.1);display:flex;flex-direction:column;gap:9px">
+<div style="font:400 11.5px/1.65 ui-monospace,SFMono-Regular,Menlo,monospace;color:rgba(244,244,246,.82)">Lee el diff completo antes de opinar.</div>
+<div style="font:400 11.5px/1.65 ui-monospace,SFMono-Regular,Menlo,monospace;color:rgba(244,244,246,.82)">Identifica los recursos que apuntan a producción y exige un plan de rollback escrito.</div>
+<div style="font:400 11.5px/1.65 ui-monospace,SFMono-Regular,Menlo,monospace;color:rgba(244,244,246,.6)">Cita siempre el archivo y la línea. No apruebes si falta el plan…</div>
+</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ wiz.s3 }}">
+<div style="display:flex;flex-direction:column;gap:12px">
+<div style="font:600 9.5px/1.4 ui-monospace,Menlo,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgba(244,244,246,.34)">Resumen</div>
+<div style="border:.5px solid rgba(255,255,255,.09);border-radius:11px;overflow:hidden;background:#0d0d10">
+<sc-for list="{{ wiz.summary }}" as="r" hint-placeholder-count="5">
+<div style="display:flex;align-items:baseline;gap:12px;padding:11px 14px;border-bottom:.5px solid rgba(255,255,255,.045)">
+<div style="width:108px;flex:none;font-weight:400;font-size:11.5px;line-height:1.4;color:rgba(244,244,246,.42)">{{ r.k }}</div>
+<div style="{{ r.valueStyle }}">{{ r.v }}</div>
+</div>
+</sc-for>
+</div>
+<div style="padding:11px 12px;border-radius:9px;background:oklch(.78 .15 82/.1);border:.5px solid oklch(.78 .15 82/.24);font-weight:400;font-size:11.5px;line-height:1.5;color:oklch(.9 .1 82)">Se solapa un 40% con <span style="font-family:ui-monospace,Menlo,monospace">deploy-checklist</span>. Puedes crearla igualmente o editar la existente.</div>
+</div>
+</sc-if>
+
+</div>
+<div style="padding:20px;display:flex;flex-direction:column;gap:12px;background:#0e0e12">
+<div style="display:flex;align-items:center;gap:8px">
+<div style="font:600 9.5px/1.4 ui-monospace,Menlo,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgba(244,244,246,.34)">Recomendaciones</div>
+<div style="flex:1"></div>
+<div style="font:500 10.5px/1.3 ui-monospace,Menlo,monospace;color:rgba(244,244,246,.4)">{{ checklistCount }}</div>
+</div>
+<sc-for list="{{ checklist }}" as="c" hint-placeholder-count="5">
+<div style="display:flex;align-items:flex-start;gap:9px">
+<div style="{{ c.mark }}"></div>
+<div style="font-weight:400;font-size:12px;line-height:1.45;color:{{ c.color }}">{{ c.text }}</div>
+</div>
+</sc-for>
+<div style="margin-top:auto;font-weight:400;font-size:11px;line-height:1.5;color:rgba(244,244,246,.32)">Se comprueban al escribir. Ninguna es obligatoria para crear la skill.</div>
+</div>
+</div>
+<div style="padding:14px 22px;border-top:.5px solid rgba(255,255,255,.08);background:rgba(0,0,0,.28);display:flex;align-items:center;gap:10px">
+<div onClick="{{ closeSheet }}" style="padding:8px 16px;border-radius:999px;border:.5px solid rgba(255,255,255,.1);background:rgba(244,244,246,.06);font-weight:500;font-size:12.5px;line-height:1.2;color:rgba(244,244,246,.8);cursor:pointer;transition:background 140ms ease" style-hover="background:rgba(244,244,246,.12)">Cancelar</div>
+<div style="flex:1"></div>
+<div onClick="{{ wiz.back }}" style="{{ wiz.backStyle }}">Atrás</div>
+<button onClick="{{ wiz.next }}" style="{{ metalBtn }}">{{ wiz.nextLabel }}</button>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isEdit }}">
+<div onClick="{{ stop }}" style="box-sizing:border-box;width:880px;border-radius:14px;overflow:hidden;border:.5px solid rgba(255,255,255,.13);background:#111115;box-shadow:0 30px 80px rgba(0,0,0,.7)">
+<div style="padding:18px 22px;border-bottom:.5px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:12px">
+<div style="width:30px;height:30px;border-radius:9px;flex:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.26);background:{{ sel.tile }}"></div>
+<div style="display:flex;flex-direction:column;gap:2px">
+<div style="font-weight:600;font-size:16px;line-height:1.25">{{ edit.title }}</div>
+<div style="font-weight:400;font-size:12px;line-height:1.4;color:rgba(244,244,246,.48)">{{ edit.subtitle }}</div>
+</div>
+<div style="flex:1"></div>
+<div style="{{ edit.stateStyle }}">{{ edit.stateLabel }}</div>
+</div>
+<div style="display:grid;grid-template-columns:1fr 288px">
+<div style="padding:20px 22px;display:flex;flex-direction:column;gap:15px;border-right:.5px solid rgba(255,255,255,.07)">
+<div style="display:flex;gap:12px">
+<div style="flex:1;display:flex;flex-direction:column;gap:6px">
+<div style="font:600 9.5px/1.4 ui-monospace,Menlo,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgba(244,244,246,.34)">Nombre</div>
+<div style="{{ edit.fieldStyle }}"><div style="font:400 12.5px/1 ui-monospace,Menlo,monospace;color:{{ edit.textColor }}">{{ edit.name }}</div></div>
+</div>
+<div style="width:120px;display:flex;flex-direction:column;gap:6px">
+<div style="font:600 9.5px/1.4 ui-monospace,Menlo,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgba(244,244,246,.34)">Versión</div>
+<div style="{{ edit.fieldStyle }}"><div style="font:400 12.5px/1 ui-monospace,Menlo,monospace;color:{{ edit.textColor }}">{{ edit.nextVersion }}</div></div>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:6px">
+<div style="font:600 9.5px/1.4 ui-monospace,Menlo,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgba(244,244,246,.34)">Se dispara cuando</div>
+<div style="{{ edit.fieldStyle }}"><div style="font-weight:400;font-size:12.5px;line-height:1.4;color:{{ edit.textColor }}">{{ edit.trigger }}</div></div>
+</div>
+<div style="display:flex;flex-direction:column;gap:6px">
+<div style="display:flex;align-items:center;gap:9px">
+<div style="font:600 9.5px/1.4 ui-monospace,Menlo,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgba(244,244,246,.34)">Cuerpo</div>
+<div style="flex:1"></div>
+<div onClick="{{ openGenerate }}" style="padding:3px 9px;border-radius:999px;border:.5px solid rgba(255,255,255,.12);background:rgba(244,244,246,.05);font-weight:500;font-size:10.5px;line-height:1.4;color:rgba(244,244,246,.6);cursor:pointer">Reescribir con IA</div>
+</div>
+<div style="{{ edit.bodyStyle }}">
+<div style="font:400 11.5px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace;color:{{ edit.textColor }}">{{ edit.body }}</div>
+</div>
+</div>
+<sc-if value="{{ dry }}">
+<div style="padding:13px;border-radius:10px;background:rgba(0,0,0,.42);border:.5px solid rgba(255,255,255,.1);display:flex;flex-direction:column;gap:8px">
+<div style="display:flex;align-items:center;gap:9px">
+<div style="font:600 9.5px/1.4 ui-monospace,Menlo,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgba(244,244,246,.34)">Prueba en seco</div>
+<div style="padding:3px 9px;border-radius:999px;background:oklch(.72 .15 152/.13);border:.5px solid oklch(.72 .15 152/.28);font-weight:500;font-size:10.5px;line-height:1.4;color:oklch(.86 .12 152)">dispararía</div>
+<div style="flex:1"></div>
+<div onClick="{{ runDry }}" style="font-weight:500;font-size:11px;line-height:1.3;color:rgba(244,244,246,.45);cursor:pointer">ocultar</div>
+</div>
+<div style="font:400 11px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;color:rgba(244,244,246,.62)">entrada: pull request #4192 · terraform/prod/main.tf</div>
+<div style="font:400 11px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;color:rgba(244,244,246,.86)">salida: 2 avisos · falta plan de rollback en prod/main.tf:41</div>
+<div style="font-weight:400;font-size:11px;line-height:1.45;color:rgba(244,244,246,.36)">No se ha escrito nada en disco ni se ha llamado a ningún motor.</div>
+</div>
+</sc-if>
+<div style="display:flex;align-items:center;gap:8px">
+<div style="font:600 9.5px/1.4 ui-monospace,Menlo,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgba(244,244,246,.34);margin-right:2px">Archivos</div>
+<div style="padding:4px 10px;border-radius:999px;background:rgba(244,244,246,.06);border:.5px solid rgba(255,255,255,.08);font:400 11px/1.3 ui-monospace,Menlo,monospace;color:rgba(244,244,246,.62)">SKILL.md</div>
+<div style="padding:4px 10px;border-radius:999px;background:rgba(244,244,246,.06);border:.5px solid rgba(255,255,255,.08);font:400 11px/1.3 ui-monospace,Menlo,monospace;color:rgba(244,244,246,.62)">examples.md</div>
+<div style="padding:4px 10px;border-radius:999px;background:rgba(244,244,246,.06);border:.5px solid rgba(255,255,255,.08);font:400 11px/1.3 ui-monospace,Menlo,monospace;color:rgba(244,244,246,.62)">rollback.md</div>
+<div style="padding:4px 9px;border-radius:999px;border:.5px dashed rgba(255,255,255,.16);font-weight:500;font-size:11px;line-height:1.3;color:rgba(244,244,246,.42);cursor:pointer">+ añadir</div>
+</div>
+</div>
+<div style="padding:20px;display:flex;flex-direction:column;gap:14px;background:#0e0e12">
+<sc-if value="{{ edit.locked }}">
+<div style="padding:12px 13px;border-radius:10px;background:oklch(.78 .15 82/.1);border:.5px solid oklch(.78 .15 82/.26);display:flex;flex-direction:column;gap:7px">
+<div style="font-weight:600;font-size:12px;line-height:1.35;color:oklch(.9 .1 82)">Gestionada por el paquete</div>
+<div style="font-weight:400;font-size:11.5px;line-height:1.5;color:oklch(.88 .07 82)">Al editarla se crea una bifurcación local que la sombrea. El paquete seguirá actualizándose, pero ya no la sobrescribirá: se te ofrecerá rebasar.</div>
+</div>
+</sc-if>
+<div style="display:flex;flex-direction:column;gap:8px">
+<div style="font:600 9.5px/1.4 ui-monospace,Menlo,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgba(244,244,246,.34)">Linaje</div>
+<div style="display:flex;flex-direction:column;gap:0">
+<sc-for list="{{ edit.lineage }}" as="l" hint-placeholder-count="3">
+<div style="display:flex;gap:10px;align-items:flex-start">
+<div style="display:flex;flex-direction:column;align-items:center;flex:none;width:9px">
+<div style="{{ l.dotStyle }}"></div>
+<div style="{{ l.lineStyle }}"></div>
+</div>
+<div style="padding-bottom:12px;display:flex;flex-direction:column;gap:2px">
+<div style="font-weight:500;font-size:12px;line-height:1.35;color:{{ l.color }}">{{ l.label }}</div>
+<div style="font:400 10.5px/1.4 ui-monospace,Menlo,monospace;color:rgba(244,244,246,.36)">{{ l.meta }}</div>
+</div>
+</div>
+</sc-for>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:9px;padding-top:4px;border-top:.5px solid rgba(255,255,255,.07)">
+<div style="font:600 9.5px/1.4 ui-monospace,Menlo,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgba(244,244,246,.34);padding-top:10px">Buenas prácticas</div>
+<sc-for list="{{ checklist }}" as="c" hint-placeholder-count="5">
+<div style="display:flex;align-items:flex-start;gap:9px">
+<div style="{{ c.mark }}"></div>
+<div style="font-weight:400;font-size:11.5px;line-height:1.45;color:{{ c.color }}">{{ c.text }}</div>
+</div>
+</sc-for>
+</div>
+</div>
+</div>
+<div style="padding:14px 22px;border-top:.5px solid rgba(255,255,255,.08);background:rgba(0,0,0,.28);display:flex;align-items:center;gap:10px">
+<div onClick="{{ openHistory }}" style="padding:8px 14px;border-radius:999px;border:.5px solid rgba(255,255,255,.1);background:rgba(244,244,246,.06);font-weight:500;font-size:12.5px;line-height:1.2;color:rgba(244,244,246,.78);cursor:pointer">Historial</div>
+<div style="font-weight:400;font-size:11.5px;line-height:1.4;color:rgba(244,244,246,.38)">{{ edit.footNote }}</div>
+<div style="flex:1"></div>
+<div onClick="{{ runDry }}" style="padding:8px 16px;border-radius:999px;border:.5px solid rgba(255,255,255,.1);background:rgba(244,244,246,.06);font-weight:500;font-size:12.5px;line-height:1.2;color:rgba(244,244,246,.8);cursor:pointer">Probar en seco</div>
+<button onClick="{{ edit.primary }}" style="{{ metalBtn }}">{{ edit.primaryLabel }}</button>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isHistory }}">
+<div onClick="{{ stop }}" style="box-sizing:border-box;width:600px;border-radius:14px;overflow:hidden;border:.5px solid rgba(255,255,255,.13);background:#111115;box-shadow:0 30px 80px rgba(0,0,0,.7)">
+<div style="padding:18px 22px 16px;border-bottom:.5px solid rgba(255,255,255,.08)">
+<div style="font-weight:600;font-size:16px;line-height:1.25">Historial de {{ sel.name }}</div>
+<div style="font-weight:400;font-size:12.5px;line-height:1.45;color:rgba(244,244,246,.5);margin-top:4px">Cada guardado crea una versión local. Nada se pierde y todo se puede restaurar.</div>
+</div>
+<div style="max-height:340px;overflow:auto;display:flex;flex-direction:column">
+<sc-for list="{{ history }}" as="h" hint-placeholder-count="5">
+<div style="display:flex;align-items:center;gap:13px;padding:13px 22px;border-bottom:.5px solid rgba(255,255,255,.045)">
+<div style="font:600 11.5px/1.3 ui-monospace,Menlo,monospace;color:{{ h.verColor }};width:46px;flex:none">{{ h.ver }}</div>
+<div style="{{ h.tagStyle }}">{{ h.tag }}</div>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+<div style="font-weight:400;font-size:12.5px;line-height:1.4;color:rgba(244,244,246,.78)">{{ h.what }}</div>
+<div style="font:400 10.5px/1.3 ui-monospace,Menlo,monospace;color:rgba(244,244,246,.34)">{{ h.when }}</div>
+</div>
+<div style="{{ h.actionStyle }}">{{ h.action }}</div>
+</div>
+</sc-for>
+</div>
+<div style="padding:14px 22px;border-top:.5px solid rgba(255,255,255,.08);background:rgba(0,0,0,.28);display:flex;align-items:center;gap:12px">
+<div style="font-weight:400;font-size:11.5px;line-height:1.4;color:rgba(244,244,246,.4)">Se conservan 30 versiones o 90 días</div>
+<div style="flex:1"></div>
+<button onClick="{{ closeSheet }}" style="{{ metalBtn }}">Cerrar</button>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isMove }}">
+<div onClick="{{ stop }}" style="box-sizing:border-box;width:520px;border-radius:14px;overflow:hidden;border:.5px solid rgba(255,255,255,.13);background:#111115;box-shadow:0 30px 80px rgba(0,0,0,.7)">
+<div style="padding:18px 22px 16px;border-bottom:.5px solid rgba(255,255,255,.08)">
+<div style="font-weight:600;font-size:16px;line-height:1.25">Mover o copiar {{ moveSubject }}</div>
+<div style="font-weight:400;font-size:12.5px;line-height:1.45;color:rgba(244,244,246,.5);margin-top:4px">Mover la quita del ámbito actual. Copiar deja las dos y podrán divergir.</div>
+</div>
+<div style="padding:18px 22px;display:flex;flex-direction:column;gap:14px">
+<div style="display:inline-flex;padding:3px;gap:2px;background:rgba(0,0,0,.42);border:.5px solid rgba(255,255,255,.07);border-radius:10px;width:fit-content">
+<div onClick="{{ setMove }}" style="{{ moveTabStyle }}">Mover</div>
+<div onClick="{{ setCopy }}" style="{{ copyTabStyle }}">Copiar</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:2px">
+<sc-for list="{{ moveTargets }}" as="t" hint-placeholder-count="5">
+<div onClick="{{ t.pick }}" style="{{ t.style }}">
+<div style="width:6px;height:6px;border-radius:999px;flex:none;background:{{ t.dot }}"></div>
+<div style="flex:1;font-weight:500;font-size:13px;line-height:1.35">{{ t.name }}</div>
+<div style="font:400 11px/1.3 ui-monospace,Menlo,monospace;color:rgba(244,244,246,.36)">{{ t.note }}</div>
+</div>
+</sc-for>
+</div>
+</div>
+<div style="padding:14px 22px;border-top:.5px solid rgba(255,255,255,.08);background:rgba(0,0,0,.28);display:flex;align-items:center;gap:12px">
+<div style="font-weight:400;font-size:11.5px;line-height:1.4;color:rgba(244,244,246,.4)">{{ moveNote }}</div>
+<div style="flex:1"></div>
+<div onClick="{{ closeSheet }}" style="padding:8px 16px;border-radius:999px;border:.5px solid rgba(255,255,255,.1);background:rgba(244,244,246,.06);font-weight:500;font-size:12.5px;line-height:1.2;color:rgba(244,244,246,.8);cursor:pointer">Cancelar</div>
+<button onClick="{{ doMove }}" style="{{ metalBtn }}">{{ moveAction }}</button>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isDelete }}">
+<div onClick="{{ stop }}" style="box-sizing:border-box;width:520px;border-radius:14px;overflow:hidden;border:.5px solid rgba(255,255,255,.13);background:#111115;box-shadow:0 30px 80px rgba(0,0,0,.7)">
+<div style="padding:20px 22px 16px;border-bottom:.5px solid rgba(255,255,255,.08);display:flex;align-items:flex-start;gap:13px">
+<div style="width:30px;height:30px;border-radius:999px;flex:none;background:oklch(.62 .19 26/.16);border:.5px solid oklch(.62 .19 26/.4);display:flex;align-items:center;justify-content:center"><div style="width:11px;height:2px;background:oklch(.8 .14 26);border-radius:2px"></div></div>
+<div style="display:flex;flex-direction:column;gap:4px">
+<div style="font-weight:600;font-size:16px;line-height:1.25">Eliminar {{ delSubject }}</div>
+<div style="font-weight:400;font-size:12.5px;line-height:1.45;color:rgba(244,244,246,.55)">Se borran sus archivos del disco. Esto no se puede deshacer desde la app.</div>
+</div>
+</div>
+<div style="padding:18px 22px;display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;flex-direction:column;gap:8px">
+<div style="font:600 9.5px/1.4 ui-monospace,Menlo,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgba(244,244,246,.34)">Dejará de estar disponible en</div>
+<div style="display:flex;gap:7px;flex-wrap:wrap">
+<div style="padding:4px 10px;border-radius:999px;background:rgba(244,244,246,.06);border:.5px solid rgba(255,255,255,.08);font-weight:500;font-size:11.5px;line-height:1.3;color:rgba(244,244,246,.7)">acme-web</div>
+<div style="padding:4px 10px;border-radius:999px;background:rgba(244,244,246,.06);border:.5px solid rgba(255,255,255,.08);font-weight:500;font-size:11.5px;line-height:1.3;color:rgba(244,244,246,.7)">ledger</div>
+<div style="padding:4px 10px;border-radius:999px;background:rgba(244,244,246,.06);border:.5px solid rgba(255,255,255,.08);font-weight:500;font-size:11.5px;line-height:1.3;color:rgba(244,244,246,.7)">infra</div>
+<div style="padding:4px 10px;border-radius:999px;background:rgba(244,244,246,.06);border:.5px solid rgba(255,255,255,.08);font-weight:500;font-size:11.5px;line-height:1.3;color:rgba(244,244,246,.7)">+3</div>
+</div>
+</div>
+<div style="padding:12px 13px;border-radius:10px;background:oklch(.62 .19 26/.1);border:.5px solid oklch(.62 .19 26/.26);display:flex;flex-direction:column;gap:5px">
+<div style="font-weight:600;font-size:12px;line-height:1.35;color:oklch(.84 .12 26)">2 skills la referencian</div>
+<div style="font-weight:400;font-size:11.5px;line-height:1.5;color:oklch(.82 .07 26)"><span style="font-family:ui-monospace,Menlo,monospace">deploy-checklist</span> y <span style="font-family:ui-monospace,Menlo,monospace">infra-pr-review</span> quedarán con una dependencia rota.</div>
+</div>
+</div>
+<div style="padding:14px 22px;border-top:.5px solid rgba(255,255,255,.08);background:rgba(0,0,0,.28);display:flex;align-items:center;gap:10px">
+<div onClick="{{ doDisableInstead }}" style="padding:8px 15px;border-radius:999px;border:.5px solid rgba(255,255,255,.1);background:rgba(244,244,246,.06);font-weight:500;font-size:12.5px;line-height:1.2;color:rgba(244,244,246,.8);cursor:pointer">Desactivar en su lugar</div>
+<div style="flex:1"></div>
+<div onClick="{{ closeSheet }}" style="padding:8px 16px;border-radius:999px;border:.5px solid rgba(255,255,255,.1);background:rgba(244,244,246,.06);font-weight:500;font-size:12.5px;line-height:1.2;color:rgba(244,244,246,.8);cursor:pointer">Cancelar</div>
+<button onClick="{{ doDelete }}" style="{{ dangerBtn }}">Eliminar</button>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isLog }}">
+<div onClick="{{ stop }}" style="box-sizing:border-box;width:620px;border-radius:14px;overflow:hidden;border:.5px solid rgba(255,255,255,.13);background:#111115;box-shadow:0 30px 80px rgba(0,0,0,.7)">
+<div style="padding:18px 22px 16px;border-bottom:.5px solid rgba(255,255,255,.08)">
+<div style="font-weight:600;font-size:16px;line-height:1.25">Disparos de {{ sel.name }}</div>
+<div style="font-weight:400;font-size:12.5px;line-height:1.45;color:rgba(244,244,246,.5);margin-top:4px">Cuándo se activó, dónde, y por qué se omitió cuando no lo hizo.</div>
+</div>
+<div style="max-height:320px;overflow:auto;display:flex;flex-direction:column">
+<sc-for list="{{ log }}" as="l" hint-placeholder-count="6">
+<div style="display:flex;align-items:center;gap:13px;padding:12px 22px;border-bottom:.5px solid rgba(255,255,255,.045)">
+<div style="font:400 11px/1.3 ui-monospace,Menlo,monospace;color:rgba(244,244,246,.45);width:112px;flex:none">{{ l.when }}</div>
+<div style="font-weight:600;font-size:12.5px;line-height:1.3;width:74px;flex:none">{{ l.where }}</div>
+<div style="flex:1;min-width:0;font-weight:400;font-size:12px;line-height:1.4;color:rgba(244,244,246,.6);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ l.note }}</div>
+<div style="{{ l.resultStyle }}">{{ l.result }}</div>
+</div>
+</sc-for>
+</div>
+<div style="padding:14px 22px;border-top:.5px solid rgba(255,255,255,.08);background:rgba(0,0,0,.28);display:flex;align-items:center;gap:12px">
+<div style="font-weight:400;font-size:11.5px;line-height:1.4;color:rgba(244,244,246,.4)">Se conservan los disparos de los últimos 30 días</div>
+<div style="flex:1"></div>
+<button onClick="{{ closeSheet }}" style="{{ metalBtn }}">Cerrar</button>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isDupe }}">
+<div onClick="{{ stop }}" style="box-sizing:border-box;width:660px;border-radius:14px;overflow:hidden;border:.5px solid rgba(255,255,255,.13);background:#111115;box-shadow:0 30px 80px rgba(0,0,0,.7)">
+<div style="padding:18px 22px 16px;border-bottom:.5px solid rgba(255,255,255,.08)">
+<div style="font-weight:600;font-size:16px;line-height:1.25">Dos skills hacen lo mismo</div>
+<div style="font-weight:400;font-size:12.5px;line-height:1.45;color:rgba(244,244,246,.5);margin-top:4px">Sus disparadores se solapan un 78%. Cuando ambas encajan, gana la del proyecto.</div>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr">
+<div style="padding:16px 20px;border-right:.5px solid rgba(255,255,255,.07);display:flex;flex-direction:column;gap:9px">
+<div style="display:flex;align-items:center;gap:8px">
+<div style="font-weight:600;font-size:13.5px;line-height:1.3">{{ dupe.aName }}</div>
+<div style="padding:3px 9px;border-radius:999px;background:rgba(244,244,246,.07);border:.5px solid rgba(255,255,255,.1);font:400 10.5px/1.4 ui-monospace,Menlo,monospace;color:rgba(244,244,246,.6)">{{ dupe.aScope }}</div>
+</div>
+<div style="font-weight:400;font-size:12px;line-height:1.5;color:rgba(244,244,246,.6)">{{ dupe.aTrigger }}</div>
+<div style="font:400 11px/1.5 ui-monospace,Menlo,monospace;color:rgba(244,244,246,.42)">{{ dupe.aFiles }} · último uso {{ dupe.aUsed }}</div>
+</div>
+<div style="padding:16px 20px;display:flex;flex-direction:column;gap:9px">
+<div style="display:flex;align-items:center;gap:8px">
+<div style="font-weight:600;font-size:13.5px;line-height:1.3">{{ dupe.bName }}</div>
+<div style="padding:3px 9px;border-radius:999px;background:rgba(255,255,255,.12);border:.5px solid rgba(255,255,255,.24);font:400 10.5px/1.4 ui-monospace,Menlo,monospace;color:#f4f4f6">{{ dupe.bScope }} · gana</div>
+</div>
+<div style="font-weight:400;font-size:12px;line-height:1.5;color:rgba(244,244,246,.6)">{{ dupe.bTrigger }}</div>
+<div style="font:400 11px/1.5 ui-monospace,Menlo,monospace;color:rgba(244,244,246,.42)">{{ dupe.bFiles }} · último uso {{ dupe.bUsed }}</div>
+</div>
+</div>
+<div style="padding:14px 22px;border-top:.5px solid rgba(255,255,255,.08);background:rgba(0,0,0,.28);display:flex;align-items:center;gap:10px">
+<div onClick="{{ closeSheet }}" style="padding:8px 15px;border-radius:999px;border:.5px solid rgba(255,255,255,.1);background:rgba(244,244,246,.06);font-weight:500;font-size:12.5px;line-height:1.2;color:rgba(244,244,246,.8);cursor:pointer">Mantener ambas</div>
+<div style="flex:1"></div>
+<div onClick="{{ closeSheet }}" style="padding:8px 15px;border-radius:999px;border:.5px solid rgba(255,255,255,.1);background:rgba(244,244,246,.06);font-weight:500;font-size:12.5px;line-height:1.2;color:rgba(244,244,246,.8);cursor:pointer">Desactivar {{ dupe.bName }}</div>
+<button onClick="{{ closeSheet }}" style="{{ metalBtn }}">Fusionar en {{ dupe.aName }}</button>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isEngines }}">
+<div onClick="{{ stop }}" style="box-sizing:border-box;width:560px;border-radius:14px;overflow:hidden;border:.5px solid rgba(255,255,255,.13);background:#111115;box-shadow:0 30px 80px rgba(0,0,0,.7)">
+<div style="padding:18px 22px 16px;border-bottom:.5px solid rgba(255,255,255,.08)">
+<div style="font-weight:600;font-size:16px;line-height:1.25">Motores y claves</div>
+<div style="font-weight:400;font-size:12.5px;line-height:1.45;color:rgba(244,244,246,.5);margin-top:4px">Quién redacta cuando pides ayuda de IA. Las claves viven en el llavero del sistema.</div>
+</div>
+<div style="display:flex;flex-direction:column">
+<sc-for list="{{ engines }}" as="e" hint-placeholder-count="3">
+<div style="display:flex;align-items:center;gap:12px;padding:14px 22px;border-bottom:.5px solid rgba(255,255,255,.05)">
+<div style="width:7px;height:7px;border-radius:999px;flex:none;background:{{ e.dot }}"></div>
+<div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0">
+<div style="font-weight:600;font-size:13.5px;line-height:1.3;color:{{ e.nameColor }}">{{ e.name }}</div>
+<div style="font:400 11px/1.35 ui-monospace,Menlo,monospace;color:rgba(244,244,246,.42)">{{ e.path }}</div>
+</div>
+<div style="{{ e.tagStyle }}">{{ e.tag }}</div>
+</div>
+</sc-for>
+</div>
+<div style="padding:18px 22px;display:flex;flex-direction:column;gap:11px;border-top:.5px solid rgba(255,255,255,.07)">
+<div style="font:600 9.5px/1.4 ui-monospace,Menlo,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgba(244,244,246,.34)">Claves</div>
+<div style="display:flex;align-items:center;gap:9px;height:34px;padding:0 12px;border-radius:9px;background:rgba(0,0,0,.45);border:.5px solid rgba(255,255,255,.09)">
+<div style="font-weight:500;font-size:12px;line-height:1;color:rgba(244,244,246,.55);width:96px;flex:none">Anthropic</div>
+<div style="font:400 12px/1 ui-monospace,Menlo,monospace;color:rgba(244,244,246,.75)">sk-ant-··········4f2a</div>
+<div style="flex:1"></div>
+<div style="width:5px;height:5px;border-radius:999px;background:oklch(.72 .15 152)"></div>
+</div>
+<div style="display:flex;align-items:center;gap:9px;height:34px;padding:0 12px;border-radius:9px;background:rgba(0,0,0,.45);border:.5px solid rgba(255,255,255,.09)">
+<div style="font-weight:500;font-size:12px;line-height:1;color:rgba(244,244,246,.55);width:96px;flex:none">OpenAI</div>
+<div style="font:400 12px/1 ui-monospace,Menlo,monospace;color:rgba(244,244,246,.35)">sin definir</div>
+<div style="flex:1"></div>
+<div style="width:5px;height:5px;border-radius:999px;background:#3a3a42"></div>
+</div>
+</div>
+<div style="padding:14px 22px;border-top:.5px solid rgba(255,255,255,.08);background:rgba(0,0,0,.28);display:flex;align-items:center;gap:12px">
+<div style="font-weight:400;font-size:11.5px;line-height:1.4;color:rgba(244,244,246,.4)">Nunca se envía código sin confirmación</div>
+<div style="flex:1"></div>
+<div onClick="{{ closeSheet }}" style="padding:8px 16px;border-radius:999px;border:.5px solid rgba(255,255,255,.1);background:rgba(244,244,246,.06);font-weight:500;font-size:12.5px;line-height:1.2;color:rgba(244,244,246,.8);cursor:pointer">Cerrar</div>
+<button onClick="{{ closeSheet }}" style="{{ metalBtn }}">Probar conexión</button>
+</div>
+</div>
+</sc-if>
+
+</div>
+</sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1476,&quot;height&quot;:948}}">
+const HEALTH = {
+  ok:      ['oklch(.72 .15 152)', 'oklch(.72 .15 152 / .5)'],
+  stale:   ['oklch(.78 .15 82)',  'oklch(.78 .15 82 / .5)'],
+  broken:  ['oklch(.62 .19 26)',  'oklch(.62 .19 26 / .5)'],
+  idle:    ['#3a3a42',            'transparent']
+};
+const TILE = {
+  blue:  'linear-gradient(180deg,oklch(.68 .17 250) 0%,oklch(.55 .17 250) 100%)',
+  green: 'linear-gradient(180deg,oklch(.75 .15 152) 0%,oklch(.6 .15 152) 100%)',
+  amber: 'linear-gradient(180deg,oklch(.8 .15 82) 0%,oklch(.66 .15 82) 100%)',
+  plum:  'linear-gradient(180deg,oklch(.66 .17 310) 0%,oklch(.52 .17 310) 100%)',
+  steel: 'linear-gradient(180deg,#5c5c66 0%,#3a3a42 100%)'
+};
+const GLYPH = {
+  ring:  'width:12px;height:12px;border-radius:999px;border:2px solid rgba(255,255,255,.9)',
+  block: 'width:11px;height:11px;background:rgba(255,255,255,.92);border-radius:2px',
+  bar:   'width:2.5px;height:13px;background:rgba(255,255,255,.92);border-radius:2px',
+  dash:  'width:12px;height:2.5px;background:rgba(255,255,255,.82);border-radius:2px',
+  dot:   'width:7px;height:7px;border-radius:999px;background:rgba(255,255,255,.92)'
+};
+
+const ITEMS = [
+  { id:'sql-review', name:'sql-review', tile:'blue', glyph:'ring', health:'ok', version:'v2.1', shared:true, origin:'skills.sh · mit',
+    desc:'Revisa consultas antes de ejecutarlas y avisa de escaneos completos de tabla.',
+    badge:'6 proy.', scope:'global',
+    meta:[['Dispara','al escribir SQL o abrir un .sql'],['Activa en','acme-web, ledger, infra, api, etl, web','scopes'],['Depende de','schema-audit','deps'],['Permisos','lectura de disco · sin red'],['Archivos','3 · 8 KB'],['Último uso','hace 2 horas','log']] },
+  { id:'deploy-checklist', name:'deploy-checklist', tile:'amber', glyph:'bar', health:'stale', version:'v2.4', shared:true, origin:'skills.sh · apache-2',
+    desc:'Recorre la lista previa a un despliegue y bloquea si falta algún paso obligatorio.',
+    badge:'v2.4 → v3.0', scope:'global',
+    meta:[['Dispara','al mencionar deploy o release'],['Activa en','acme-web, ledger, infra','scopes'],['Depende de','commit-lint','deps'],['Permisos','lectura de disco · sin red'],['Archivos','4 · 12 KB'],['Último uso','ayer','log']] },
+  { id:'schema-audit', name:'schema-audit', tile:'steel', glyph:'dash', health:'broken', version:'v1.4', shared:false, origin:'local',
+    desc:'Compara el esquema de la base con las migraciones aplicadas y señala la diferencia.',
+    badge:'Dependencia ausente', scope:'ledger',
+    meta:[['Dispara','al tocar migraciones'],['Activa en','ledger','scopes'],['Depende de','db-introspect · no instalada','deps'],['Permisos','lectura de disco · sin red'],['Archivos','3 · 9 KB'],['Último uso','falla desde ayer','log']] },
+  { id:'api-docs', name:'api-docs', tile:'green', glyph:'block', health:'ok', version:'v1.9', shared:true, origin:'local',
+    desc:'Redacta y mantiene la referencia de endpoints a partir del código.',
+    badge:'4 proy.', scope:'global',
+    meta:[['Dispara','al tocar rutas o handlers'],['Activa en','api, acme-web, docs, gateway','scopes'],['Permisos','lectura de disco · sin red'],['Archivos','6 · 21 KB'],['Último uso','ayer','log']] },
+  { id:'commit-lint', name:'commit-lint', tile:'blue', glyph:'dash', health:'ok', version:'v3.2', shared:true, origin:'skills.sh · mit',
+    desc:'Revisa el mensaje de commit y lo reescribe según la convención del repositorio.',
+    badge:'9 proy.', scope:'global',
+    meta:[['Dispara','al preparar un commit'],['Activa en','acme-web, ledger, infra, api, etl, web, docs, decks, gateway','scopes'],['Permisos','lectura de disco · sin red'],['Archivos','2 · 5 KB'],['Último uso','hace 3 horas','log']] },
+  { id:'changelog-writer', name:'changelog-writer', tile:'steel', glyph:'dot', health:'idle', version:'v1.0', shared:false, origin:'skills.sh',
+    desc:'Genera el changelog agrupando commits por tipo.',
+    badge:'sin usar 74 d', scope:'global',
+    meta:[['Dispara','al preparar una release'],['Activa en','ninguno','scopes'],['Permisos','lectura de disco · sin red'],['Archivos','2 · 4 KB'],['Último uso','hace 74 días','log']] },
+  { id:'token-sync', name:'token-sync', tile:'plum', glyph:'block', health:'ok', version:'v0.8', shared:false, origin:'local',
+    desc:'Sincroniza los tokens de diseño con las variables del proyecto y avisa de los huérfanos.',
+    badge:'2 proy.', scope:'acme-web',
+    meta:[['Dispara','al tocar tokens o variables CSS'],['Activa en','acme-web, decks','scopes'],['Permisos','lectura y escritura de disco'],['Archivos','5 · 18 KB'],['Último uso','hace 2 días','log']] },
+  { id:'pptx-export', name:'pptx-export', tile:'blue', glyph:'block', health:'ok', version:'v2.0', shared:true, origin:'skills.sh · apache-2',
+    desc:'Exporta un documento a PowerPoint conservando texto editable.',
+    badge:'3 proy.', scope:'global',
+    meta:[['Dispara','al pedir un pptx'],['Activa en','decks, acme-web, ventas','scopes'],['Permisos','escritura de disco · sin red'],['Archivos','5 · 34 KB'],['Último uso','hace 5 días','log']] },
+  { id:'issue-triage', name:'issue-triage', tile:'plum', glyph:'bar', health:'stale', version:'v2.0', shared:false, origin:'skills.sh · mit',
+    desc:'Clasifica issues nuevas por área y propone prioridad con el motivo.',
+    badge:'v2.0 → v2.6', scope:'acme-web',
+    meta:[['Dispara','al abrir una issue'],['Activa en','acme-web','scopes'],['Permisos','lectura de disco · red'],['Archivos','4 · 11 KB'],['Último uso','hace 4 días','log']] }
+];
+
+const CAPS = ['código','datos','diseño','infra','docs','release'];
+const CAP_TILE = { 'código':'blue','datos':'green','diseño':'plum','infra':'steel','docs':'amber','release':'amber' };
+const VERBS = ['review','lint','sync','export','audit','trace','scaffold','migrate','format','digest','bundle','watch','verify','notify','index','render','probe','sample','rotate','snapshot'];
+const NOUNS = ['sql','api','docs','deps','tokens','schema','logs','tests','build','env','icons','types','routes','specs','assets','queues','secrets','charts','locales','copy'];
+const DESCS = [
+  'Comprueba el resultado antes de escribirlo y avisa de cambios destructivos.',
+  'Resume el estado actual y señala lo que se ha movido desde la última vez.',
+  'Normaliza el formato para que el repositorio no acumule ruido.',
+  'Recoge los datos dispersos y los deja en un único sitio consultable.',
+  'Bloquea el paso si falta algo obligatorio y explica qué falta.'
+];
+const HEALTH_CYCLE = ['ok','ok','stale','ok','ok','broken','ok','idle'];
+const AUTHORS = ['@acme','@vercel','@planetscale','@radix','@changesets','@drizzle'];
+const PKGS = ['acme-toolkit','data-lab','design-kit'];
+const SCOPE_CYCLE = ['global','acme-web','global','ledger','global','infra','global','docs','global','acme-web'];
+
+function genItem(i) {
+  const cap = CAPS[i % CAPS.length];
+  const health = HEALTH_CYCLE[i % HEALTH_CYCLE.length];
+  const noun = NOUNS[(i * 7) % NOUNS.length];
+  const name = VERBS[i % VERBS.length] + '-' + noun;
+  const version = 'v' + (1 + i % 3) + '.' + (i % 9);
+  const badge = health === 'stale' ? version + ' → v' + (2 + i % 3) + '.0'
+              : health === 'broken' ? 'Dependencia ausente'
+              : health === 'idle' ? 'sin usar ' + (41 + i) + ' d'
+              : (1 + i % 7) + ' proy.';
+  const scope = SCOPE_CYCLE[i % SCOPE_CYCLE.length];
+  return {
+    id: 'gen-' + i, name, cap, health, version, badge, scope,
+    shared: scope === 'global' && i % 3 !== 1,
+    origin: i % 3 === 0 ? 'local' : 'skills.sh',
+    tile: CAP_TILE[cap], glyph: ['ring','block','bar','dot','dash'][i % 5],
+    desc: DESCS[i % DESCS.length],
+    meta: [
+      ['Dispara', 'al tocar ' + noun],
+      ['Activa en', scope === 'global' ? 'acme-web, ledger' : scope, 'scopes'],
+      ['Permisos', i % 4 === 3 ? 'lectura y escritura de disco' : 'lectura de disco · sin red'],
+      ['Capacidad', cap],
+      ['Archivos', (2 + i % 5) + ' · ' + (4 + i % 30) + ' KB'],
+      ['Último uso', health === 'idle' ? 'hace ' + (41 + i) + ' días' : 'hace ' + (1 + i % 9) + ' días', 'log']
+    ]
+  };
+}
+const BASE = ITEMS.map((it, i) => ({ ...it, cap: CAPS[i % CAPS.length] }));
+function buildSet(n) {
+  const out = BASE.slice(0, Math.min(n, BASE.length));
+  for (let i = out.length; i < n; i++) out.push(genItem(i));
+  return out.map((it, i) => ({
+    ...it,
+    author: it.author || ((it.origin || 'local').indexOf('local') !== -1 ? 'tú' : AUTHORS[i % AUTHORS.length]),
+    pkg: it.pkg !== undefined ? it.pkg : (i % 4 === 3 || (it.origin || '').indexOf('local') !== -1 ? null : PKGS[i % 3])
+  }));
+}
+const POOL = buildSet(20);
+
+const SCOPES = [
+  { id:'global',  name:'Global',   dot:'oklch(.72 .15 152)' },
+  { id:'acme-web',name:'acme-web', dot:'oklch(.78 .15 82)' },
+  { id:'ledger',  name:'ledger',   dot:'oklch(.62 .19 26)' },
+  { id:'infra',   name:'infra',    dot:'oklch(.72 .15 152)' },
+  { id:'docs',    name:'docs',     dot:'#3a3a42' },
+  { id:'sandbox', name:'sandbox',  dot:'#3a3a42', inherits:false }
+];
+
+const PENDING = [
+  { title:'Desactualizadas', note:'hay versión nueva publicada', dot:'oklch(.78 .15 82)', health:'stale', rows:[
+    { id:'deploy-checklist', name:'deploy-checklist', tile:'amber', reason:'v3.0 publicada hace 12 días · cambia el prompt', badge:'v2.4 → v3.0', act:'diff' },
+    { id:'issue-triage', name:'issue-triage', tile:'plum', reason:'v2.6 acota el disparador a issues sin etiqueta', badge:'v2.0 → v2.6', act:'diff' },
+    { id:'lint-api', name:'lint-api', tile:'blue', reason:'parche de seguridad en la dependencia', badge:'v1.2 → v1.3', act:'diff' }
+  ]},
+  { title:'Rotas', note:'no llegan a ejecutarse', dot:'oklch(.62 .19 26)', health:'broken', rows:[
+    { id:'schema-audit', name:'schema-audit', tile:'steel', reason:'depende de db-introspect, que no está instalada', badge:'Dependencia ausente', act:'install' },
+    { id:'sync-secrets', name:'sync-secrets', tile:'steel', reason:'el archivo SKILL.md ya no está en la ruta declarada', badge:'Archivo ausente', act:'install' }
+  ]},
+  { title:'Duplicadas', note:'dos hacen lo mismo', dot:'rgba(244,244,246,.5)', health:'ok', rows:[
+    { id:'api-docs', name:'api-docs · export-docs', tile:'green', reason:'solapan un 78% · una está en Global y otra en docs', badge:'Revisar', act:'dupe' }
+  ]},
+  { title:'Sin usar', note:'candidatas a desactivar', dot:'#3a3a42', health:'idle', rows:[
+    { id:'changelog-writer', name:'changelog-writer', tile:'steel', reason:'sin dispararse en 74 días', badge:'sin usar 74 d', act:'off' }
+  ]}
+];
+
+const REGISTRY = [
+  { name:'pr-review', author:'@vercel', dl:'14.2k', tile:'blue', desc:'Revisa pull requests y señala cambios de riesgo antes de aprobar.', state:'nuevo', action:'Instalar' },
+  { name:'sql-review', author:'@planetscale', dl:'11.8k', tile:'green', desc:'Analiza consultas y avisa de escaneos completos de tabla.', state:'ya la tienes', action:'Abrir' },
+  { name:'deploy-checklist', author:'@acme', dl:'9.2k', tile:'amber', desc:'Lista previa al despliegue con bloqueo si falta un paso.', state:'v2.4 → v3.0', action:'Ver diff' },
+  { name:'a11y-audit', author:'@radix', dl:'7.8k', tile:'plum', desc:'Recorre la interfaz y reporta problemas de accesibilidad con su regla.', state:'nuevo', action:'Instalar' },
+  { name:'test-scaffold', author:'@vitest', dl:'6.4k', tile:'blue', desc:'Genera el andamiaje de pruebas a partir de la firma del módulo.', state:'nuevo', action:'Instalar' },
+  { name:'schema-migrate', author:'@drizzle', dl:'5.9k', tile:'green', desc:'Propone y revisa migraciones incrementales de esquema.', state:'nuevo', action:'Instalar' },
+  { name:'icon-forge', author:'@lucide', dl:'4.7k', tile:'plum', desc:'Normaliza iconos SVG y genera el sprite del proyecto.', state:'nuevo', action:'Instalar' },
+  { name:'release-notes', author:'@changesets', dl:'4.1k', tile:'amber', desc:'Redacta notas de versión agrupando commits por impacto.', state:'nuevo', action:'Instalar' },
+  { name:'env-doctor', author:'@dotenvx', dl:'3.6k', tile:'steel', desc:'Compara el entorno local con el declarado y explica qué falta.', state:'nuevo', action:'Instalar' }
+];
+
+const ENGINES = [
+  { name:'Claude Code', path:'/opt/homebrew/bin/claude', ok:true, tag:'por defecto' },
+  { name:'Codex', path:'/opt/homebrew/bin/codex', ok:true, tag:'detectado' },
+  { name:'OpenCode', path:'no encontrado en $PATH', ok:false, tag:'instalar' }
+];
+
+const CHECKLIST = [
+  { text:'Nombre en kebab-case y sin ambigüedad', ok:true },
+  { text:'Disparador explícito, no "cuando haga falta"', ok:true },
+  { text:'Una sola responsabilidad', ok:true },
+  { text:'Ejemplos de uso incluidos', ok:false },
+  { text:'Qué NO debe hacer', ok:false }
+];
+
+const DIFF_BEFORE = [
+  { t:'triggers: al mencionar deploy' },
+  { t:'1. Comprobar que la rama está al día' },
+  { t:'2. Ejecutar la suite completa' },
+  { t:'3. Avisar en el canal', cut:true },
+  { t:'4. Etiquetar la release' }
+];
+const DIFF_AFTER = [
+  { t:'triggers: al mencionar deploy o release', add:true },
+  { t:'1. Comprobar que la rama está al día' },
+  { t:'2. Ejecutar la suite completa' },
+  { t:'3. Exigir plan de rollback escrito', add:true },
+  { t:'4. Etiquetar la release y fijar el commit', add:true }
+];
+
+const PALETTE_LOCAL = [
+  { name:'sql-review', desc:'Revisa consultas antes de ejecutarlas', where:'global', tile:'blue', id:'sql-review' },
+  { name:'schema-audit', desc:'Compara el esquema con las migraciones', where:'ledger · rota', tile:'steel', id:'schema-audit' },
+  { name:'api-docs', desc:'Mantiene la referencia de endpoints', where:'global', tile:'green', id:'api-docs' }
+];
+const PALETTE_REMOTE = [
+  { name:'sql-lint', desc:'Linter de SQL con reglas por dialecto', where:'2.9k ↓', tile:'blue' },
+  { name:'query-plan', desc:'Explica planes de ejecución en lenguaje llano', where:'1.4k ↓', tile:'green' }
+];
+
+const HISTORY = [
+  { ver:'v2.4', tag:'tú', what:'Añadido el paso de rollback y ejemplos', when:'hace 3 días · 14:22', action:'actual' },
+  { ver:'v2.3', tag:'IA', what:'Reescrito el cuerpo con Claude Code', when:'hace 3 días · 14:04', action:'Restaurar' },
+  { ver:'v2.2', tag:'rebase', what:'Rebasada sobre el paquete v2.2', when:'hace 2 semanas', action:'Restaurar' },
+  { ver:'v2.1', tag:'tú', what:'Disparador acotado a terraform/ y k8s/', when:'hace 1 mes', action:'Restaurar' },
+  { ver:'v2.0', tag:'fork', what:'Bifurcada de deploy-checklist@2.0 de @acme', when:'hace 2 meses', action:'Ver origen' }
+];
+
+const TRIGGER_LOG = [
+  { when:'hoy · 14:22', where:'acme-web', result:'aplicada', note:'pull request #4192 · terraform/' },
+  { when:'hoy · 11:07', where:'ledger', result:'aplicada', note:'pull request #877 · k8s/' },
+  { when:'ayer · 18:40', where:'infra', result:'omitida', note:'ganó la versión del proyecto' },
+  { when:'ayer · 09:12', where:'acme-web', result:'aplicada', note:'mención directa: "deploy"' },
+  { when:'hace 2 días · 16:55', where:'docs', result:'omitida', note:'disparador solapado con release-notes' },
+  { when:'hace 3 días · 10:31', where:'acme-web', result:'aplicada', note:'pull request #4177 · terraform/' }
+];
+
+const DUPE = {
+  a: { name:'api-docs', scope:'Global', trigger:'al tocar rutas o handlers', files:'6 · 21 KB', used:'ayer', wins:true },
+  b: { name:'export-docs', scope:'docs', trigger:'al tocar rutas, handlers o el README', files:'4 · 15 KB', used:'hace 26 días', wins:false }
+};
+
+const BTN_DANGER = 'font-family:inherit;appearance:none;cursor:pointer;border:.5px solid oklch(.45 .16 26);border-radius:999px;padding:8px 18px;font-weight:600;font-size:12.5px;line-height:1.2;color:#fff;background:linear-gradient(180deg,oklch(.62 .19 26) 0%,oklch(.55 .19 26) 45%,oklch(.47 .18 26) 54%,oklch(.52 .18 26) 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 1px 2px rgba(0,0,0,.5);transition:filter 140ms ease';
+
+const BTN_METAL = 'font-family:inherit;appearance:none;cursor:pointer;border:.5px solid rgba(0,0,0,.5);border-radius:999px;padding:8px 18px;font-weight:600;font-size:12.5px;line-height:1.2;color:#141417;background:linear-gradient(180deg,#fefefe 0%,#f0f0f2 44%,#d5d5d9 53%,#c4c4c9 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.95),inset 0 -1px 0 rgba(0,0,0,.07),0 1px 2px rgba(0,0,0,.55),0 6px 16px rgba(0,0,0,.35);transition:filter 140ms ease';
+const BTN_DARK = 'font-family:inherit;appearance:none;cursor:pointer;border:.5px solid rgba(255,255,255,.13);border-radius:999px;padding:8px 18px;font-weight:600;font-size:12.5px;line-height:1.2;color:#f4f4f6;background:linear-gradient(180deg,#43434c 0%,#2e2e35 45%,#1f1f25 54%,#28282f 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 1px 2px rgba(0,0,0,.6);transition:filter 140ms ease';
+
+const PILL_OFF = 'flex:none;padding:5px 11px;border-radius:999px;border:.5px solid rgba(255,255,255,.09);background:rgba(244,244,246,.05);font-weight:500;font-size:11.5px;line-height:1.3;color:rgba(244,244,246,.62);cursor:pointer;transition:background 140ms ease';
+
+class Component extends DCLogic {
+  state = { view:'list', scope:'global', selId:'deploy-checklist', many:[], expanded:null,
+            nav:'inventory', sheet:null, query:'', pq:'', health:null,
+            checked:['deploy-checklist','issue-triage','lint-api'],
+            menuOpen:false, newOpen:false, forked:[], moveMode:'move', moveTarget:'acme-web',
+            wizStep:1, off:['changelog-writer'], extra:[], gone:[], toast:null, dry:false,
+            groupBy:'none', collapsed:[], author:null, pkg:null };
+
+  constructor(p) { super(p); this._input = React.createRef(); }
+
+  componentDidMount() {
+    this._key = (e) => {
+      const typing = e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA');
+      const k = e.key.toLowerCase();
+      const cmd = e.metaKey || e.ctrlKey;
+      if (cmd && k === 'k') { e.preventDefault(); this.setState({ sheet:'palette', pq:'', newOpen:false }); return; }
+      if (cmd && k === 'f') { e.preventDefault(); if (this._input.current) this._input.current.focus(); return; }
+      if (e.key === 'Escape') {
+        if (typing && this.state.query) { this.setState({ query:'' }); return; }
+        this.setState(s => (s.sheet || s.menuOpen || s.newOpen)
+          ? { sheet:null, menuOpen:false, newOpen:false, dry:false }
+          : s.many.length ? { many:[] } : { selId:null });
+        return;
+      }
+      if (this.state.sheet || typing) return;
+      if (cmd && k === 'e') { e.preventDefault(); if (this.state.selId) this.setState({ sheet:'edit' }); return; }
+      if (cmd && k === 'd') { e.preventDefault(); this.duplicate(); return; }
+      if (e.key === 'Enter' && this.state.selId) { e.preventDefault(); this.setState({ sheet:'edit' }); return; }
+      if ((e.key === 'Backspace' || e.key === 'Delete') && (this.state.selId || this.state.many.length)) {
+        e.preventDefault(); this.setState({ sheet:'delete' });
+      }
+    };
+    window.addEventListener('keydown', this._key);
+  }
+  componentWillUnmount() { window.removeEventListener('keydown', this._key); }
+
+  pool() { return POOL.concat(this.state.extra).filter(i => this.state.gone.indexOf(i.id) === -1); }
+  inScope(i, id) {
+    if (id === 'global') return true;
+    const sc = SCOPES.find(s => s.id === id);
+    if (sc && sc.inherits === false) return i.scope === id;
+    return i.scope === id || (i.scope === 'global' && i.shared);
+  }
+  scoped() { return this.pool().filter(i => this.inScope(i, this.state.scope)); }
+  visible() {
+    const q = this.state.query.trim().toLowerCase();
+    const h = this.state.health;
+    const a = this.state.author;
+    const pk = this.state.pkg;
+    return this.scoped().filter(i =>
+      (!h || i.health === h) &&
+      (!a || i.author === a) &&
+      (!pk || (i.pkg || 'sin paquete') === pk) &&
+      (!q || i.name.toLowerCase().indexOf(q) !== -1 || i.desc.toLowerCase().indexOf(q) !== -1));
+  }
+  isOff(id) { return this.state.off.indexOf(id) !== -1; }
+  note(text, prev) { this.setState({ toast:{ text, prev } }); }
+  toggleOff(id) {
+    const was = this.isOff(id);
+    const prev = { off: this.state.off.slice() };
+    this.setState(s => ({ off: was ? s.off.filter(x => x !== id) : s.off.concat([id]),
+      toast:{ text: id + (was ? ' activada' : ' desactivada'), prev } }));
+  }
+  duplicate() {
+    const sel = this.current();
+    if (!sel) return;
+    const copy = { ...sel, id: sel.id + '-copia', name: sel.name + '-copia', health:'idle',
+      badge:'nueva · sin usar', version:'v1.0', origin:'local', shared:false,
+      meta: sel.meta.map(m => m[0] === 'Activa en' ? ['Activa en','ninguno','scopes'] : m) };
+    const prev = { extra: this.state.extra.slice(), selId: this.state.selId };
+    this.setState(s => ({ extra: s.extra.concat([copy]), selId: copy.id, many:[], menuOpen:false,
+      toast:{ text: copy.name + ' creada · desactivada', prev }, off: s.off.concat([copy.id]) }));
+  }
+  current() { const p = this.pool(); return this.state.selId ? p.find(i => i.id === this.state.selId) : null; }
+
+  rowStyle(sel, dim) {
+    const base = 'box-sizing:border-box;display:flex;align-items:center;gap:13px;height:52px;padding:0 14px;border-radius:11px;cursor:pointer;border-width:.5px;border-style:solid;border-color:rgba(255,255,255,0);transition:background 180ms cubic-bezier(.32,.72,0,1),box-shadow 180ms ease,border-color 180ms ease,opacity 180ms ease;' + (dim ? 'opacity:.42;' : '');
+    return sel
+      ? base + 'background:linear-gradient(180deg,rgba(255,255,255,.115) 0%,rgba(255,255,255,.05) 100%);backdrop-filter:blur(16px) saturate(1.6);-webkit-backdrop-filter:blur(16px) saturate(1.6);border-color:rgba(255,255,255,.17);box-shadow:inset 0 1px 0 rgba(255,255,255,.2),inset 0 -1px 0 rgba(0,0,0,.18),0 1px 2px rgba(0,0,0,.35),0 8px 24px rgba(0,0,0,.4)'
+      : base + 'background:transparent';
+  }
+  badgeStyle(health) {
+    const b = 'flex:none;padding:4px 10px;border-radius:999px;font-weight:500;font-size:11px;line-height:1.3;white-space:nowrap;';
+    if (health === 'broken') return b + 'background:oklch(.62 .19 26 / .15);border:.5px solid oklch(.62 .19 26 / .32);color:oklch(.81 .13 26)';
+    if (health === 'stale')  return b + 'background:oklch(.78 .15 82 / .13);border:.5px solid oklch(.78 .15 82 / .28);color:oklch(.88 .12 82)';
+    if (health === 'idle')   return b + 'background:rgba(244,244,246,.05);border:.5px solid rgba(255,255,255,.07);color:rgba(244,244,246,.42)';
+    return b + 'background:rgba(244,244,246,.07);border:.5px solid rgba(255,255,255,.09);color:rgba(244,244,246,.58)';
+  }
+  navStyle(active) {
+    const base = 'display:flex;align-items:center;gap:9px;height:30px;padding:0 8px;border-radius:8px;cursor:pointer;transition:background 140ms ease;';
+    return active ? base + 'background:rgba(244,244,246,.1)' : base + 'background:transparent';
+  }
+  switchStyle(on) {
+    return 'box-sizing:border-box;flex:none;width:30px;height:17px;border-radius:999px;padding:1.5px;display:flex;cursor:pointer;transition:background 200ms ease,border-color 200ms ease;' + (on
+      ? 'background:linear-gradient(180deg,#f2f2f4 0%,#d8d8dd 100%);border:.5px solid rgba(0,0,0,.45);box-shadow:inset 0 1px 0 rgba(255,255,255,.85)'
+      : 'background:rgba(0,0,0,.45);border:.5px solid rgba(255,255,255,.14)');
+  }
+  knobStyle(on) {
+    return 'width:13px;height:13px;border-radius:999px;transition:transform 220ms cubic-bezier(.32,.72,0,1),background 200ms ease;transform:translateX(' + (on ? 13 : 0) + 'px);' + (on
+      ? 'background:#15151a;box-shadow:0 1px 2px rgba(0,0,0,.4)'
+      : 'background:rgba(244,244,246,.45)');
+  }
+
+  edge(x1, y1, x2, y2, strong, faint) {
+    const dx = x2 - x1, dy = y2 - y1;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    const rot = Math.atan2(dy, dx) * 180 / Math.PI;
+    const op = faint ? .07 : strong ? .5 : .18;
+    return { style:`position:absolute;left:${x1}px;top:${y1}px;width:${len}px;height:0;transform-origin:0 0;transform:rotate(${rot}deg);border-top:1px ${strong ? 'solid' : 'dashed'} rgba(244,244,246,${op});transition:border-color 260ms ease,opacity 300ms ease` };
+  }
+
+  nodeVals(o) {
+    const size = o.size, half = size / 2;
+    const hub = o.kind === 'hub';
+    const ring = o.on ? 'rgba(255,255,255,.55)' : 'rgba(255,255,255,.15)';
+    const bg = o.hollow ? 'rgba(255,255,255,.03)' : 'radial-gradient(120% 130% at 50% -5%,#52525d 0%,#32323b 42%,#1a1a20 100%)';
+    const shadow = o.hollow ? 'none' : 'inset 0 1px 0 rgba(255,255,255,.22),0 2px 8px rgba(0,0,0,.55)' + (hub ? ',0 12px 30px rgba(0,0,0,.45)' : '');
+    const labelOn = o.showLabel === false ? 0 : (o.on || hub || o.cluster ? .82 : .45);
+    return {
+      name: o.label, sub: o.sub || '',
+      wrapStyle: `position:absolute;left:${o.x - half}px;top:${o.y - half}px;width:${size}px;height:${size}px;cursor:pointer;opacity:${o.dim ? .3 : o.off ? .4 : 1};transition:left 420ms cubic-bezier(.32,.72,0,1),top 420ms cubic-bezier(.32,.72,0,1),width 420ms cubic-bezier(.32,.72,0,1),height 420ms cubic-bezier(.32,.72,0,1),opacity 300ms ease`,
+      haloStyle: o.on ? 'position:absolute;inset:-5px;border-radius:999px;background:rgba(255,255,255,.5);filter:blur(11px);opacity:.45' : 'display:none',
+      nodeStyle: `position:relative;box-sizing:border-box;width:100%;height:100%;border-radius:999px;border:${o.hollow || o.off ? '1px dashed rgba(255,255,255,.24)' : '.5px solid ' + ring};background:${bg};box-shadow:${shadow};transition:border-color 260ms ease`,
+      subStyle: o.sub ? `position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:${size > 78 ? 15 : 12.5}px;line-height:1;color:rgba(244,244,246,.82);pointer-events:none` : 'display:none',
+      labelStyle: `position:absolute;top:${size + 7}px;left:50%;transform:translateX(-50%);white-space:nowrap;font-weight:${hub || o.cluster ? 600 : 500};font-size:${hub || o.cluster ? 12 : 11}px;line-height:1.3;color:rgba(244,244,246,${labelOn});transition:color 260ms ease`,
+      pick: o.pick
+    };
+  }
+
+  graph() {
+    const items = this.visible();
+    const cx = 424, cy = 318;
+    const { selId, expanded } = this.state;
+    const hubName = this.state.scope;
+    const nodes = [], edges = [];
+    const sizeOf = () => 40;
+
+    if (items.length <= 12) {
+      nodes.push(this.nodeVals({ size:56, x:cx, y:cy, kind:'hub', label:hubName, pick:() => {} }));
+      const n = Math.max(items.length, 1);
+      items.forEach((it, i) => {
+        const a = (-90 + (360 / n) * i) * Math.PI / 180;
+        const x = cx + Math.cos(a) * 190, y = cy + Math.sin(a) * 190 * .74;
+        const on = it.id === selId;
+        nodes.push(this.nodeVals({ size:sizeOf(), x, y, on, off:this.isOff(it.id), label:it.name, pick:() => this.setState(s => ({ selId: s.selId === it.id ? null : it.id, many:[] })) }));
+        edges.push(this.edge(cx, cy, x, y, on));
+      });
+      return { nodes, edges, hint:'radial · ' + items.length + ' skills, todas con etiqueta' };
+    }
+
+    const groups = CAPS.map(c => ({ cap:c, items:items.filter(i => i.cap === c) })).filter(g => g.items.length);
+    const openIdx = groups.findIndex(g => g.cap === expanded);
+
+    if (openIdx === -1) {
+      nodes.push(this.nodeVals({ size:48, x:cx, y:cy, kind:'hub', label:hubName, pick:() => {} }));
+      groups.forEach((g, i) => {
+        const a = (-90 + (360 / groups.length) * i) * Math.PI / 180;
+        const x = cx + Math.cos(a) * 214, y = cy + Math.sin(a) * 214 * .7;
+        const size = Math.min(104, 50 + g.items.length * 3.4);
+        nodes.push(this.nodeVals({ size, x, y, kind:'cluster', cluster:true, label:g.cap, sub:String(g.items.length), pick:() => this.setState({ expanded:g.cap }) }));
+        edges.push(this.edge(cx, cy, x, y, false));
+      });
+      return { nodes, edges, hint:'racimos · ' + groups.length + ' capacidades, ' + items.length + ' skills · clic para abrir' };
+    }
+
+    const open = groups[openIdx];
+    nodes.push(this.nodeVals({ size:Math.min(104, 50 + open.items.length * 3.4), x:cx, y:cy, kind:'cluster', cluster:true, hollow:true, label:open.cap, sub:String(open.items.length), pick:() => this.setState({ expanded:null }) }));
+    const showLabel = open.items.length <= 16;
+    open.items.forEach((it, i) => {
+      const a = (-90 + (360 / open.items.length) * i) * Math.PI / 180;
+      const x = cx + Math.cos(a) * 196, y = cy + Math.sin(a) * 196 * .7;
+      const on = it.id === selId;
+      nodes.push(this.nodeVals({ size:36, x, y, on, off:this.isOff(it.id), label:it.name, showLabel:showLabel || on, pick:() => this.setState(s => ({ selId: s.selId === it.id ? null : it.id, many:[] })) }));
+      edges.push(this.edge(cx, cy, x, y, on));
+    });
+    groups.forEach((g, i) => {
+      if (i === openIdx) return;
+      const a = (-90 + (360 / groups.length) * i) * Math.PI / 180;
+      const x = cx + Math.cos(a) * 330, y = cy + Math.sin(a) * 330 * .58;
+      nodes.push(this.nodeVals({ size:14, x, y, kind:'cluster', dim:true, label:g.cap, showLabel:false, pick:() => this.setState({ expanded:g.cap }) }));
+      edges.push(this.edge(cx, cy, x, y, false, true));
+    });
+    return { nodes, edges, hint:open.cap + ' abierto · ' + open.items.length + ' de ' + items.length + ' · clic en el centro para cerrar' };
+  }
+
+  renderVals() {
+    const { view, scope, selId, many, query, health } = this.state;
+    const items = this.visible();
+    const scoped = this.scoped();
+    const pool = this.pool();
+    const selected = selId ? pool.find(i => i.id === selId) : null;
+    if (selected) this._last = selected;
+    const sel = selected || this._last || pool[0];
+    const g = this.graph();
+    const scopeName = (SCOPES.find(s => s.id === scope) || {}).name || scope;
+    const multi = many.length > 1;
+    const filtered = !!(query.trim() || health || this.state.author || this.state.pkg);
+    const orphans = items.filter(i => (i.meta.find(m => m[0] === 'Activa en') || [])[1] === 'ninguno').length;
+
+    const rowPick = (i) => (e) => {
+      if (e && (e.metaKey || e.ctrlKey || e.shiftKey)) {
+        this.setState(s => {
+          const base = s.many.length ? s.many : (s.selId ? [s.selId] : []);
+          const next = base.indexOf(i.id) === -1 ? base.concat([i.id]) : base.filter(x => x !== i.id);
+          return { many: next, selId: next.length === 1 ? next[0] : s.selId, menuOpen:false };
+        });
+        return;
+      }
+      this.setState(s => ({ selId: s.selId === i.id && !s.many.length ? null : i.id, many:[], menuOpen:false }));
+    };
+
+    const mkRow = (i) => {
+      const offd = this.isOff(i.id);
+      const on = many.length ? many.indexOf(i.id) !== -1 : i.id === selId;
+      return {
+        ...i, isHeader:false, isItem:true,
+        dot: HEALTH[i.health][0], glow: HEALTH[i.health][1],
+        tile: TILE[i.tile], glyph: GLYPH[i.glyph],
+        badgeStyle: this.badgeStyle(i.health),
+        style: this.rowStyle(on, offd),
+        switchStyle: this.switchStyle(!offd),
+        knobStyle: this.knobStyle(!offd),
+        toggle: (e) => { if (e && e.stopPropagation) e.stopPropagation(); this.toggleOff(i.id); },
+        pick: rowPick(i)
+      };
+    };
+    const byPkg = this.state.groupBy === 'pkg';
+    const grouping = this.state.groupBy !== 'none' && view === 'list';
+    const keyOf = (i) => byPkg ? (i.pkg || 'sin paquete') : i.author;
+    let rowList;
+    if (grouping) {
+      const keys = [];
+      items.forEach(i => { const k = keyOf(i); if (keys.indexOf(k) === -1) keys.push(k); });
+      const last = byPkg ? 'sin paquete' : 'tú';
+      keys.sort((x, y) => x === last ? 1 : y === last ? -1 : x.localeCompare(y));
+      rowList = [];
+      keys.forEach(k => {
+        const kids = items.filter(i => keyOf(i) === k);
+        const col = this.state.collapsed.indexOf(k) !== -1;
+        const stale = kids.filter(i => i.health === 'stale').length;
+        rowList.push({
+          isHeader:true, isItem:false,
+          hName: k, hCount: kids.length + (stale ? ' · ' + stale + ' con actualización' : ''),
+          hNote: byPkg ? (k === 'sin paquete' ? 'sueltas · se actualizan una a una' : 'se instala y actualiza en bloque') : '',
+          hNoteStyle: byPkg && k !== 'sin paquete'
+            ? 'font-weight:400;font-size:11px;line-height:1.3;color:rgba(244,244,246,.32)'
+            : byPkg ? 'font-weight:400;font-size:11px;line-height:1.3;color:rgba(244,244,246,.26)' : 'display:none',
+          hStyle: 'box-sizing:border-box;display:flex;align-items:center;gap:10px;height:34px;margin:10px 0 2px;padding:0 14px;border-radius:9px;cursor:pointer;transition:background 140ms ease',
+          chev: 'width:0;height:0;flex:none;border-left:4.5px solid rgba(244,244,246,.5);border-top:3.5px solid transparent;border-bottom:3.5px solid transparent;transition:transform 200ms cubic-bezier(.32,.72,0,1);transform:rotate(' + (col ? 0 : 90) + 'deg)',
+          toggle: () => this.setState(s => ({ collapsed: col ? s.collapsed.filter(x => x !== k) : s.collapsed.concat([k]) })),
+          only: (e) => { if (e && e.stopPropagation) e.stopPropagation();
+            this.setState(byPkg ? { pkg:k, groupBy:'none', many:[] } : { author:k, groupBy:'none', many:[] }); }
+        });
+        if (!col) kids.forEach(i => rowList.push(mkRow(i)));
+      });
+    } else {
+      rowList = items.map(mkRow);
+    }
+
+    const bulk = (label, fn) => ({ label, pick: (e) => { if (e && e.stopPropagation) e.stopPropagation(); fn(); } });
+
+    return {
+      query,
+      hasQuery: !!query,
+      inputRef: this._input,
+      setQuery: (e) => this.setState({ query: e.target.value }),
+      clearQuery: () => this.setState({ query:'' }),
+
+      scopes: SCOPES.map(s => ({
+        ...s,
+        count: pool.filter(i => this.inScope(i, s.id)).length,
+        style: this.navStyle(this.state.nav === 'inventory' && scope === s.id),
+        pick: () => this.setState({ scope:s.id, expanded:null, nav:'inventory', many:[] })
+      })),
+
+      scopeTitle: scopeName,
+      scopeSub: scope === 'global'
+        ? `${scoped.length} skills · las heredan 12 proyectos`
+        : `${scoped.length} skills · propias y heredadas de Global`,
+
+      healthPills: [
+        { id:'ok', label:' al día', n:scoped.filter(i => i.health === 'ok').length, c:'oklch(.72 .15 152)', t:'oklch(.86 .12 152)' },
+        { id:'stale', label:' desactualizadas', n:scoped.filter(i => i.health === 'stale').length, c:'oklch(.78 .15 82)', t:'oklch(.88 .12 82)' },
+        { id:'broken', label:' rotas', n:scoped.filter(i => i.health === 'broken').length, c:'oklch(.62 .19 26)', t:'oklch(.81 .13 26)' },
+        { id:'idle', label:' sin usar', n:scoped.filter(i => i.health === 'idle').length, c:'#6a6a76', t:'rgba(244,244,246,.6)' }
+      ].filter(p => p.n > 0).map(p => ({
+        text: p.n + p.label,
+        dot: 'width:5px;height:5px;border-radius:999px;flex:none;background:' + p.c,
+        style: 'display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;cursor:pointer;font-weight:500;font-size:11.5px;line-height:1.3;transition:background 140ms ease,border-color 140ms ease;color:' + p.t + ';' + (health === p.id
+          ? 'background:rgba(255,255,255,.14);border:.5px solid rgba(255,255,255,.3)'
+          : 'background:' + (p.id === 'idle' ? 'rgba(244,244,246,.05)' : p.c.replace(')', ' / .13)').replace('oklch(', 'oklch(')) + ';border:.5px solid rgba(255,255,255,.12)'),
+        pick: () => this.setState(s => ({ health: s.health === p.id ? null : p.id, many:[] }))
+      })),
+
+      filterChips: [
+        query.trim() ? { label:'«' + query.trim() + '»', clear:() => this.setState({ query:'' }) } : null,
+        health ? { label:{ ok:'al día', stale:'desactualizadas', broken:'rotas', idle:'sin usar' }[health], clear:() => this.setState({ health:null }) } : null,
+        this.state.author ? { label:this.state.author, clear:() => this.setState({ author:null }) } : null,
+        this.state.pkg ? { label:'paquete ' + this.state.pkg, clear:() => this.setState({ pkg:null }) } : null
+      ].filter(Boolean).map(c => ({ label: c.label, clear: c.clear,
+        style:'display:flex;align-items:center;gap:7px;padding:4px 8px 4px 11px;border-radius:999px;border:.5px solid rgba(255,255,255,.16);background:rgba(255,255,255,.07);font-weight:500;font-size:11.5px;line-height:1.3;color:rgba(244,244,246,.8)' })),
+      hasFilters: filtered,
+      filterCount: filtered ? items.length + ' de ' + scoped.length : '',
+      clearFilters: () => this.setState({ query:'', health:null, author:null, pkg:null }),
+
+      isList: view === 'list',
+      isGraph: view === 'graph',
+      segX: view === 'list' ? 0 : 72,
+      viewList: () => this.setState({ view:'list' }),
+      viewGraph: () => this.setState({ view:'graph' }),
+      openPending: () => this.setState({ nav:'pending', many:[] }),
+      openGenerate: () => this.setState({ sheet:'generate', wizStep:1, menuOpen:false, newOpen:false }),
+
+      newOpen: this.state.newOpen,
+      toggleNew: () => this.setState(s => ({ newOpen: !s.newOpen })),
+      newMenu: [
+        { label:'Skill en blanco', hint:'', act:() => this.setState({ sheet:'generate', wizStep:1, newOpen:false }) },
+        { label:'Describirla y generarla', hint:'', act:() => this.setState({ sheet:'generate', wizStep:1, newOpen:false }) },
+        { label:'Instalar desde URL o ruta', hint:'', act:() => this.setState({ sheet:'install', newOpen:false }) },
+        { label:'Buscar en skills.sh', hint:'', act:() => this.setState({ nav:'discover', newOpen:false }) }
+      ].map(m => ({ label:m.label,
+        style:'display:flex;align-items:center;padding:7px 10px;border-radius:7px;cursor:pointer;font-weight:500;font-size:12.5px;line-height:1.35;color:rgba(244,244,246,.86);transition:background 120ms ease',
+        pick:m.act })),
+
+      rows: rowList,
+      grouping,
+      groupLabel: !grouping ? 'Sin agrupar' : byPkg ? 'Paquete' : 'Autor',
+      groupStyle: 'display:flex;align-items:center;gap:7px;padding:5px 11px;border-radius:999px;font-weight:500;font-size:11.5px;line-height:1.3;cursor:pointer;transition:background 140ms ease;' + (grouping
+        ? 'border:.5px solid rgba(255,255,255,.24);background:rgba(255,255,255,.12);color:#f4f4f6'
+        : 'border:.5px solid rgba(255,255,255,.09);background:rgba(244,244,246,.05);color:rgba(244,244,246,.62)'),
+      toggleGroup: () => this.setState(s => ({
+        groupBy: s.groupBy === 'none' ? 'author' : s.groupBy === 'author' ? 'pkg' : 'none',
+        collapsed: [] })),
+
+      isEmpty: items.length === 0,
+      empty: items.length === 0 ? (filtered
+        ? { title:'Ningún resultado', body:'Ninguna skill de ' + scopeName + ' coincide con el filtro.', action:'Limpiar filtros', act:() => this.setState({ query:'', health:null, author:null, pkg:null }) }
+        : { title:scopeName + ' no tiene skills', body:'Instala una desde skills.sh o crea la primera. Las de Global se heredan solo si están marcadas como compartidas.', action:'Instalar o crear', act:() => this.setState({ sheet:'install' }) })
+        : { title:'', body:'', action:'', act:() => {} },
+
+      edges: g.edges,
+      nodes: g.nodes,
+      graphHint: g.hint,
+      graphMeta: orphans + ' sin proyecto · ' + items.filter(i => i.health === 'broken').length + ' rotas',
+
+      multi,
+      manyCount: many.length + ' seleccionadas',
+      bulkActions: [
+        bulk('Activar', () => { const prev = { off:this.state.off.slice() }; this.setState(s => ({ off: s.off.filter(x => many.indexOf(x) === -1), many:[], toast:{ text: many.length + ' activadas', prev } })); }),
+        bulk('Desactivar', () => { const prev = { off:this.state.off.slice() }; this.setState(s => ({ off: s.off.concat(many.filter(m => s.off.indexOf(m) === -1)), many:[], toast:{ text: many.length + ' desactivadas', prev } })); }),
+        bulk('Mover…', () => this.setState({ sheet:'move' })),
+        bulk('Eliminar', () => this.setState({ sheet:'delete' }))
+      ].map(a => ({ label:a.label, pick:a.pick,
+        style: PILL_OFF + ';' + (a.label === 'Eliminar' ? 'color:oklch(.8 .14 26)' : '') })),
+      clearMany: () => this.setState({ many:[] }),
+
+      toast: this.state.toast,
+      hasToast: !!this.state.toast,
+      toastText: this.state.toast ? this.state.toast.text : '',
+      undo: () => this.setState(s => ({ ...(s.toast && s.toast.prev ? s.toast.prev : {}), toast:null })),
+      dismissToast: () => this.setState({ toast:null }),
+
+      isInventory: this.state.nav === 'inventory',
+      isPending: this.state.nav === 'pending',
+      isDiscover: this.state.nav === 'discover',
+      views: [
+        { id:'pending',  name:'Pendientes', count:'7' },
+        { id:'discover', name:'Descubrir',  count:'' }
+      ].map(v => ({
+        name: v.name,
+        count: v.count,
+        style: this.navStyle(this.state.nav === v.id),
+        markStyle: v.id === 'pending'
+          ? 'width:6px;height:6px;border-radius:999px;flex:none;background:oklch(.78 .15 82)'
+          : 'width:6px;height:6px;border-radius:999px;flex:none;border:1.5px solid rgba(244,244,246,.3);box-sizing:border-box',
+        countStyle: v.count
+          ? 'flex:none;padding:2px 7px;border-radius:999px;background:rgba(244,244,246,.07);border:.5px solid rgba(255,255,255,.08);font:500 10.5px/1.4 ui-monospace,Menlo,monospace;color:rgba(244,244,246,.6)'
+          : 'display:none',
+        pick: () => this.setState({ nav:v.id, many:[] })
+      })),
+
+      pendingGroups: PENDING.map(gr => ({
+        title: gr.title, note: gr.note, dot: gr.dot,
+        rows: gr.rows.map(r => {
+          const on = this.state.checked.indexOf(r.id) !== -1;
+          const actLabel = r.act === 'diff' ? 'Ver diff' : r.act === 'dupe' ? 'Resolver' : r.act === 'off' ? 'Desactivar' : 'Reparar';
+          return {
+            name: r.name, reason: r.reason, badge: r.badge, tile: TILE[r.tile],
+            badgeStyle: this.badgeStyle(gr.health),
+            actLabel,
+            checkStyle: 'box-sizing:border-box;width:15px;height:15px;border-radius:4px;flex:none;transition:background 140ms ease,border-color 140ms ease;' + (on
+              ? 'border:.5px solid rgba(0,0,0,.5);background:linear-gradient(180deg,#fefefe 0%,#e8e8ea 46%,#cfcfd4 54%,#c2c2c8 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 1px 2px rgba(0,0,0,.5)'
+              : 'border:1px solid rgba(255,255,255,.2);background:rgba(0,0,0,.35)'),
+            style: 'box-sizing:border-box;display:flex;align-items:center;gap:12px;height:50px;padding:0 14px;border-radius:11px;cursor:pointer;border-width:.5px;border-style:solid;border-color:rgba(255,255,255,0);transition:background 180ms cubic-bezier(.32,.72,0,1),border-color 180ms ease;' + (on
+              ? 'background:linear-gradient(180deg,rgba(255,255,255,.1) 0%,rgba(255,255,255,.045) 100%);backdrop-filter:blur(16px) saturate(1.6);-webkit-backdrop-filter:blur(16px) saturate(1.6);border-color:rgba(255,255,255,.15);box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 6px 20px rgba(0,0,0,.35)'
+              : 'background:transparent'),
+            toggle: () => this.setState(s => ({
+              checked: s.checked.indexOf(r.id) === -1 ? s.checked.concat([r.id]) : s.checked.filter(x => x !== r.id)
+            })),
+            diff: (e) => {
+              if (e && e.stopPropagation) e.stopPropagation();
+              if (r.act === 'off') { this.toggleOff(r.id); return; }
+              this.setState({ sheet: r.act });
+            }
+          };
+        })
+      })),
+      pendingBtnLabel: this.state.checked.length
+        ? 'Actualizar ' + this.state.checked.length + ' seleccionadas'
+        : 'Nada seleccionado',
+      pendingBtnStyle: this.state.checked.length ? BTN_METAL : BTN_METAL.replace('cursor:pointer', 'cursor:not-allowed') + ';opacity:.4',
+
+      registry: REGISTRY.map(k => ({
+        name: k.name, author: k.author, dl: k.dl + ' ↓', desc: k.desc, tile: TILE[k.tile],
+        state: k.state,
+        stateStyle: 'flex:none;padding:4px 10px;border-radius:999px;font-weight:500;font-size:11px;line-height:1.3;' + (k.state === 'ya la tienes'
+          ? 'background:oklch(.72 .15 152/.13);border:.5px solid oklch(.72 .15 152/.28);color:oklch(.86 .12 152)'
+          : k.state === 'nuevo'
+            ? 'background:rgba(244,244,246,.06);border:.5px solid rgba(255,255,255,.08);color:rgba(244,244,246,.5)'
+            : 'background:oklch(.78 .15 82/.13);border:.5px solid oklch(.78 .15 82/.28);color:oklch(.88 .12 82)'),
+        action: k.action,
+        btnStyle: (k.action === 'Instalar' ? BTN_METAL : BTN_DARK).replace('padding:8px 18px', 'padding:6px 14px').replace('font-size:12.5px', 'font-size:12px'),
+        act: () => this.setState({ sheet: k.action === 'Ver diff' ? 'diff' : k.action === 'Instalar' ? 'install' : null, nav: k.action === 'Abrir' ? 'inventory' : this.state.nav, selId: k.action === 'Abrir' ? 'sql-review' : this.state.selId }),
+        fork: () => this.setState({ sheet:'edit', selId:'deploy-checklist', forked:['deploy-checklist'] })
+      })),
+
+      engines: ENGINES.map(e => ({
+        name: e.name, path: e.path,
+        dot: e.ok ? 'oklch(.72 .15 152)' : '#3a3a42',
+        nameColor: e.ok ? '#f4f4f6' : 'rgba(244,244,246,.5)',
+        tag: e.tag,
+        tagStyle: 'flex:none;padding:3px 9px;border-radius:999px;font-weight:500;font-size:10.5px;line-height:1.4;' + (e.tag === 'por defecto'
+          ? 'background:rgba(255,255,255,.12);border:.5px solid rgba(255,255,255,.24);color:#f4f4f6'
+          : 'background:rgba(244,244,246,.05);border:.5px solid rgba(255,255,255,.08);color:rgba(244,244,246,.45)')
+      })),
+
+      checklist: CHECKLIST.map(c => ({
+        text: c.text,
+        color: c.ok ? 'rgba(244,244,246,.72)' : 'rgba(244,244,246,.4)',
+        mark: c.ok
+          ? 'box-sizing:border-box;width:13px;height:13px;border-radius:4px;flex:none;margin-top:2px;border:.5px solid rgba(0,0,0,.5);background:linear-gradient(180deg,#fefefe 0%,#e8e8ea 46%,#cfcfd4 54%,#c2c2c8 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.9)'
+          : 'box-sizing:border-box;width:13px;height:13px;border-radius:4px;flex:none;margin-top:2px;border:1px solid rgba(255,255,255,.18);background:rgba(0,0,0,.3)'
+      })),
+
+      diff: {
+        name: 'deploy-checklist',
+        range: 'v2.4 → v3.0 · publicada hace 12 días',
+        affected: '3 proyectos afectados',
+        tile: TILE.amber,
+        before: DIFF_BEFORE.map(l => ({
+          text: l.t,
+          style: 'font:400 11.5px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;padding:5px 9px;border-radius:6px;' + (l.cut
+            ? 'background:oklch(.62 .19 26/.12);color:oklch(.8 .13 26);text-decoration:line-through'
+            : 'color:rgba(244,244,246,.55)')
+        })),
+        after: DIFF_AFTER.map(l => ({
+          text: l.t,
+          style: 'font:400 11.5px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;padding:5px 9px;border-radius:6px;' + (l.add
+            ? 'background:oklch(.72 .15 152/.12);color:oklch(.86 .12 152)'
+            : 'color:rgba(244,244,246,.55)')
+        }))
+      },
+
+      pq: this.state.pq,
+      setPq: (e) => this.setState({ pq: e.target.value }),
+      paletteLocal: PALETTE_LOCAL.filter(p => {
+        const q = this.state.pq.trim().toLowerCase();
+        return !q || p.name.indexOf(q) !== -1 || p.desc.toLowerCase().indexOf(q) !== -1;
+      }).map((p, i) => ({
+        name: p.name, desc: p.desc, where: p.where, tile: TILE[p.tile],
+        style: 'display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:9px;cursor:pointer;' + (i === 0
+          ? 'background:linear-gradient(180deg,rgba(255,255,255,.11) 0%,rgba(255,255,255,.05) 100%);border:.5px solid rgba(255,255,255,.16);box-shadow:inset 0 1px 0 rgba(255,255,255,.2)'
+          : 'border-width:.5px;border-style:solid;border-color:rgba(255,255,255,0)'),
+        pick: () => this.setState({ sheet:null, nav:'inventory', selId:p.id, many:[] })
+      })),
+      paletteRemote: PALETTE_REMOTE.filter(p => {
+        const q = this.state.pq.trim().toLowerCase();
+        return !q || p.name.indexOf(q) !== -1 || p.desc.toLowerCase().indexOf(q) !== -1;
+      }).map(p => ({ name:p.name, desc:p.desc, where:p.where, tile:TILE[p.tile] })),
+
+      log: TRIGGER_LOG.map(l => ({
+        when: l.when, where: l.where, note: l.note, result: l.result,
+        resultStyle: 'flex:none;padding:3px 9px;border-radius:999px;font-weight:500;font-size:10.5px;line-height:1.4;' + (l.result === 'aplicada'
+          ? 'background:oklch(.72 .15 152/.13);border:.5px solid oklch(.72 .15 152/.28);color:oklch(.86 .12 152)'
+          : 'background:rgba(244,244,246,.05);border:.5px solid rgba(255,255,255,.08);color:rgba(244,244,246,.45)')
+      })),
+
+      dupe: {
+        aName: DUPE.a.name, aScope: DUPE.a.scope, aTrigger: DUPE.a.trigger, aFiles: DUPE.a.files, aUsed: DUPE.a.used,
+        bName: DUPE.b.name, bScope: DUPE.b.scope, bTrigger: DUPE.b.trigger, bFiles: DUPE.b.files, bUsed: DUPE.b.used
+      },
+
+      inspectorDyn: (selected && !multi)
+        ? 'width:326px;border-left:.5px solid rgba(255,255,255,.07)'
+        : 'width:0px;border-left:0',
+      metalBtnSm: BTN_METAL.replace('padding:8px 18px', 'height:28px;padding:0 15px').replace('font-size:12.5px', 'font-size:12px'),
+      menuOpen: this.state.menuOpen,
+      toggleMenu: () => this.setState(s => ({ menuOpen: !s.menuOpen })),
+      menu: [
+        { label:'Editar', hint:'⌘E', act:() => this.setState({ sheet:'edit', menuOpen:false }) },
+        { label:'Duplicar', hint:'⌘D', act:() => this.duplicate() },
+        { label:'Registro de disparos', hint:'', act:() => this.setState({ sheet:'log', menuOpen:false }) },
+        { label:'Historial de versiones', hint:'', act:() => this.setState({ sheet:'history', menuOpen:false }) },
+        { label:'Mover o copiar…', hint:'', act:() => this.setState({ sheet:'move', menuOpen:false }) },
+        { label:'Eliminar', hint:'⌫', danger:true, act:() => this.setState({ sheet:'delete', menuOpen:false }) }
+      ].map(m => ({
+        label: m.label, hint: m.hint,
+        style: 'display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:7px;cursor:pointer;font-weight:500;font-size:12.5px;line-height:1.35;transition:background 120ms ease;' + (m.danger
+          ? 'color:oklch(.8 .14 26);margin-top:3px;border-top:.5px solid rgba(255,255,255,.07);padding-top:9px'
+          : 'color:rgba(244,244,246,.86)'),
+        pick: m.act
+      })),
+
+      dry: this.state.dry,
+      runDry: () => this.setState(s => ({ dry: !s.dry })),
+
+      edit: (() => {
+        const origin = sel.origin || 'local';
+        const managed = origin.indexOf('skills.sh') !== -1;
+        const forked = this.state.forked.indexOf(sel.id) !== -1;
+        const locked = managed && !forked;
+        const fieldBase = 'box-sizing:border-box;min-height:34px;display:flex;align-items:center;padding:8px 12px;border-radius:9px;';
+        return {
+          title: locked ? sel.name : 'Editar ' + sel.name,
+          subtitle: managed
+            ? (forked ? 'bifurcada de ' + sel.name + '@' + sel.version + ' · divergida' : 'gestionada por ' + origin)
+            : 'skill local · editable',
+          stateLabel: locked ? 'solo lectura' : forked ? 'bifurcada' : 'local',
+          stateStyle: 'flex:none;padding:4px 10px;border-radius:999px;font-weight:500;font-size:11px;line-height:1.3;' + (locked
+            ? 'background:oklch(.78 .15 82/.13);border:.5px solid oklch(.78 .15 82/.28);color:oklch(.88 .12 82)'
+            : forked
+              ? 'background:rgba(255,255,255,.11);border:.5px solid rgba(255,255,255,.24);color:#f4f4f6'
+              : 'background:oklch(.72 .15 152/.13);border:.5px solid oklch(.72 .15 152/.28);color:oklch(.86 .12 152)'),
+          locked,
+          name: sel.name,
+          nextVersion: locked ? sel.version : sel.version.replace(/(\d+)$/, (n) => String(Number(n) + 1)),
+          trigger: (sel.meta.find(m => m[0] === 'Dispara') || ['', 'sin definir'])[1],
+          body: 'Lee el diff completo antes de opinar. Si toca recursos de producción, exige un plan de rollback escrito y no apruebes sin él. Cita siempre el archivo y la línea.',
+          textColor: locked ? 'rgba(244,244,246,.5)' : 'rgba(244,244,246,.9)',
+          fieldStyle: fieldBase + (locked
+            ? 'background:rgba(255,255,255,.02);border:.5px dashed rgba(255,255,255,.1)'
+            : 'background:rgba(0,0,0,.45);border:.5px solid rgba(255,255,255,.11)'),
+          bodyStyle: 'box-sizing:border-box;padding:13px;border-radius:10px;min-height:106px;' + (locked
+            ? 'background:rgba(255,255,255,.02);border:.5px dashed rgba(255,255,255,.1)'
+            : 'background:rgba(0,0,0,.45);border:.5px solid rgba(255,255,255,.11)'),
+          footNote: locked ? 'Los campos se desbloquean al bifurcar' : forked ? 'Guardar crea la versión ' + sel.version.replace(/(\d+)$/, (n) => String(Number(n) + 1)) : 'Guardar crea una versión nueva',
+          primaryLabel: locked ? 'Bifurcar y editar' : 'Guardar cambios',
+          primary: locked
+            ? () => this.setState(s => ({ forked: s.forked.concat([sel.id]) }))
+            : () => { const prev = {}; this.setState({ sheet:null, dry:false, toast:{ text:sel.name + ' guardada como ' + sel.version.replace(/(\d+)$/, (n) => String(Number(n) + 1)), prev } }); },
+          lineage: (managed
+            ? [
+                { label:'Publicada por @acme', meta:origin + ' · ' + sel.version, kind:'origin' },
+                forked
+                  ? { label:'Tu bifurcación', meta:'divergida hace 3 días · 2 cambios', kind:'fork' }
+                  : { label:'Sin bifurcar', meta:'sigue al paquete', kind:'ghost' },
+                { label:'Paquete en v3.0', meta:forked ? 'rebasable' : 'se aplicará sola', kind:'ahead' }
+              ]
+            : [
+                { label:'Creada por ti', meta:'hace 2 meses', kind:'origin' },
+                { label:'12 versiones locales', meta:'última hace 3 días', kind:'fork' }
+              ]
+          ).map((l, i, arr) => ({
+            label: l.label, meta: l.meta,
+            color: l.kind === 'ghost' ? 'rgba(244,244,246,.42)' : 'rgba(244,244,246,.82)',
+            dotStyle: 'box-sizing:border-box;width:9px;height:9px;border-radius:999px;flex:none;margin-top:3px;' + (l.kind === 'fork'
+              ? 'background:rgba(255,255,255,.85);box-shadow:0 0 8px rgba(255,255,255,.35)'
+              : l.kind === 'ahead'
+                ? 'background:oklch(.78 .15 82)'
+                : l.kind === 'ghost'
+                  ? 'border:1px dashed rgba(255,255,255,.3)'
+                  : 'background:rgba(244,244,246,.7)'),
+            lineStyle: i === arr.length - 1 ? 'display:none' : 'width:1px;flex:1;min-height:20px;background:rgba(255,255,255,.12);margin-top:2px'
+          }))
+        };
+      })(),
+
+      history: HISTORY.map(h => ({
+        ver: h.ver, what: h.what, when: h.when, tag: h.tag,
+        verColor: h.action === 'actual' ? '#f4f4f6' : 'rgba(244,244,246,.5)',
+        tagStyle: 'flex:none;padding:3px 8px;border-radius:999px;font-weight:500;font-size:10.5px;line-height:1.4;width:52px;text-align:center;box-sizing:border-box;' + (h.tag === 'IA'
+          ? 'background:oklch(.65 .19 310/.16);border:.5px solid oklch(.65 .19 310/.32);color:oklch(.84 .13 310)'
+          : h.tag === 'fork'
+            ? 'background:rgba(255,255,255,.11);border:.5px solid rgba(255,255,255,.24);color:#f4f4f6'
+            : h.tag === 'rebase'
+              ? 'background:oklch(.78 .15 82/.13);border:.5px solid oklch(.78 .15 82/.28);color:oklch(.88 .12 82)'
+              : 'background:rgba(244,244,246,.06);border:.5px solid rgba(255,255,255,.08);color:rgba(244,244,246,.6)'),
+        action: h.action,
+        actionStyle: h.action === 'actual'
+          ? 'flex:none;font-weight:500;font-size:11px;line-height:1.3;color:rgba(244,244,246,.34)'
+          : 'flex:none;padding:5px 11px;border-radius:999px;border:.5px solid rgba(255,255,255,.09);background:rgba(244,244,246,.05);font-weight:500;font-size:11.5px;line-height:1.3;color:rgba(244,244,246,.66);cursor:pointer'
+      })),
+
+      moveTabStyle: this.state.moveMode === 'move'
+        ? 'padding:6px 16px;border-radius:7px;font-weight:600;font-size:12.5px;line-height:1.2;color:#141417;background:linear-gradient(180deg,#fbfbfc 0%,#ededef 46%,#d8d8dc 54%,#cbcbd0 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 1px 2px rgba(0,0,0,.5);cursor:pointer'
+        : 'padding:6px 16px;border-radius:7px;font-weight:500;font-size:12.5px;line-height:1.2;color:rgba(244,244,246,.6);cursor:pointer',
+      copyTabStyle: this.state.moveMode === 'copy'
+        ? 'padding:6px 16px;border-radius:7px;font-weight:600;font-size:12.5px;line-height:1.2;color:#141417;background:linear-gradient(180deg,#fbfbfc 0%,#ededef 46%,#d8d8dc 54%,#cbcbd0 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 1px 2px rgba(0,0,0,.5);cursor:pointer'
+        : 'padding:6px 16px;border-radius:7px;font-weight:500;font-size:12.5px;line-height:1.2;color:rgba(244,244,246,.6);cursor:pointer',
+      setMove: () => this.setState({ moveMode:'move' }),
+      setCopy: () => this.setState({ moveMode:'copy' }),
+      moveSubject: multi ? many.length + ' skills' : sel.name,
+      moveAction: (this.state.moveMode === 'move' ? 'Mover a ' : 'Copiar a ') + this.state.moveTarget,
+      moveNote: this.state.moveMode === 'move'
+        ? 'Dejará de estar disponible en el resto de proyectos'
+        : 'La copia podrá divergir del original',
+      doMove: () => { const label = (this.state.moveMode === 'move' ? 'Movidas a ' : 'Copiadas a ') + this.state.moveTarget;
+        this.setState({ sheet:null, many:[], toast:{ text:label, prev:{} } }); },
+      moveTargets: SCOPES.map(s => ({
+        name: s.name, dot: s.dot,
+        note: s.id === scope ? 'ámbito actual' : s.id === 'global' ? 'la heredan todos' : '',
+        style: 'display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:9px;cursor:pointer;box-sizing:border-box;' + (this.state.moveTarget === s.id
+          ? 'background:linear-gradient(180deg,rgba(255,255,255,.11) 0%,rgba(255,255,255,.05) 100%);border-width:.5px;border-style:solid;border-color:rgba(255,255,255,.16);box-shadow:inset 0 1px 0 rgba(255,255,255,.2)'
+          : 'border-width:.5px;border-style:solid;border-color:rgba(255,255,255,0)'),
+        pick: () => this.setState({ moveTarget:s.id })
+      })),
+
+      delSubject: multi ? many.length + ' skills' : sel.name,
+      doDelete: () => {
+        const ids = multi ? many : [sel.id];
+        const prev = { gone: this.state.gone.slice(), selId: this.state.selId, many: many.slice() };
+        this.setState(s => ({ gone: s.gone.concat(ids), sheet:null, many:[], selId:null,
+          toast:{ text: (multi ? ids.length + ' skills eliminadas' : sel.name + ' eliminada'), prev } }));
+      },
+      doDisableInstead: () => {
+        const ids = multi ? many : [sel.id];
+        const prev = { off: this.state.off.slice() };
+        this.setState(s => ({ off: s.off.concat(ids.filter(i => s.off.indexOf(i) === -1)), sheet:null, many:[],
+          toast:{ text:(ids.length > 1 ? ids.length + ' desactivadas' : sel.name + ' desactivada') + ' · sus archivos siguen en disco', prev } }));
+      },
+
+      checklistCount: CHECKLIST.filter(c => c.ok).length + ' de ' + CHECKLIST.length,
+      wiz: (() => {
+        const names = ['Qué hace', 'Contenido', 'Revisión'];
+        const step = this.state.wizStep;
+        return {
+          caption: 'Paso ' + step + ' de 3 · ' + names[step - 1],
+          bars: [1, 2, 3].map(n => ({
+            style: 'width:44px;height:3px;border-radius:999px;transition:background 260ms ease;background:' + (n <= step ? 'rgba(255,255,255,.8)' : 'rgba(244,244,246,.12)')
+          })),
+          s1: step === 1, s1b: step === 1, s2: step === 2, s3: step === 3,
+          summary: [
+            { k:'Nombre', v:'infra-pr-review', mono:true },
+            { k:'Ámbito', v:'Global · la heredan los 12 proyectos' },
+            { k:'Se activa cuando', v:'se abre un pull request que toca terraform/ o k8s/' },
+            { k:'Archivos', v:'SKILL.md · 1 KB' },
+            { k:'Estado inicial', v:'activada' }
+          ].map(r => ({
+            k: r.k, v: r.v,
+            valueStyle: r.mono
+              ? 'font:400 12px/1.4 ui-monospace,Menlo,monospace;color:rgba(244,244,246,.85);flex:1;min-width:0'
+              : 'font-weight:400;font-size:12.5px;line-height:1.4;color:rgba(244,244,246,.8);flex:1;min-width:0'
+          })),
+          back: () => this.setState(s => ({ wizStep: Math.max(1, s.wizStep - 1) })),
+          backStyle: 'padding:8px 16px;border-radius:999px;border:.5px solid rgba(255,255,255,.1);font-weight:500;font-size:12.5px;line-height:1.2;transition:background 140ms ease;' + (step === 1
+            ? 'background:rgba(244,244,246,.03);color:rgba(244,244,246,.28);cursor:not-allowed'
+            : 'background:rgba(244,244,246,.06);color:rgba(244,244,246,.8);cursor:pointer'),
+          nextLabel: step === 3 ? 'Crear skill' : 'Continuar',
+          next: step === 3
+            ? () => this.setState({ sheet:null, wizStep:1, toast:{ text:'infra-pr-review creada en Global', prev:{} } })
+            : () => this.setState(s => ({ wizStep: s.wizStep + 1 }))
+        };
+      })(),
+
+      isEdit: this.state.sheet === 'edit',
+      isHistory: this.state.sheet === 'history',
+      isMove: this.state.sheet === 'move',
+      isDelete: this.state.sheet === 'delete',
+      isLog: this.state.sheet === 'log',
+      isDupe: this.state.sheet === 'dupe',
+      openEdit: () => this.setState({ sheet:'edit', menuOpen:false }),
+      openHistory: () => this.setState({ sheet:'history' }),
+      dangerBtn: BTN_DANGER,
+
+      sheetOpen: !!this.state.sheet,
+      sheetAlign: this.state.sheet === 'palette' ? 'flex-start' : 'center',
+      isPalette: this.state.sheet === 'palette',
+      isDiff: this.state.sheet === 'diff',
+      isInstall: this.state.sheet === 'install',
+      isGenerate: this.state.sheet === 'generate',
+      isEngines: this.state.sheet === 'engines',
+      openPalette: () => this.setState({ sheet:'palette', pq:'' }),
+      openDiff: () => this.setState({ sheet:'diff' }),
+      openInstall: () => this.setState({ sheet:'install', newOpen:false }),
+      openEngines: () => this.setState({ sheet:'engines' }),
+      closeSheet: () => this.setState({ sheet:null, dry:false }),
+      stop: (e) => { if (e && e.stopPropagation) e.stopPropagation(); },
+      metalBtn: BTN_METAL,
+
+      sel: (() => {
+        const offd = this.isOff(sel.id);
+        const shadowed = sel.scope === 'global' && scope !== 'global' && sel.shared;
+        const meta = [['Autor', sel.author || 'tú', 'author'],
+                      ['Paquete', sel.pkg || 'ninguno · suelta', sel.pkg ? 'pkg' : null]].concat(sel.meta).concat(shadowed ? [['Precedencia', 'heredada de Global · una copia en ' + scopeName + ' ganaría']] : []);
+        return {
+          name: sel.name,
+          sub: `${sel.version} · ${sel.scope} · ${sel.origin || 'local'}`,
+          desc: sel.desc,
+          tile: TILE[sel.tile],
+          glyph: GLYPH[sel.glyph],
+          switchStyle: this.switchStyle(!offd),
+          knobStyle: this.knobStyle(!offd),
+          toggle: () => this.toggleOff(sel.id),
+          stateLabel: offd ? 'desactivada' : 'activa',
+          stateColor: offd ? 'rgba(244,244,246,.42)' : 'oklch(.86 .12 152)',
+          meta: meta.map(m => {
+            const kind = m[2];
+            const link = !!kind;
+            return {
+              k: m[0], v: m[1],
+              rowStyle: 'display:flex;align-items:baseline;gap:12px;padding:11px 18px;border-bottom:.5px solid rgba(255,255,255,.04);transition:background 140ms ease;' + (link ? 'cursor:pointer' : ''),
+              vStyle: 'font-weight:400;font-size:12.5px;line-height:1.45;flex:1;min-width:0;' + (link
+                ? 'color:#f4f4f6;text-decoration:underline;text-decoration-color:rgba(255,255,255,.25);text-underline-offset:3px'
+                : 'color:rgba(244,244,246,.78)'),
+              pick: () => {
+                if (kind === 'author') { this.setState({ author:sel.author, nav:'inventory', view:'list', many:[] }); return; }
+                if (kind === 'pkg') { this.setState({ pkg:sel.pkg, nav:'inventory', view:'list', many:[] }); return; }
+                if (kind === 'log') { this.setState({ sheet:'log' }); return; }
+                if (kind === 'deps') { this.setState({ view:'graph', nav:'inventory', expanded:null }); return; }
+                if (kind === 'scopes') {
+                  const first = String(m[1]).split(',')[0].trim();
+                  const hit = SCOPES.find(s => s.name === first);
+                  if (hit) this.setState({ scope:hit.id, nav:'inventory', many:[] });
+                }
+              }
+            };
+          }),
+          action: sel.health === 'stale' ? `Actualizar → ${String(sel.badge).split('→ ')[1] || 'nueva'}`
+                : sel.health === 'broken' ? 'Reparar dependencia'
+                : offd ? 'Activar'
+                : 'Ver en el grafo',
+          btnStyle: (sel.health === 'ok' || sel.health === 'idle') && !offd ? BTN_DARK : BTN_METAL,
+          act: sel.health === 'stale' ? () => this.setState({ sheet:'diff' })
+             : sel.health === 'broken' ? () => this.setState({ sheet:'install' })
+             : offd ? () => this.toggleOff(sel.id)
+             : () => this.setState({ nav:'inventory', view:'graph' })
+        };
+      })()
+    };
+  }
+}
+</script>
+</body>
+</html>

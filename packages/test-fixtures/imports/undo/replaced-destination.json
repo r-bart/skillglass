@@ -1,0 +1,6 @@
+{
+  "case": "undo-replaced-destination",
+  "journalOwnsDestination": true,
+  "postInstallMutation": { "kind": "replace-directory-object", "sameContent": true },
+  "expected": { "undoAllowed": false, "reason": "filesystem-identity-changed", "destinationUntouched": true }
+}

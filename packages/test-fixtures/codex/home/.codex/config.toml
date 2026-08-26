@@ -1,0 +1,4 @@
+# Replace __FIXTURE_ROOT__ with the absolute fixture root before parsing.
+[[skills.config]]
+path = "__FIXTURE_ROOT__/home/.agents/skills/disabled-skill/SKILL.md"
+enabled = false

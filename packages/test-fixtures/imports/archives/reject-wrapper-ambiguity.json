@@ -1,0 +1,8 @@
+{
+  "case": "reject-wrapper-ambiguity",
+  "entries": [
+    { "kind": "file", "name": "one/SKILL.md", "content": "# One\n" },
+    { "kind": "file", "name": "two/SKILL.md", "content": "# Two\n" }
+  ],
+  "expected": { "admitted": false, "reason": "ambiguous-payload-root" }
+}

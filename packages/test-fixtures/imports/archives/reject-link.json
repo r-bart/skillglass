@@ -1,0 +1,8 @@
+{
+  "case": "reject-link",
+  "entries": [
+    { "kind": "file", "name": "SKILL.md", "content": "# Fixture\n" },
+    { "kind": "symlink", "name": "references/outside", "target": "../../outside", "unixMode": "120777" }
+  ],
+  "expected": { "admitted": false, "reason": "unsupported-entry-type" }
+}

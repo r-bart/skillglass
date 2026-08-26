@@ -1,0 +1,9 @@
+{
+  "case": "reject-traversal",
+  "entries": [
+    { "kind": "file", "name": "SKILL.md", "content": "# Fixture\n" },
+    { "kind": "file", "name": "../escape.txt", "content": "must never extract\n" },
+    { "kind": "file", "name": "nested/..\\..\\escape.txt", "content": "must never extract\n" }
+  ],
+  "expected": { "admitted": false, "reason": "path-traversal" }
+}

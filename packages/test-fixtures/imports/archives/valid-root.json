@@ -1,0 +1,8 @@
+{
+  "case": "valid-root",
+  "entries": [
+    { "kind": "file", "name": "SKILL.md", "content": "---\nname: zip-root\ndescription: Valid root ZIP.\n---\n\n# ZIP root\n" },
+    { "kind": "file", "name": "references/guide.md", "content": "# Guide\n" }
+  ],
+  "expected": { "admitted": true, "wrapper": null }
+}
