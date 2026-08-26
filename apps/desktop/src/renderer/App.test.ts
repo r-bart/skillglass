@@ -104,7 +104,7 @@ describe("Forge application shell", () => {
     expect(inspector).not.toBeNull()
   })
 
-  it("navigates between the MVP placeholder surfaces with semantic buttons", () => {
+  it("navigates between the MVP placeholder surfaces with semantic buttons", async () => {
     expect(container.querySelector("h1")?.textContent).toBe("Inventario")
     expect(buttonNamed("Inventario").getAttribute("aria-current")).toBe("page")
 
@@ -112,6 +112,10 @@ describe("Forge application shell", () => {
 
     expect(container.querySelector("h1")?.textContent).toBe("Carpetas de skills")
     expect(buttonNamed("Configuración inicial").getAttribute("aria-current")).toBe("page")
+
+    await act(async () => buttonNamed("Pendientes").click())
+    expect(container.querySelector("h1")?.textContent).toBe("Pendientes")
+    expect(buttonNamed("Pendientes").getAttribute("aria-current")).toBe("page")
   })
 
   it("exposes the mobile navigation as an accessible disclosure", () => {

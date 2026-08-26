@@ -4,14 +4,17 @@ import type {
   ForgeBridge,
   LocalSourceSelectionDto,
   OnboardingStateDto,
+  OperationProgressEvent,
   OperationPlanDto,
   RootCandidateDto,
 } from "@forge/contracts"
 
 import { AccessibleDialog } from "./AccessibleDialog.js"
 import { Inspector, Inventory } from "./inventory/index.js"
+import { OperationPlanDetails } from "./OperationPlanDetails.js"
+import { Pending } from "./Pending.js"
 
-type Surface = "onboarding" | "inventory"
+type Surface = "onboarding" | "inventory" | "pending"
 
 interface NavigationProps {
   activeSurface: Surface
@@ -22,6 +25,7 @@ interface NavigationProps {
 const surfaceLabels: Record<Surface, string> = {
   onboarding: "Configuración inicial",
   inventory: "Inventario",
+  pending: "Pendientes",
 }
 
 function Brand() {
@@ -52,7 +56,7 @@ function PrimaryNavigation({ activeSurface, onNavigate, onboardingRequired }: Na
             {
               className: "navigation-item",
               type: "button",
-              disabled: surface === "inventory" && onboardingRequired,
+              disabled: surface !== "onboarding" && onboardingRequired,
               "aria-current": activeSurface === surface ? "page" : undefined,
               onClick: () => onNavigate(surface),
             },
@@ -220,10 +224,9 @@ function Onboarding({
   )
 }
 
-function PageContent({ activeSurface, onboarding, inventory }: { activeSurface: Surface; onboarding: ReactNode; inventory: ReactNode }): ReactNode {
-  return activeSurface === "onboarding"
-    ? onboarding
-    : inventory
+function PageContent({ activeSurface, onboarding, inventory, pending }: { activeSurface: Surface; onboarding: ReactNode; inventory: ReactNode; pending: ReactNode }): ReactNode {
+  if (activeSurface === "onboarding") return onboarding
+  return activeSurface === "pending" ? pending : inventory
 }
 
 export function App({
@@ -251,6 +254,7 @@ export function App({
   const [inventoryRevision, setInventoryRevision] = useState(0)
   const [selectedInstallationId, setSelectedInstallationId] = useState<string>()
   const [operationStatus, setOperationStatus] = useState<string>()
+  const [operationProgress, setOperationProgress] = useState<OperationProgressEvent>()
   const [historyOpen, setHistoryOpen] = useState(false)
   const [history, setHistory] = useState<Awaited<ReturnType<ForgeBridge["operations"]["history"]>>>()
   const [historyError, setHistoryError] = useState<string>()
@@ -406,9 +410,11 @@ export function App({
     })
     const stopProgress = eventBridge.onOperationProgress((event) => {
       setOperationStatus(event.message)
+      setOperationProgress(event)
     })
     const stopCompleted = eventBridge.onOperationCompleted((event) => {
       setOperationStatus(event.message)
+      setOperationProgress(undefined)
     })
     return () => {
       stopInventory()
@@ -420,7 +426,7 @@ export function App({
   const onboardingRequired = onboardingState?.status !== "complete"
 
   const navigate = (surface: Surface) => {
-    if (surface === "inventory" && onboardingRequired) return
+    if (surface !== "onboarding" && onboardingRequired) return
     setActiveSurface(surface)
     setMobileNavigationOpen(false)
   }
@@ -491,6 +497,16 @@ export function App({
     eventBridge,
     onSelectionChange: setSelectedInstallationId,
   })
+  const pending = createElement(Pending, {
+    inventoryBridge,
+    operationBridge,
+    eventBridge,
+    onSelectInstallation: (installationId: string) => {
+      setSelectedInstallationId(installationId)
+      setOperationStatus("Pendiente abierto en el inspector")
+    },
+    onStatus: setOperationStatus,
+  })
 
   return createElement(
     "div",
@@ -501,7 +517,7 @@ export function App({
       mobileNavigationOpen,
       onToggleMobileNavigation: () => setMobileNavigationOpen((isOpen) => !isOpen),
       onOpenHistory: () => { void openHistory() },
-      operationsVisible: activeSurface === "inventory" && !onboardingRequired,
+      operationsVisible: activeSurface !== "onboarding" && !onboardingRequired,
       operationBusy,
       onInstallDirectory: () => { void installFrom("directory") },
       onInstallZip: () => { void installFrom("zip") },
@@ -512,7 +528,17 @@ export function App({
       : createElement("p", { className: "operation-error", role: "alert" }, operationError),
     operationStatus === undefined
       ? null
-      : createElement("p", { className: "operation-status", role: "status" }, operationStatus),
+      : createElement(
+          "div",
+          { className: "operation-status", role: "status", "aria-live": "polite" },
+          createElement("strong", null, operationProgress === undefined ? "Operación" : `Etapa: ${operationProgress.stage}`),
+          createElement("span", null, operationStatus),
+          operationProgress === undefined
+            ? null
+            : createElement("small", null, operationProgress.stage === "rolling-back"
+              ? "Recuperación en curso; la operación no se puede cancelar."
+              : "No cancelable durante la escritura; si se interrumpe, Forge recuperará el journal al reiniciar."),
+        ),
     historyOpen
       ? createElement(
           AccessibleDialog,
@@ -521,28 +547,32 @@ export function App({
             historyError === undefined ? null : createElement("p", { role: "alert", className: "form-error" }, historyError),
             history === undefined
               ? createElement("p", null, "Cargando historial…")
-              : history.items.filter(({ undoAvailable }) => undoAvailable).length === 0
-                ? createElement("p", null, "No hay operaciones que se puedan deshacer.")
+              : history.items.length === 0
+                ? createElement("p", null, "No hay operaciones registradas.")
                 : createElement(
                     "ul",
                     { className: "history-list" },
-                    ...history.items.filter(({ undoAvailable }) => undoAvailable).map((item) => createElement(
+                    ...history.items.map((item) => createElement(
                       "li",
                       { key: item.journalId },
-                      createElement("span", null, item.kind === "install-local"
-                        ? "Instalación local"
-                        : item.kind === "update-entry-content"
-                          ? "Actualización de contenido"
-                          : "Actualización de origen"),
-                      createElement("button", {
-                        type: "button",
-                        className: "primary-action",
-                        onClick: () => { void undo(item.journalId) },
-                      }, item.kind === "install-local"
-                        ? "Deshacer instalación"
-                        : item.kind === "update-entry-content"
-                          ? "Deshacer actualización"
-                          : "Deshacer actualización de origen"),
+                      createElement("span", null,
+                        createElement("strong", null, item.kind === "install-local"
+                          ? "Instalación local"
+                          : item.kind === "update-entry-content"
+                            ? "Actualización de contenido"
+                            : "Actualización de origen"),
+                        createElement("small", null, new Intl.DateTimeFormat("es-ES", { dateStyle: "medium", timeStyle: "short" }).format(new Date(item.createdAt))),
+                        createElement("small", null, item.undoAvailable ? "Deshacer disponible tras reiniciar" : "Sin acción de deshacer disponible"),
+                      ),
+                      item.undoAvailable ? createElement("button", {
+                          type: "button",
+                          className: "primary-action",
+                          onClick: () => { void undo(item.journalId) },
+                        }, item.kind === "install-local"
+                          ? "Deshacer instalación"
+                          : item.kind === "update-entry-content"
+                            ? "Deshacer actualización"
+                            : "Deshacer actualización de origen") : null,
                     )),
                   ),
             createElement("button", { type: "button", className: "secondary-action", onClick: () => setHistoryOpen(false) }, "Cerrar"),
@@ -585,20 +615,7 @@ export function App({
             ...(operationBusy ? {} : { onDismiss: () => setInstallPlan(undefined) }),
           },
             createElement("h2", { id: "install-dialog-title" }, "Confirmar instalación"),
-            installPlan.destinationLabel === undefined
-              ? null
-              : createElement("p", { className: "inspector-path" }, installPlan.destinationLabel),
-            createElement("p", null, "Cambios exactos:"),
-            createElement(
-              "ul",
-              { className: "operation-diff" },
-              ...installPlan.affectedEntries.map((entry) => createElement(
-                "li",
-                { key: `${entry.action}:${entry.relativePath}` },
-                createElement("span", { className: `diff-action diff-${entry.action}` }, entry.action === "create" ? "Crear" : entry.action === "delete" ? "Eliminar" : "Modificar"),
-                createElement("code", null, entry.relativePath),
-              )),
-            ),
+            createElement(OperationPlanDetails, { plan: installPlan }),
             createElement(
               "div",
               { className: "inspector-actions" },
@@ -632,14 +649,14 @@ export function App({
         scanNotice === undefined
           ? null
           : createElement("p", { className: "form-error", role: "alert" }, scanNotice),
-        createElement(PageContent, { activeSurface, onboarding, inventory }),
+        createElement(PageContent, { activeSurface, onboarding, inventory, pending }),
       ),
       createElement(Inspector, {
         inventoryBridge,
         operationBridge,
         onStatus: setOperationStatus,
         revision: inventoryRevision,
-        ...(activeSurface === "inventory" && selectedInstallationId !== undefined
+        ...(activeSurface !== "onboarding" && selectedInstallationId !== undefined
           ? { installationId: selectedInstallationId }
           : {}),
       }),

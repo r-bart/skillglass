@@ -73,7 +73,10 @@ function opaqueSuffix(value: string): string {
 }
 
 function sameStableSourceObject(left: SourceIdentity, right: SourceIdentity): boolean {
-  return left.device === right.device && left.inode === right.inode
+  if (left.device !== right.device || left.inode !== right.inode) return false
+  if (left.createdNanoseconds !== undefined && right.createdNanoseconds !== undefined &&
+    left.createdNanoseconds !== right.createdNanoseconds) return false
+  return true
 }
 
 function samePreviewSource(left: AdmittedLocalSource, right: AdmittedLocalSource): boolean {

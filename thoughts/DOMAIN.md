@@ -276,6 +276,8 @@ Retention target:
 - Snapshots from the latest 90 days,
 - Whichever retains more recoverable user work, subject to a configurable storage ceiling.
 
+The MVP composition uses a 256 MiB snapshot-content ceiling. Current inventory snapshots are pinned even when that ceiling is exceeded; restart-safe filesystem recovery artifacts follow journal/undo lifetime rather than observation-snapshot retention.
+
 ## Domain Invariants
 
 1. Canonical path identity is unique within an adapter.

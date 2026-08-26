@@ -1,4 +1,4 @@
-import { mkdirSync } from "node:fs"
+import { chmodSync, mkdirSync } from "node:fs"
 import { dirname } from "node:path"
 import { DatabaseSync, type SQLInputValue } from "node:sqlite"
 
@@ -347,6 +347,8 @@ class SqliteSnapshotRepository implements SnapshotRepository {
   readonly #getSnapshot
   readonly #listSnapshots
   readonly #listFindings
+  readonly #retentionRows
+  readonly #deleteSnapshot
   readonly #insertProvenance
   readonly #getProvenance
 
@@ -372,6 +374,29 @@ class SqliteSnapshotRepository implements SnapshotRepository {
     `)
     this.#listFindings = database.prepare(`
       SELECT * FROM findings WHERE snapshot_id = ? ORDER BY ordinal
+    `)
+    this.#retentionRows = database.prepare(`
+      SELECT
+        snapshots.id,
+        snapshots.installation_id,
+        snapshots.observed_at,
+        length(CAST(snapshots.raw_source AS BLOB)) + length(CAST(snapshots.name_json AS BLOB)) +
+          length(CAST(snapshots.description_json AS BLOB)) + length(CAST(snapshots.declared_version_json AS BLOB)) +
+          length(CAST(snapshots.files_json AS BLOB)) + length(CAST(snapshots.requirements_json AS BLOB)) +
+          COALESCE((
+            SELECT SUM(length(CAST(findings.code AS BLOB)) + length(CAST(findings.severity AS BLOB)) +
+              length(CAST(findings.message AS BLOB)) + COALESCE(length(CAST(findings.file AS BLOB)), 0) +
+              COALESCE(length(CAST(findings.range_json AS BLOB)), 0) + length(CAST(findings.source_json AS BLOB)))
+            FROM findings WHERE findings.snapshot_id = snapshots.id
+          ), 0) AS estimated_bytes,
+        EXISTS(SELECT 1 FROM installations WHERE installations.snapshot_id = snapshots.id) AS is_current
+      FROM snapshots
+      ORDER BY snapshots.installation_id, snapshots.observed_at DESC, snapshots.id DESC
+    `)
+    this.#deleteSnapshot = database.prepare(`
+      DELETE FROM snapshots
+      WHERE id = ?
+        AND NOT EXISTS(SELECT 1 FROM installations WHERE installations.snapshot_id = snapshots.id)
     `)
     this.#insertProvenance = database.prepare(`
       INSERT INTO provenance(id, installation_id, observed_at, value_json)
@@ -424,6 +449,60 @@ class SqliteSnapshotRepository implements SnapshotRepository {
     return rows<SqlRow>(this.#listSnapshots.all(installationId)).map((row) =>
       this.#snapshotFromRow(row),
     )
+  }
+
+  prune(options: Readonly<{
+    now: Date
+    latestPerInstallation?: number
+    maxAgeDays?: number
+    storageCeilingBytes?: number
+  }>): number {
+    const latest = options.latestPerInstallation ?? 30
+    const maxAgeDays = options.maxAgeDays ?? 90
+    const ceiling = options.storageCeilingBytes ?? 256 * 1_024 * 1_024
+    if (!Number.isInteger(latest) || latest < 1) throw new TypeError("Snapshot retention count must be a positive integer")
+    if (!Number.isFinite(maxAgeDays) || maxAgeDays <= 0) throw new TypeError("Snapshot retention age must be positive")
+    if (!Number.isSafeInteger(ceiling) || ceiling < 1) throw new TypeError("Snapshot storage ceiling must be a positive safe integer")
+    const now = options.now.getTime()
+    if (!Number.isFinite(now)) throw new TypeError("Snapshot retention date is invalid")
+    const cutoff = now - maxAgeDays * 24 * 60 * 60 * 1_000
+    const source = rows<SqlRow>(this.#retentionRows.all())
+    const rank = new Map<string, number>()
+    const candidates = source.map((row) => {
+      const installationId = textValue(row, "installation_id")
+      const installationRank = rank.get(installationId) ?? 0
+      rank.set(installationId, installationRank + 1)
+      const observedAt = Date.parse(textValue(row, "observed_at"))
+      if (!Number.isFinite(observedAt)) throw new ForgeStorageCorruptionError("snapshots.observed_at is invalid")
+      const estimatedBytes = integerValue(row, "estimated_bytes")
+      const current = integerValue(row, "is_current") === 1
+      return {
+        id: textValue(row, "id"),
+        observedAt,
+        estimatedBytes,
+        current,
+        target: current || installationRank < latest || observedAt >= cutoff,
+      }
+    })
+    let retainedBytes = candidates.reduce((total, candidate) => total + candidate.estimatedBytes, 0)
+    const removals = [
+      ...candidates.filter(({ target, current }) => !target && !current),
+      ...candidates.filter(({ target, current }) => target && !current),
+    ].sort((left, right) => left.target === right.target
+      ? left.observedAt - right.observedAt || left.id.localeCompare(right.id)
+      : Number(left.target) - Number(right.target))
+    let removed = 0
+    transaction(this.#database, () => {
+      for (const candidate of removals) {
+        if (candidate.target && retainedBytes <= ceiling) continue
+        const result = this.#deleteSnapshot.run(candidate.id)
+        if (result.changes === 1) {
+          removed += 1
+          retainedBytes -= candidate.estimatedBytes
+        }
+      }
+    })
+    return removed
   }
 
   putProvenance(provenance: StoredProvenance): void {
@@ -692,7 +771,8 @@ export function openForgeStore(options: OpenForgeStoreOptions): ForgeStore {
     throw new ForgeStorageError("Database path cannot be empty")
   }
   if (options.path !== ":memory:") {
-    mkdirSync(dirname(options.path), { recursive: true })
+    mkdirSync(dirname(options.path), { recursive: true, mode: 0o700 })
+    if (options.privateDirectory === true) chmodSync(dirname(options.path), 0o700)
   }
 
   const database = new DatabaseSync(options.path, {
@@ -706,6 +786,7 @@ export function openForgeStore(options: OpenForgeStoreOptions): ForgeStore {
     migrate(database)
     if (options.path !== ":memory:") {
       database.exec("PRAGMA journal_mode = WAL")
+      chmodSync(options.path, 0o600)
     }
 
     const projections = new SqliteProjectionRepository(database)

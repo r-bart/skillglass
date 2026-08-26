@@ -46,6 +46,8 @@ export async function sourceIdentity(pathname: string): Promise<SourceIdentity> 
   return {
     device: stats.dev.toString(),
     inode: stats.ino.toString(),
+    changedNanoseconds: stats.ctimeNs.toString(),
+    createdNanoseconds: stats.birthtimeNs.toString(),
     size: Number(stats.size),
     modifiedMilliseconds: Number(stats.mtimeMs),
   }

@@ -36,6 +36,9 @@ export interface IgnoredEntrySummary {
 export interface SourceIdentity {
   readonly device: string
   readonly inode: string
+  /** Nanosecond metadata generations distinguish a reused inode on Linux. */
+  readonly changedNanoseconds?: string
+  readonly createdNanoseconds?: string
   readonly size: number
   readonly modifiedMilliseconds: number
 }

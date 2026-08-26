@@ -1067,16 +1067,46 @@ h2 {
   font-size: 0.8rem;
 }
 
-.editor-label textarea {
+.code-editor {
   width: 100%;
-  min-height: 18rem;
-  resize: vertical;
+  min-height: 24rem;
+  overflow: hidden;
   border: 0.0625rem solid var(--border);
   border-radius: var(--radius-small);
-  padding: 0.75rem;
   color: var(--text);
   background: var(--surface);
-  font: 0.76rem/1.55 ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.76rem;
+  line-height: 1.55;
+}
+
+.code-editor:focus-within {
+  outline: 0.1875rem solid var(--focus);
+  outline-offset: 0.1875rem;
+}
+
+.code-editor .cm-editor,
+.code-editor .cm-gutters {
+  color: inherit;
+  background: transparent;
+}
+
+.code-editor .cm-gutters {
+  border-right-color: var(--border);
+  color: var(--text-subtle);
+}
+
+.code-editor .cm-activeLine,
+.code-editor .cm-activeLineGutter {
+  background: var(--glass);
+}
+
+.code-editor .cm-content {
+  caret-color: var(--focus);
+}
+
+.code-editor .cm-selectionBackground,
+.code-editor .cm-content ::selection {
+  background: var(--accent-soft) !important;
 }
 
 .modal-backdrop {
@@ -1122,6 +1152,14 @@ h2 {
   color: var(--text);
   background: var(--surface);
   box-shadow: var(--shadow-large);
+  display: grid;
+  gap: 0.2rem;
+  max-width: min(36rem, calc(100vw - 2rem));
+}
+
+.operation-status small,
+.history-list small {
+  color: var(--text-muted);
 }
 
 .operation-error {
@@ -1158,6 +1196,96 @@ h2 {
   overflow-wrap: anywhere;
 }
 
+.operation-plan-details,
+.operation-plan-section,
+.operation-facts,
+.pending-group,
+.pending-list {
+  display: grid;
+}
+
+.operation-plan-details {
+  gap: 0.75rem;
+  padding: 0.9rem;
+  border: 0.0625rem solid var(--border);
+  border-radius: var(--radius-small);
+  background: var(--glass);
+}
+
+.operation-plan-details h4,
+.operation-plan-section h4 {
+  margin: 0;
+}
+
+.operation-facts {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+  margin: 0;
+}
+
+.operation-facts div {
+  min-width: 0;
+}
+
+.operation-facts dt {
+  color: var(--text-subtle);
+  font-size: 0.72rem;
+}
+
+.operation-facts dd {
+  margin: 0.2rem 0 0;
+}
+
+.operation-plan-section {
+  gap: 0.35rem;
+}
+
+.operation-plan-section ul {
+  margin: 0;
+}
+
+.operation-plan-section code {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.operation-warnings,
+.operation-conflicts {
+  color: oklch(0.84 0.12 74);
+}
+
+.text-diff {
+  display: grid;
+  max-height: 22rem;
+  margin: 0;
+  overflow: auto;
+  border: 0.0625rem solid var(--border);
+  border-radius: var(--radius-small);
+  background: var(--canvas-raised);
+  font: 0.74rem/1.55 ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+.diff-line {
+  min-height: 1.55em;
+  padding-inline: 0.75rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.diff-removed {
+  color: oklch(0.84 0.12 28);
+  background: oklch(0.52 0.14 28 / 0.16);
+}
+
+.diff-added {
+  color: var(--positive);
+  background: oklch(0.52 0.12 152 / 0.14);
+}
+
+.diff-context {
+  color: var(--text-subtle);
+}
+
 .diff-action {
   color: var(--text-muted);
   font-size: 0.72rem;
@@ -1178,6 +1306,79 @@ h2 {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+}
+
+.history-list li > span {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.pending-surface {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.pending-surface .page-heading {
+  padding-bottom: 0.5rem;
+}
+
+.pending-batch,
+.pending-list li,
+.pending-list label {
+  display: flex;
+  align-items: center;
+}
+
+.pending-batch {
+  position: sticky;
+  z-index: 2;
+  top: 0;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  padding: 0.75rem;
+  border: 0.0625rem solid var(--border-strong);
+  border-radius: var(--radius-small);
+  background: var(--surface);
+}
+
+.pending-batch span {
+  margin-right: auto;
+  font-weight: 650;
+}
+
+.pending-group {
+  gap: 0.65rem;
+}
+
+.pending-list {
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pending-list li {
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.8rem;
+  border: 0.0625rem solid var(--border);
+  border-radius: var(--radius-small);
+  background: var(--glass);
+}
+
+.pending-list label {
+  min-width: 0;
+  gap: 0.75rem;
+}
+
+.pending-list label > span {
+  display: grid;
+  min-width: 0;
+  gap: 0.15rem;
+}
+
+.pending-list small {
+  color: var(--text-subtle);
 }
 
 .safe-markdown {

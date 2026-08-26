@@ -123,6 +123,13 @@ export interface SnapshotRepository {
   put(snapshot: SkillSnapshot): void
   get(id: string): SkillSnapshot | undefined
   listForInstallation(installationId: string): readonly SkillSnapshot[]
+  /** Applies the 30-snapshot/90-day target without deleting current projections. */
+  prune(options: Readonly<{
+    now: Date
+    latestPerInstallation?: number
+    maxAgeDays?: number
+    storageCeilingBytes?: number
+  }>): number
   putProvenance(provenance: StoredProvenance): void
   getProvenance(id: string): StoredProvenance | undefined
 }
@@ -161,4 +168,6 @@ export interface ForgeStore {
 export interface OpenForgeStoreOptions {
   /** Injected by the Electron main process, normally below app.getPath("userData"). */
   readonly path: string
+  /** Restrict the parent directory to the current user. Enable only for a Forge-owned directory. */
+  readonly privateDirectory?: boolean
 }

@@ -3,7 +3,7 @@
 **Updated**: 2026-08-26
 **Branch**: `codex/forge-mvp`
 **Active Feature**: Forge MVP implementation and release readiness
-**Workflow Position**: Implementation and macOS acceptance complete; external release gates pending
+**Workflow Position**: Implementation plus macOS/Linux acceptance complete; Windows/license release gates pending
 **Active Plan**: `thoughts/plans/2026-08-26_forge-mvp.md` (In Progress)
 
 ## Key Decisions
@@ -21,15 +21,16 @@
 
 ## Current Blockers
 
-- Native packaged SQLite/filesystem evidence is still required on Windows and Linux before release.
+- Native packaged SQLite/filesystem evidence is still required on Windows before release.
 - The owner must choose the open-source license before `LICENSE` can be added.
 - No Git remote is configured, so the native GitHub Actions matrix cannot yet be executed.
 
 ## Current Evidence
 
-- Unit/integration: 37 files, 262 tests passing on Node 24.19.0 arm64.
-- Electron acceptance: 16/16 passing; immutable BV suite 10/10 and hash unchanged.
+- Unit/integration: 38 files, 269 tests passing on Node 24.19.0 arm64.
+- Electron acceptance: 17/17 passing; immutable BV suite 10/10 and hash unchanged.
 - macOS package/make, strict code-sign verification, ASAR/fuses, and packaged SQLite reopen smoke pass.
+- Native Linux ARM64 package/runtime, all Electron E2E scenarios, packaged SQLite reopen, DEB/RPM makers, and artifact verification pass.
 - CI and manual draft-Release workflows are implemented for native macOS, Windows, and Linux runners.
 - Final strict architecture re-review: APPROVE; no internal release-blocking finding remains.
 - Acceptance record: `thoughts/reviews/2026-08-26_forge-mvp-acceptance.md`.

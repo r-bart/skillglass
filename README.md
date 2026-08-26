@@ -20,6 +20,12 @@ Each release includes `SHA256SUMS.txt` and `build-metadata.json`. Verify the che
 
 An installation rollback is available only for the exact unchanged tree created by a recorded Forge operation. It is not a general uninstall feature.
 
+## Local data and retention
+
+Forge keeps its SQLite index and operation-recovery material below the operating system's per-user application-data directory. On POSIX systems Forge forces the database directory to mode `0700`, the database to `0600`, and the recovery directory to `0700`; it never uploads this data.
+
+Observed content snapshots retain the latest 30 snapshots per installation or every snapshot from the latest 90 days, whichever keeps more recoverable history. A 256 MiB snapshot-content ceiling is applied by default, while the snapshot referenced by the current inventory is never pruned. Exact recovery copies required by an available undo remain until that undo is completed or the Forge application data is removed, because deleting them earlier would make the persisted undo claim false.
+
 ## Development
 
 Forge requires Node.js 24.19.x and pnpm 11.5.x.

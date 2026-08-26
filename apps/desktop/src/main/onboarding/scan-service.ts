@@ -20,6 +20,7 @@ export interface ApprovedRootScanServiceOptions {
   readonly store: ForgeStore
   readonly onInventoryChanged?: (event: InventoryChangedEvent) => void
   readonly now?: () => Date
+  readonly snapshotStorageCeilingBytes?: number
 }
 
 function folderConfiguration(root: SourceRoot, projects: readonly ProjectScope[]): FolderRootConfiguration {
@@ -54,6 +55,7 @@ export class ApprovedRootScanService {
   readonly #store: ForgeStore
   readonly #onInventoryChanged: (event: InventoryChangedEvent) => void
   readonly #now: () => Date
+  readonly #snapshotStorageCeilingBytes: number
 
   constructor(options: ApprovedRootScanServiceOptions) {
     this.#codexAdapter = options.codexAdapter
@@ -63,6 +65,7 @@ export class ApprovedRootScanService {
     this.#store = options.store
     this.#onInventoryChanged = options.onInventoryChanged ?? (() => undefined)
     this.#now = options.now ?? (() => new Date())
+    this.#snapshotStorageCeilingBytes = options.snapshotStorageCeilingBytes ?? 256 * 1_024 * 1_024
   }
 
   async scan(
@@ -127,6 +130,12 @@ export class ApprovedRootScanService {
       installations: observations.map(({ installation }) => installation),
       bindings,
       effectiveSkills,
+    })
+    this.#store.snapshots.prune({
+      now: this.#now(),
+      latestPerInstallation: 30,
+      maxAgeDays: 90,
+      storageCeilingBytes: this.#snapshotStorageCeilingBytes,
     })
     this.#onInventoryChanged({
       installationIds: observations.map(({ installation }) => installation.id),

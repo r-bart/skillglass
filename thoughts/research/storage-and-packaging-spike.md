@@ -2,8 +2,8 @@
 
 **Date**: 2026-08-26
 **Plan task**: 0.2
-**Local status**: Passed on macOS ARM64
-**Cross-platform status**: Windows and Linux not yet tested
+**Original spike status**: Passed on macOS ARM64
+**Native follow-up status**: Passed on Linux ARM64 during final acceptance; Windows remains pending
 **Driver decision**: Use `node:sqlite` provisionally; native CI smoke tests are a release gate
 
 ## Decision

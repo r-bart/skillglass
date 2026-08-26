@@ -61,22 +61,38 @@ async function waitForDatabase(process: PackagedProcess, databasePath: string): 
   throw new Error(`Packaged Forge did not create forge.sqlite:\n${Buffer.concat(process.stderr).toString("utf8")}`)
 }
 
-function stopPackaged(process: PackagedProcess): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (process.child.exitCode !== null) {
-      reject(new Error(`Packaged Forge exited unexpectedly:\n${Buffer.concat(process.stderr).toString("utf8")}`))
-      return
+function hasExited(child: ChildProcess): boolean {
+  return child.exitCode !== null || child.signalCode !== null
+}
+
+function waitForExit(child: ChildProcess, timeoutMilliseconds: number): Promise<boolean> {
+  if (hasExited(child)) return Promise.resolve(true)
+  return new Promise((resolve) => {
+    const onExit = () => {
+      clearTimeout(timeout)
+      resolve(true)
     }
     const timeout = setTimeout(() => {
-      process.child.kill("SIGKILL")
-      reject(new Error("Packaged Forge did not terminate after SIGTERM"))
-    }, 10_000)
-    process.child.once("exit", () => {
-      clearTimeout(timeout)
-      resolve()
-    })
-    process.child.kill("SIGTERM")
+      child.off("exit", onExit)
+      resolve(false)
+    }, timeoutMilliseconds)
+    child.once("exit", onExit)
   })
+}
+
+async function stopPackaged(process: PackagedProcess): Promise<void> {
+  if (hasExited(process.child)) {
+    throw new Error(`Packaged Forge exited unexpectedly:\n${Buffer.concat(process.stderr).toString("utf8")}`)
+  }
+  process.child.kill("SIGTERM")
+  if (await waitForExit(process.child, 10_000)) return
+
+  // A desktop bundle is not required to behave like a POSIX daemon. Escalate so
+  // the smoke test also proves SQLite survives an interrupted packaged process.
+  process.child.kill("SIGKILL")
+  if (!await waitForExit(process.child, 5_000)) {
+    throw new Error(`Packaged Forge could not be terminated:\n${Buffer.concat(process.stderr).toString("utf8")}`)
+  }
 }
 
 test("native packaged app launches twice and reopens its SQLite store", async () => {

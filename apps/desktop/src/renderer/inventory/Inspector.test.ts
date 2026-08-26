@@ -1,6 +1,7 @@
 import { act, createElement } from "react"
 import { createRoot, type Root } from "react-dom/client"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { EditorView } from "@codemirror/view"
 
 import type {
   ForgeBridge,
@@ -271,13 +272,12 @@ describe("Inspector", () => {
     })))
 
     act(() => buttonNamed("Editar")?.click())
-    const textarea = container.querySelector("textarea")
-    if (textarea === null) throw new Error("Editor was not rendered")
+    const editorElement = container.querySelector<HTMLElement>(".cm-editor")
+    const editor = editorElement === null ? null : EditorView.findFromDOM(editorElement)
+    if (editor === null) throw new Error("Editor was not rendered")
     const changed = `${value.rawEntryContent}\nNueva regla verificable.`
     await act(async () => {
-      const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set
-      setter?.call(textarea, changed)
-      textarea.dispatchEvent(new Event("input", { bubbles: true }))
+      editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: changed } })
     })
     await act(async () => buttonNamed("Revisar cambios")?.click())
 
@@ -293,6 +293,36 @@ describe("Inspector", () => {
     await act(async () => buttonNamed("Actualizar skill")?.click())
     expect(confirm).toHaveBeenCalledWith({ planId: "plan_update" })
     expect(onStatus).toHaveBeenCalledWith("Skill actualizada")
+  })
+
+  it("keeps transient editor state mounted during watcher-driven detail refresh", async () => {
+    const value = detail()
+    let finishRefresh: ((next: InstallationDetailDto) => void) | undefined
+    const inventoryBridge = bridge(value)
+    const inspect = vi.fn()
+      .mockResolvedValueOnce(value)
+      .mockImplementationOnce(() => new Promise<InstallationDetailDto>((resolve) => { finishRefresh = resolve }))
+    const refreshingBridge = { ...inventoryBridge, inspect }
+    await act(async () => root.render(createElement(Inspector, {
+      installationId: value.installation.installationId,
+      inventoryBridge: refreshingBridge,
+      operationBridge: operations(),
+      revision: 0,
+    })))
+    act(() => buttonNamed("Editar")?.click())
+    expect(container.querySelector(".cm-editor")).not.toBeNull()
+
+    await act(async () => root.render(createElement(Inspector, {
+      installationId: value.installation.installationId,
+      inventoryBridge: refreshingBridge,
+      operationBridge: operations(),
+      revision: 1,
+    })))
+    expect(container.querySelector(".cm-editor")).not.toBeNull()
+    expect(container.textContent).not.toContain("Cargando inspector…")
+
+    await act(async () => finishRefresh?.(value))
+    expect(container.querySelector(".cm-editor")).not.toBeNull()
   })
 
   it("refuses a source update when main reports local divergence", async () => {

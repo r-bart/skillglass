@@ -148,7 +148,10 @@ export async function createOnboardingComposition(
     canonicalPath: canonicalRepository,
     adapterIds: ["codex", "folder"],
   }]
-  const store = openForgeStore({ path: path.join(app.getPath("userData"), "forge.sqlite") })
+  const store = openForgeStore({
+    path: path.join(app.getPath("userData"), "forge.sqlite"),
+    privateDirectory: true,
+  })
   const projectSettings = new ForgeProjectSettingsRepository(store.settings)
   const projectsState: { current: ProjectScope[] } = {
     current: uniqueProjects([

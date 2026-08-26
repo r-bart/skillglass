@@ -1,5 +1,5 @@
-import { mkdtempSync, rmSync } from "node:fs"
-import { join } from "node:path"
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, statSync } from "node:fs"
+import { dirname, join } from "node:path"
 import { tmpdir } from "node:os"
 import { DatabaseSync } from "node:sqlite"
 
@@ -179,6 +179,26 @@ function seedHistory(store: ForgeStore): Readonly<{
 }
 
 describe("openForgeStore", () => {
+  it.runIf(process.platform !== "win32")("stores private history under user-only filesystem permissions", () => {
+    const { path } = temporaryDatabase()
+    const store = openForgeStore({ path, privateDirectory: true })
+    store.close()
+
+    expect(statSync(dirname(path)).mode & 0o777).toBe(0o700)
+    expect(statSync(path).mode & 0o777).toBe(0o600)
+  })
+
+  it.runIf(process.platform !== "win32")("does not rewrite permissions of a generic parent directory", () => {
+    const { path } = temporaryDatabase()
+    mkdirSync(dirname(path), { recursive: true })
+    chmodSync(dirname(path), 0o755)
+    const store = openForgeStore({ path })
+    store.close()
+
+    expect(statSync(dirname(path)).mode & 0o777).toBe(0o755)
+    expect(statSync(path).mode & 0o777).toBe(0o600)
+  })
+
   it("creates every explicit migration with foreign keys and defensive settings", () => {
     const { path } = temporaryDatabase()
     const store = openForgeStore({ path })
@@ -340,6 +360,32 @@ describe("openForgeStore", () => {
         payload: {},
       }),
     ).toThrow()
+    store.close()
+  })
+
+  it("retains the newer of 30 snapshots or 90 days and always preserves the current projection", () => {
+    const store = openForgeStore({ path: temporaryDatabase().path })
+    const fixture = fixtures()
+    store.snapshots.put(fixture.snapshot)
+    store.snapshots.putProvenance(fixture.provenance)
+    for (let index = 0; index < 40; index += 1) {
+      store.snapshots.put({
+        ...fixture.snapshot,
+        id: `snapshot:old:${String(index).padStart(2, "0")}`,
+        observedAt: new Date(Date.UTC(2025, 0, index + 1)).toISOString(),
+      })
+    }
+    store.projections.replaceInventory(fixture.projection)
+
+    expect(store.snapshots.prune({ now: new Date("2026-08-26T12:00:00.000Z") })).toBe(11)
+    expect(store.snapshots.listForInstallation(fixture.installation.id)).toHaveLength(30)
+    expect(store.snapshots.get(fixture.snapshot.id)).toEqual(fixture.snapshot)
+
+    expect(store.snapshots.prune({
+      now: new Date("2026-08-26T12:00:00.000Z"),
+      storageCeilingBytes: 1,
+    })).toBe(29)
+    expect(store.snapshots.listForInstallation(fixture.installation.id)).toEqual([fixture.snapshot])
     store.close()
   })
 

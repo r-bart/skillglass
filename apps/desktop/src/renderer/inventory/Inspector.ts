@@ -16,6 +16,9 @@ import type {
 } from "@forge/contracts"
 
 import { AccessibleDialog } from "../AccessibleDialog.js"
+import { CodeEditor } from "../CodeEditor.js"
+import { OperationPlanDetails } from "../OperationPlanDetails.js"
+import { TextDiff } from "../TextDiff.js"
 
 type Finding = InstallationDetailDto["findings"][number]
 type SourceView = "preview" | "source"
@@ -404,16 +407,8 @@ function Inspection({
           "section",
           { className: "entry-editor", "aria-labelledby": "entry-editor-heading" },
           createElement("h3", { id: "entry-editor-heading" }, "Editar contenido"),
-          createElement(
-            "label",
-            { className: "editor-label" },
-            createElement("span", null, "Contenido"),
-            createElement("textarea", {
-              value: content,
-              rows: 18,
-              onChange: (event) => setContent((event.currentTarget as HTMLTextAreaElement).value),
-            }),
-          ),
+          createElement("p", { className: "editor-label", id: "editor-content-label" }, "Contenido"),
+          createElement(CodeEditor, { ariaLabel: "Contenido", value: content, onChange: setContent }),
           createElement(
             "div",
             { className: "inspector-actions" },
@@ -443,10 +438,10 @@ function Inspection({
             ...(operationBusy ? {} : { onDismiss: () => setPlan(undefined) }),
           },
             createElement("h3", { id: "update-dialog-title" }, "Confirmar actualización"),
-            createElement("p", null, "Archivo que se modificará:"),
+            createElement(OperationPlanDetails, { plan }),
             createElement("p", { className: "inspector-path" }, path),
-            createElement("p", null, "Contenido nuevo exacto:"),
-            createElement("pre", { className: "source-code operation-preview" }, content),
+            createElement("h4", null, "Diferencia de contenido"),
+            createElement(TextDiff, { before: detail.rawEntryContent, after: content }),
             createElement(
               "div",
               { className: "inspector-actions" },
@@ -482,17 +477,7 @@ function Inspection({
             ...(operationBusy ? {} : { onDismiss: () => setSourcePlan(undefined) }),
           },
             createElement("h3", { id: "source-update-title" }, "Confirmar actualización de origen"),
-            sourcePlan.destinationLabel === undefined ? null : createElement("p", { className: "inspector-path" }, sourcePlan.destinationLabel),
-            createElement(
-              "ul",
-              { className: "operation-diff" },
-              ...sourcePlan.affectedEntries.map((entry) => createElement(
-                "li",
-                { key: `${entry.action}:${entry.relativePath}` },
-                createElement("span", { className: `diff-action diff-${entry.action}` }, entry.action === "create" ? "Crear" : entry.action === "delete" ? "Eliminar" : "Modificar"),
-                createElement("code", null, entry.relativePath),
-              )),
-            ),
+            createElement(OperationPlanDetails, { plan: sourcePlan }),
             createElement(
               "div",
               { className: "inspector-actions" },
@@ -682,9 +667,10 @@ export function Inspector({ installationId, inventoryBridge, operationBridge, on
 
   const content = useMemo(() => {
     if (installationId === undefined) return createElement(EmptyInspector)
-    if (loading) return createElement("p", { role: "status" }, "Cargando inspector…")
     if (error !== undefined) return createElement("p", { role: "alert", className: "form-error" }, error)
-    if (detail === undefined) return createElement(EmptyInspector)
+    if (detail === undefined) return loading
+      ? createElement("p", { role: "status" }, "Cargando inspector…")
+      : createElement(EmptyInspector)
     return createElement(Inspection, {
       detail,
       inventoryBridge,

@@ -6,6 +6,7 @@ import { FuseV1Options } from "@electron/fuses"
 import config, {
   finalizeDarwinAdHocSignature,
   FORGE_FUSE_OPTIONS,
+  FORGE_LINUX_MAKER_OPTIONS,
   FORGE_PACKAGER_CONFIG,
 } from "../../forge.config.js"
 import mainVite from "../../vite.main.config.js"
@@ -27,6 +28,13 @@ describe("desktop distributable policy", () => {
       "MakerDeb",
       "MakerRpm",
     ])
+    expect(FORGE_LINUX_MAKER_OPTIONS).toMatchObject({
+      name: "forge",
+      productName: "Forge",
+      bin: "Forge",
+      license: "UNLICENSED",
+      categories: ["Development"],
+    })
   })
 
   it("uses explicit ad-hoc signing without claiming the future Developer ID policy", () => {
@@ -100,5 +108,16 @@ describe("desktop distributable policy", () => {
       "sudo-prompt",
       "node-windows",
     ]))
+  })
+
+  it("keeps the Linux Electron sandbox enabled in native smoke tests", async () => {
+    const workflow = await readFile(new URL("../../../../.github/workflows/ci.yml", import.meta.url), "utf8")
+    const releaseWorkflow = await readFile(new URL("../../../../.github/workflows/release.yml", import.meta.url), "utf8")
+    expect(workflow).toContain("sudo chown root:root apps/desktop/out/Forge-linux-*/chrome-sandbox")
+    expect(workflow).toContain("sudo chmod 4755 apps/desktop/out/Forge-linux-*/chrome-sandbox")
+    expect(releaseWorkflow).toContain("sudo chown root:root apps/desktop/out/Forge-linux-*/chrome-sandbox")
+    expect(releaseWorkflow).toContain("sudo chmod 4755 apps/desktop/out/Forge-linux-*/chrome-sandbox")
+    expect(workflow).not.toContain("--no-sandbox")
+    expect(releaseWorkflow).not.toContain("--no-sandbox")
   })
 })

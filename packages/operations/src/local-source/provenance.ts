@@ -51,16 +51,28 @@ function optionalString(value: unknown, label: string): string | undefined {
   return value === undefined ? undefined : string(value, label)
 }
 
+function optionalIntegerString(value: unknown, label: string): string | undefined {
+  const result = optionalString(value, label)
+  if (result !== undefined && !/^\d+$/u.test(result)) {
+    throw new LocalSourceError("SOURCE_INVALID", `${label} must be a non-negative integer string`)
+  }
+  return result
+}
+
 function identity(value: unknown): SourceIdentity {
   const candidate = record(value, "sourceIdentity")
   const size = candidate.size
   const modifiedMilliseconds = candidate.modifiedMilliseconds
+  const changedNanoseconds = optionalIntegerString(candidate.changedNanoseconds, "sourceIdentity.changedNanoseconds")
+  const createdNanoseconds = optionalIntegerString(candidate.createdNanoseconds, "sourceIdentity.createdNanoseconds")
   if (!Number.isSafeInteger(size) || (size as number) < 0 || !Number.isSafeInteger(modifiedMilliseconds)) {
     throw new LocalSourceError("SOURCE_INVALID", "sourceIdentity numeric fields must be safe non-negative integers")
   }
   return {
     device: string(candidate.device, "sourceIdentity.device"),
     inode: string(candidate.inode, "sourceIdentity.inode"),
+    ...(changedNanoseconds === undefined ? {} : { changedNanoseconds }),
+    ...(createdNanoseconds === undefined ? {} : { createdNanoseconds }),
     size: size as number,
     modifiedMilliseconds: modifiedMilliseconds as number,
   }

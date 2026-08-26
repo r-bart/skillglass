@@ -23,3 +23,7 @@ Release assets include SHA-256 checksums and build metadata. Builds do not yet c
 - Forge does not activate, deactivate, configure, or uninstall skills in a harness.
 - A journaled installation rollback removes only the exact unchanged tree created by that operation; it cannot delete an arbitrary installation.
 - Imported skill content is treated as data and is not executed during inspection, staging, installation, or update.
+
+## Sensitive local recovery data
+
+Snapshots can contain private skill text. Forge stores its SQLite database and recovery artifacts only in the operating system's per-user application-data directory and applies user-only permissions where the platform supports POSIX modes. Observation snapshots follow the documented 30-snapshot/90-day policy under a 256 MiB default ceiling, without pruning the snapshot used by the current inventory. Journal-owned recovery copies remain while restart-safe undo is available; removing Forge's application data removes that local history but also makes recovery and undo unavailable.

@@ -3,8 +3,8 @@ import path from "node:path"
 import { promisify } from "node:util"
 
 import { FusesPlugin } from "@electron-forge/plugin-fuses"
-import { MakerDeb } from "@electron-forge/maker-deb"
-import { MakerRpm } from "@electron-forge/maker-rpm"
+import { MakerDeb, type MakerDebConfig } from "@electron-forge/maker-deb"
+import { MakerRpm, type MakerRpmConfig } from "@electron-forge/maker-rpm"
 import { MakerSquirrel } from "@electron-forge/maker-squirrel"
 import { MakerZIP } from "@electron-forge/maker-zip"
 import { VitePlugin } from "@electron-forge/plugin-vite"
@@ -60,6 +60,18 @@ export const FORGE_FUSE_OPTIONS = {
   [FuseV1Options.WasmTrapHandlers]: true,
 } as const
 
+export const FORGE_LINUX_MAKER_OPTIONS: NonNullable<MakerDebConfig["options"]> & NonNullable<MakerRpmConfig["options"]> = {
+  name: "forge",
+  productName: "Forge",
+  genericName: "Agent skill manager",
+  description: "Local-first inventory and safe updater for agent skills",
+  productDescription: "Discover, inspect, install, and safely update agent skills without changing harness activation.",
+  bin: "Forge",
+  // Honest pre-release metadata; the release workflow refuses publication until LICENSE exists.
+  license: "UNLICENSED",
+  categories: ["Development"],
+}
+
 const config = {
   packagerConfig: FORGE_PACKAGER_CONFIG,
   rebuildConfig: {},
@@ -72,8 +84,8 @@ const config = {
   makers: [
     new MakerSquirrel({ name: "forge" }),
     new MakerZIP({}, ["darwin"]),
-    new MakerDeb({}),
-    new MakerRpm({}),
+    new MakerDeb({ options: FORGE_LINUX_MAKER_OPTIONS }),
+    new MakerRpm({ options: FORGE_LINUX_MAKER_OPTIONS }),
   ],
   plugins: [
     new VitePlugin({
