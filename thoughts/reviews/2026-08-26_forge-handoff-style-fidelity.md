@@ -109,3 +109,40 @@ El viewport de aceptación visual será 1420×892. A esa medida deben coincidir 
 - [Electron: guía oficial de custom title bar](https://www.electronjs.org/docs/latest/tutorial/custom-title-bar)
 - [Playwright: comparaciones visuales y snapshots por plataforma](https://playwright.dev/docs/test-snapshots)
 
+## Revisión post-implementación (Task 6.2)
+
+La revisión inicial de este documento describe el punto de partida. Tras ejecutar el plan de fidelidad, se repitió la comparación manual sobre el viewport canónico de **1420×892**. La implementación ya reproduce la geometría, densidad, jerarquía, materiales y lenguaje de controles del handoff en las superficies que comparten contrato de producto. Las diferencias restantes que se ven en estas composiciones son deliberadas y se enumeran abajo.
+
+### Método
+
+- El handoff se renderizó directamente desde `thoughts/handoff/App.dc.html` con Chrome, viewport exterior suficiente y un recorte exacto del marco de la aplicación en `x=28`, `y=28`, `1420×892`, DPR 1. No se reescaló su contenido.
+- La implementación se tomó de los goldens macOS de `tests/e2e/visual-fidelity.e2e.spec.ts-snapshots`, ya fijados a `1420×892`.
+- Cada *side-by-side* coloca el handoff a la izquierda y Forge a la derecha; mide `2840×892`.
+- Cada overlay conserva el handoff como base y aplica Forge al 50% de opacidad; mide `1420×892`.
+- Las áreas rectangulares neutras de Forge son máscaras de Playwright para rutas temporales, hashes, snapshots y timestamps volátiles. No representan controles ni contenido ausente.
+
+### Evidencia versionada
+
+| Superficie | Side-by-side | Overlay 50% |
+|---|---|---|
+| Inventario + inspector | [comparación](assets/forge-handoff-style-fidelity/inventory-inspector-side-by-side.png) | [overlay](assets/forge-handoff-style-fidelity/inventory-inspector-overlay-50.png) |
+| Pendientes | [comparación](assets/forge-handoff-style-fidelity/pending-side-by-side.png) | [overlay](assets/forge-handoff-style-fidelity/pending-overlay-50.png) |
+| Editor | [comparación](assets/forge-handoff-style-fidelity/editor-side-by-side.png) | [overlay](assets/forge-handoff-style-fidelity/editor-overlay-50.png) |
+| Historial | [comparación](assets/forge-handoff-style-fidelity/history-side-by-side.png) | [overlay](assets/forge-handoff-style-fidelity/history-overlay-50.png) |
+
+También se conservan en el mismo directorio las cuatro capturas del handoff normalizadas por recorte, con sufijo `-1420x892`, para que las composiciones puedan auditarse y regenerarse sin depender de una captura externa.
+
+### Desviaciones intencionales por contrato de producto
+
+1. **Chrome nativo y acciones reales.** Forge no dibuja semáforos HTML. La barra reserva el área nativa de la plataforma y muestra las acciones implementadas —pendientes, instalar e historial— en lugar de “Nueva skill”, Discover y otras entradas simuladas.
+2. **Inventario observado, no catálogo ficticio.** Los nombres, ámbitos y cantidades provienen del fixture de filesystem real. Forge conserva búsqueda, orden, agrupación, filtros progresivos y selección, pero omite activación, selección masiva, telemetría de uso, grafo y versiones inventadas.
+3. **Estados independientes y verificables.** Las filas separan validez, relación con el origen y actualización. Cuando no existe evidencia muestran “Sin datos”; no fabrican versión, popularidad, último uso ni alcance heredado para llenar la maqueta.
+4. **Inspector orientado a evidencia.** El panel mantiene los 326 px y la composición compacta del handoff, pero presenta runtime, ámbito, ubicación canónica, archivo de entrada, snapshot, hash y versión declarada. Se omiten autor, paquete, disparadores, permisos y dependencias cuando Forge no los puede acreditar.
+5. **Pendientes limitados a causas reales.** Solo aparecen actualización disponible, conflicto con origen y validación pendiente, con revisión individual. No se reintroducen duplicados inferidos, “sin usar”, reparación automática, desactivación ni una actualización heterogénea en lote. El toast visible confirma la operación real del fixture.
+6. **Edición segura de `SKILL.md`.** El editor conserva hoja, backdrop, densidad y footer, pero trabaja sobre el documento real y exige revisar el diff antes de escribir. Se excluyen reescritura con IA, edición de triggers, linaje de paquetes, archivos inventados y bifurcación de contenido gestionado.
+7. **Historial de operaciones, no versiones sintéticas.** Forge muestra el ledger local persistente y solo ofrece deshacer cuando el backend acredita reversibilidad. Por eso su historial es más corto y semánticamente distinto de la cronología de versiones de demostración del handoff.
+8. **Accesibilidad y contenido dinámico.** Los controles son botones, inputs, tablas/grid y diálogos semánticos con foco visible, teclado, reduced motion y forced colors. Rutas y evidencia reales pueden envolver o truncarse dentro de sus paneles; la geometría del marco permanece bloqueada.
+
+### Cierre visual
+
+La superposición confirma la coincidencia de las anclas estructurales compartidas: topbar de 46 px, sidebar de 226 px, inspector de 326 px, área central, filas de 52 px, hojas centradas, radios, bordes de medio píxel, backdrop y escala tipográfica compacta. Las diferencias de texto, población de filas y affordances corresponden a los ocho contratos anteriores, no a deriva estilística.
