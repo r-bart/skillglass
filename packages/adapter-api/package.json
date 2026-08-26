@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@forge/contracts": "workspace:*",
-    "@forge/domain": "workspace:*"
+    "@forge/domain": "workspace:*",
+    "@forge/scanner": "workspace:*"
   }
 }
