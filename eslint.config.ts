@@ -5,9 +5,10 @@ import tseslint from "typescript-eslint"
 export default tseslint.config(
   {
     ignores: [
-      "node_modules/**",
-      "out/**",
-      "dist/**",
+      "**/node_modules/**",
+      "**/.vite/**",
+      "**/out/**",
+      "**/dist/**",
       "coverage/**",
       "playwright-report/**",
       "test-results/**",

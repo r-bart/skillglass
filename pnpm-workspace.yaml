@@ -2,6 +2,16 @@ packages:
   - apps/*
   - packages/*
 
+nodeLinker: hoisted
+strictPeerDependencies: true
+
+peerDependencyRules:
+  allowedVersions:
+    "@electron/fuses": "2"
+
+overrides:
+  "@electron/fuses": 2.1.3
+
 catalog:
   zod: 4.4.3
   chokidar: 5.0.0
