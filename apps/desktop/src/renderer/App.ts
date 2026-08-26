@@ -34,6 +34,22 @@ const accessLabels: Record<RootCandidateDto["access"], string> = {
   denied: "Acceso denegado",
 }
 
+function historyKindLabel(kind: "install-local" | "update-entry-content" | "update-from-local"): string {
+  switch (kind) {
+    case "install-local": return "Instalación local"
+    case "update-entry-content": return "Actualización de contenido"
+    case "update-from-local": return "Actualización de origen"
+  }
+}
+
+function historyUndoLabel(kind: "install-local" | "update-entry-content" | "update-from-local"): string {
+  switch (kind) {
+    case "install-local": return "Deshacer instalación"
+    case "update-entry-content": return "Deshacer actualización"
+    case "update-from-local": return "Deshacer actualización de origen"
+  }
+}
+
 function Onboarding({
   state,
   selected,
@@ -473,40 +489,74 @@ export function App({
     historyOpen
       ? createElement(
           AccessibleDialog,
-          { labelledBy: "history-dialog-title", onDismiss: () => setHistoryOpen(false) },
-            createElement("h2", { id: "history-dialog-title" }, "Historial"),
-            historyError === undefined ? null : createElement("p", { role: "alert", className: "form-error" }, historyError),
-            history === undefined
-              ? createElement("p", null, "Cargando historial…")
-              : history.items.length === 0
-                ? createElement("p", null, "No hay operaciones registradas.")
-                : createElement(
-                    "ul",
-                    { className: "history-list" },
-                    ...history.items.map((item) => createElement(
-                      "li",
-                      { key: item.journalId },
-                      createElement("span", null,
-                        createElement("strong", null, item.kind === "install-local"
-                          ? "Instalación local"
-                          : item.kind === "update-entry-content"
-                            ? "Actualización de contenido"
-                            : "Actualización de origen"),
-                        createElement("small", null, new Intl.DateTimeFormat("es-ES", { dateStyle: "medium", timeStyle: "short" }).format(new Date(item.createdAt))),
-                        createElement("small", null, item.undoAvailable ? "Deshacer disponible tras reiniciar" : "Sin acción de deshacer disponible"),
-                      ),
-                      item.undoAvailable ? createElement("button", {
-                          type: "button",
-                          className: "primary-action",
-                          onClick: () => { void undo(item.journalId) },
-                        }, item.kind === "install-local"
-                          ? "Deshacer instalación"
-                          : item.kind === "update-entry-content"
-                            ? "Deshacer actualización"
-                            : "Deshacer actualización de origen") : null,
-                    )),
-                  ),
-            createElement("button", { type: "button", className: "secondary-action", onClick: () => setHistoryOpen(false) }, "Cerrar"),
+          {
+            className: "history-sheet",
+            describedBy: "history-dialog-description",
+            labelledBy: "history-dialog-title",
+            onDismiss: () => setHistoryOpen(false),
+          },
+            createElement(
+              "header",
+              { className: "sheet-header history-sheet__header" },
+              createElement("h2", { id: "history-dialog-title" }, "Historial"),
+              createElement(
+                "p",
+                { id: "history-dialog-description" },
+                "Registro persistente de operaciones locales y de las acciones de deshacer que siguen disponibles.",
+              ),
+            ),
+            createElement(
+              "div",
+              { className: "history-sheet__body" },
+              historyError === undefined ? null : createElement("p", { role: "alert", className: "form-error" }, historyError),
+              history === undefined
+                ? createElement("p", { className: "sheet-state", role: "status" }, "Cargando historial…")
+                : history.items.length === 0
+                  ? createElement("p", { className: "sheet-state" }, "No hay operaciones registradas.")
+                  : createElement(
+                      "ul",
+                      { className: "history-list" },
+                      ...history.items.map((item) => createElement(
+                        "li",
+                        { key: item.journalId },
+                        createElement("span", { "aria-hidden": "true", className: "history-entry__marker" }, "↶"),
+                        createElement(
+                          "span",
+                          { className: "history-entry__content" },
+                          createElement("strong", null, historyKindLabel(item.kind)),
+                          createElement(
+                            "small",
+                            null,
+                            new Intl.DateTimeFormat("es-ES", { dateStyle: "medium", timeStyle: "short" }).format(new Date(item.createdAt)),
+                          ),
+                          createElement("small", { className: "history-entry__id" }, item.journalId),
+                        ),
+                        createElement(
+                          StatusPill,
+                          { tone: item.undoAvailable ? "ok" : "idle" },
+                          item.undoAvailable ? "Reversible" : "Solo registro",
+                        ),
+                        item.undoAvailable
+                          ? createElement(QuietAction, {
+                              className: "history-entry__action",
+                              onClick: () => { void undo(item.journalId) },
+                            }, historyUndoLabel(item.kind))
+                          : null,
+                      )),
+                    ),
+            ),
+            createElement(
+              "footer",
+              { className: "sheet-footer history-sheet__footer" },
+              createElement(
+                "p",
+                null,
+                history === undefined
+                  ? "Consultando el journal local…"
+                  : `${history.items.length} ${history.items.length === 1 ? "operación registrada" : "operaciones registradas"}`,
+              ),
+              createElement(MetalAction, { onClick: () => setHistoryOpen(false) }, "Cerrar"),
+            ),
         )
       : null,
     pendingInstallSource === undefined

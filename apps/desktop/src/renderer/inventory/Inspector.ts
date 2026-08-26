@@ -22,7 +22,6 @@ import { TextDiff } from "../TextDiff.js"
 import {
   DarkAction,
   MetalAction,
-  QuietAction,
   SkillTile,
   StatusPill,
 } from "../VisualPrimitives.js"
@@ -263,6 +262,7 @@ function Inspection({
   const [sourcePlan, setSourcePlan] = useState<OperationPlanDto>()
   const [sourceConflict, setSourceConflict] = useState<string>()
   const [operationBusy, setOperationBusy] = useState(false)
+  const editButtonRef = useRef<HTMLButtonElement>(null)
   const reviewButtonRef = useRef<HTMLButtonElement>(null)
   const path = entryPath(detail)
   const name = detail.installation.name.state === "known"
@@ -401,18 +401,90 @@ function Inspection({
       { className: "inspector-detail__description" },
       createElement("p", { className: "inspector-description" }, description),
     ),
+    editing && plan === undefined
+      ? createElement(
+          AccessibleDialog,
+          {
+            className: "editor-sheet",
+            describedBy: "editor-dialog-description",
+            labelledBy: "editor-dialog-title",
+            onDismiss: () => { setEditing(false); setPlan(undefined) },
+            returnFocus: editButtonRef,
+          },
+            createElement(
+              "header",
+              { className: "sheet-header editor-sheet__header" },
+              createElement(SkillTile, {
+                adapterId: detail.installation.adapterId,
+                className: "editor-sheet__tile",
+                skillKey: detail.installation.key,
+              }),
+              createElement(
+                "div",
+                { className: "editor-sheet__identity" },
+                createElement("h3", { id: "editor-dialog-title" }, `Editar ${name}`),
+                createElement(
+                  "p",
+                  { id: "editor-dialog-description" },
+                  `${adapterLabel(detail.installation.adapterId)} · ${scopeLabel(detail.installation.scope)} · editable`,
+                ),
+              ),
+              createElement(StatusPill, { tone: "ok" }, "Editable"),
+            ),
+            createElement(
+              "div",
+              { className: "editor-sheet__body" },
+              createElement(
+                "section",
+                { className: "entry-editor", "aria-labelledby": "editor-content-label" },
+                createElement("p", { className: "editor-label", id: "editor-content-label" }, "Contenido de SKILL.md"),
+                createElement(CodeEditor, { ariaLabel: "Contenido", value: content, onChange: setContent }),
+              ),
+              createElement(
+                "aside",
+                { className: "editor-sheet__facts", "aria-labelledby": "editor-context-title" },
+                createElement("h4", { className: "editor-label", id: "editor-context-title" }, "Contexto observado"),
+                createElement(
+                  "dl",
+                  null,
+                  createElement("div", null, createElement("dt", null, "Skill"), createElement("dd", null, name)),
+                  createElement("div", null, createElement("dt", null, "Ubicación"), createElement("dd", null, path)),
+                  createElement("div", null, createElement("dt", null, "Gestión"), createElement("dd", null, managerLabels[detail.provenance.managedBy])),
+                  createElement("div", null, createElement("dt", null, "Snapshot"), createElement("dd", null, detail.snapshotId)),
+                ),
+                createElement(
+                  "p",
+                  { className: "editor-sheet__safety" },
+                  "Forge prepara un diff exacto antes de escribir y conserva una operación reversible cuando el backend lo acredita.",
+                ),
+              ),
+            ),
+            actionError === undefined
+              ? null
+              : createElement("p", { className: "form-error editor-sheet__error", role: "alert" }, actionError),
+            createElement(
+              "footer",
+              { className: "sheet-footer editor-sheet__footer" },
+              createElement("p", { className: "editor-sheet__note" }, "Los cambios aún no se han escrito en disco."),
+              createElement("button", {
+                className: "secondary-action",
+                disabled: operationBusy,
+                onClick: () => { setEditing(false); setPlan(undefined) },
+                type: "button",
+              }, "Cancelar"),
+              createElement("button", {
+                ref: reviewButtonRef,
+                className: "primary-action",
+                type: "button",
+                disabled: operationBusy || content === detail.rawEntryContent,
+                onClick: () => { void review() },
+              }, operationBusy ? "Preparando…" : "Revisar cambios"),
+            ),
+        )
+      : null,
     createElement(
       "div",
       { className: "inspector-detail__scroll" },
-      editing
-        ? createElement(
-            "section",
-            { className: "entry-editor", "aria-labelledby": "entry-editor-heading" },
-            createElement("h3", { id: "entry-editor-heading" }, "Editar contenido"),
-            createElement("p", { className: "editor-label", id: "editor-content-label" }, "Contenido"),
-            createElement(CodeEditor, { ariaLabel: "Contenido", value: content, onChange: setContent }),
-          )
-        : null,
       plan === undefined
         ? null
         : createElement(
@@ -470,7 +542,7 @@ function Inspection({
                 createElement("button", { type: "button", className: "secondary-action", disabled: operationBusy, onClick: () => setSourcePlan(undefined) }, "Cancelar"),
               ),
           ),
-      actionError === undefined
+      actionError === undefined || editing
         ? null
         : createElement("p", { className: "form-error", role: "alert" }, actionError),
       createElement(
@@ -614,27 +686,28 @@ function Inspection({
       "footer",
       { className: "inspector-footer" },
       editing
-        ? createElement("button", {
-            ref: reviewButtonRef,
-            className: "primary-action",
-            type: "button",
-            disabled: operationBusy || content === detail.rawEntryContent,
-            onClick: () => { void review() },
-          }, operationBusy ? "Preparando…" : "Revisar cambios")
+        ? createElement("span", { className: "inspector-read-only-note" }, "Edición abierta")
         : createElement(DarkAction, { onClick: () => { void openEntry() } }, "Abrir archivo"),
-      editing
-        ? createElement(QuietAction, {
-            disabled: operationBusy,
-            onClick: () => { setEditing(false); setPlan(undefined) },
-          }, "Cancelar")
-        : detail.capabilities.canEditEntry
-          ? createElement(QuietAction, {
+      !editing && detail.capabilities.canEditEntry
+        ? createElement("button", {
+              ref: editButtonRef,
+              className: "visual-action visual-action--quiet",
               onClick: () => {
                 setContent(detail.rawEntryContent)
                 setEditing(true)
                 setPlan(undefined)
               },
+              type: "button",
             }, "Editar")
+        : !editing
+          ? createElement(
+              "span",
+              {
+                className: "inspector-read-only-note",
+                title: detail.capabilities.unavailableReasons.join(" · "),
+              },
+              "Solo inspección",
+            )
           : null,
       !editing && detail.capabilities.canUpdateFromSource && (
         detail.installation.status.update === "available" ||

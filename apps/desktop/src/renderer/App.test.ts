@@ -380,4 +380,39 @@ describe("Forge application shell", () => {
     }))
     expect(container.querySelector('[role="alert"]')?.textContent).toContain("No se pudo observar una carpeta")
   })
+
+  it("presents persistent history as a labelled sheet with internal actions", async () => {
+    const history = vi.fn(() => Promise.resolve({
+      items: [{
+        journalId: "journal_history_update",
+        kind: "update-entry-content" as const,
+        installationIds: ["installation_history"],
+        createdAt: "2026-08-26T10:00:00.000Z",
+        undoAvailable: true,
+      }],
+    }))
+    await act(async () => root.render(createElement(App, {
+      onboardingBridge: onboardingBridge(completeState),
+      inventoryBridge,
+      eventBridge,
+      operationBridge: { ...operationBridge, history },
+    })))
+    const trigger = buttonNamed("Historial")
+
+    trigger.focus()
+    await act(async () => trigger.click())
+
+    const dialog = container.querySelector<HTMLElement>('[role="dialog"]')
+    expect(dialog?.classList.contains("history-sheet")).toBe(true)
+    expect(dialog?.getAttribute("aria-labelledby")).toBe("history-dialog-title")
+    expect(dialog?.getAttribute("aria-describedby")).toBe("history-dialog-description")
+    expect(dialog?.querySelector(".history-sheet__body")?.textContent).toContain("Actualización de contenido")
+    expect(dialog?.querySelector(".history-sheet__footer")?.textContent).toContain("1 operación registrada")
+    expect(buttonNamed("Deshacer actualización")).toBeInstanceOf(HTMLButtonElement)
+    expect(dialog?.contains(document.activeElement)).toBe(true)
+
+    await act(async () => dialog?.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Escape" })))
+    expect(container.querySelector(".history-sheet")).toBeNull()
+    expect(document.activeElement).toBe(trigger)
+  })
 })

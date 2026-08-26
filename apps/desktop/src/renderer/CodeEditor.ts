@@ -43,7 +43,7 @@ export function CodeEditor({ ariaLabel, value, onChange }: CodeEditorProps) {
             if (update.docChanged) onChangeRef.current(update.state.doc.toString())
           }),
           EditorView.theme({
-            "&": { height: "24rem" },
+            "&": { height: "100%", minHeight: "0" },
             ".cm-scroller": { overflow: "auto", fontFamily: "ui-monospace, SFMono-Regular, Consolas, monospace" },
           }),
         ],

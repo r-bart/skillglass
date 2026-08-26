@@ -21,14 +21,18 @@ function focusableChildren(dialog: HTMLElement): HTMLElement[] {
 }
 
 export function AccessibleDialog({
+  className,
+  describedBy,
   labelledBy,
   onDismiss,
   returnFocus,
   children,
 }: {
+  readonly className?: string
+  readonly describedBy?: string
   readonly labelledBy: string
   readonly onDismiss?: () => void
-  readonly returnFocus?: HTMLElement | null
+  readonly returnFocus?: HTMLElement | null | Readonly<{ current: HTMLElement | null }>
   readonly children?: ReactNode
 }) {
   const dialogRef = useRef<HTMLDivElement>(null)
@@ -71,7 +75,9 @@ export function AccessibleDialog({
     dialog.addEventListener("keydown", keydown)
     return () => {
       dialog.removeEventListener("keydown", keydown)
-      const restoreTarget = returnFocus ?? previousFocusRef.current
+      const restoreTarget = returnFocus !== null && typeof returnFocus === "object" && "current" in returnFocus
+        ? returnFocus.current
+        : returnFocus ?? previousFocusRef.current
       if (restoreTarget?.isConnected === true) restoreTarget.focus()
     }
   }, [returnFocus])
@@ -85,8 +91,9 @@ export function AccessibleDialog({
         ref: dialogRef,
         role: "dialog",
         "aria-modal": "true",
+        "aria-describedby": describedBy,
         "aria-labelledby": labelledBy,
-        className: "operation-dialog",
+        className: ["operation-dialog", className].filter(Boolean).join(" "),
         tabIndex: -1,
       },
       children,

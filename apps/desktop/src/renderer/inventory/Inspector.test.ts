@@ -242,6 +242,7 @@ describe("Inspector", () => {
       .toHaveLength(1)
     expect(buttonNamed("Abrir archivo")).toBeInstanceOf(HTMLButtonElement)
     expect(buttonNamed("Editar")).toBeUndefined()
+    expect(container.querySelector(".inspector-read-only-note")?.textContent).toBe("Solo inspección")
   })
 
   it("keeps long Windows paths, file names, snapshot ids, and hashes inside the inspector data regions", async () => {
@@ -309,11 +310,15 @@ describe("Inspector", () => {
     })))
 
     act(() => buttonNamed("Editar")?.click())
+    const editorDialog = container.querySelector<HTMLElement>('[role="dialog"]')
+    expect(editorDialog?.classList.contains("editor-sheet")).toBe(true)
+    expect(editorDialog?.getAttribute("aria-labelledby")).toBe("editor-dialog-title")
+    expect(editorDialog?.getAttribute("aria-describedby")).toBe("editor-dialog-description")
     const editorElement = container.querySelector<HTMLElement>(".cm-editor")
     const editor = editorElement === null ? null : EditorView.findFromDOM(editorElement)
     if (editor === null) throw new Error("Editor was not rendered")
-    expect(container.querySelector(".inspector-footer")?.contains(buttonNamed("Revisar cambios") ?? null)).toBe(true)
-    expect(container.querySelector(".inspector-footer")?.contains(buttonNamed("Cancelar") ?? null)).toBe(true)
+    expect(container.querySelector(".editor-sheet__footer")?.contains(buttonNamed("Revisar cambios") ?? null)).toBe(true)
+    expect(container.querySelector(".editor-sheet__footer")?.contains(buttonNamed("Cancelar") ?? null)).toBe(true)
     const changed = `${value.rawEntryContent}\nNueva regla verificable.`
     await act(async () => {
       editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: changed } })
@@ -332,6 +337,25 @@ describe("Inspector", () => {
     await act(async () => buttonNamed("Actualizar skill")?.click())
     expect(confirm).toHaveBeenCalledWith({ planId: "plan_update" })
     expect(onStatus).toHaveBeenCalledWith("Skill actualizada")
+  })
+
+  it("closes the editor sheet with Escape and restores focus to its trigger", async () => {
+    const value = detail()
+    await act(async () => root.render(createElement(Inspector, {
+      installationId: value.installation.installationId,
+      inventoryBridge: bridge(value),
+      operationBridge: operations(),
+    })))
+    const trigger = buttonNamed("Editar")
+    trigger?.focus()
+    act(() => trigger?.click())
+    const dialog = container.querySelector<HTMLElement>('[role="dialog"]')
+    expect(dialog?.contains(document.activeElement)).toBe(true)
+
+    await act(async () => dialog?.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Escape" })))
+
+    expect(container.querySelector(".editor-sheet")).toBeNull()
+    expect(document.activeElement).toBe(buttonNamed("Editar"))
   })
 
   it("keeps transient editor state mounted during watcher-driven detail refresh", async () => {
