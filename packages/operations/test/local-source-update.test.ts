@@ -20,6 +20,7 @@ import {
   inspectStrictTree,
   type LocalImportProvenanceV1,
   type LocalSourceUpdateObservation,
+  type OperationPlan,
 } from "../src/index.js"
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..")
@@ -86,7 +87,7 @@ function updateAdapterPlan(observation: LocalSourceUpdateObservation, planId = "
   }
 }
 
-async function updateHarness() {
+async function updateHarness(afterPersist?: (plan: OperationPlan) => Promise<void> | void) {
   const sourcePath = await temporaryDirectory()
   await cp(fixtureRoot, sourcePath, { recursive: true })
   await writeFile(path.join(sourcePath, "obsolete.txt"), "remove me\n")
@@ -124,6 +125,7 @@ async function updateHarness() {
     fileSystem,
     clock: { now: () => new Date(NOW) },
     ids: { next: (() => { let id = 0; return () => `update-event-${String(id++)}` })() },
+    ...(afterPersist === undefined ? {} : { afterPersist }),
   })
   await engine.recoverStartup()
   const store = new MemoryProvenanceStore()
@@ -209,6 +211,31 @@ describe("local-source update discovery", () => {
 })
 
 describe("local-source update apply", () => {
+  it("rechecks the installed tree after durable applying and preserves a concurrent edit", async () => {
+    let destination = ""
+    const harness = await updateHarness(async (persisted) => {
+      if (persisted.state === "applying") {
+        await writeFile(path.join(destination, "SKILL.md"), "external edit during applying\n")
+      }
+    })
+    destination = harness.destination
+    await harness.makeV2()
+    const observation = await harness.coordinator.observePersisted("provenance-v1", "explicit")
+    const prepared = await harness.coordinator.prepare({
+      observationId: observation.observationId,
+      adapterPlan: updateAdapterPlan(observation, "update-applying-race"),
+      journalId: "journal-update-applying-race",
+      provenanceId: "provenance-applying-race",
+    })
+
+    await expect(harness.coordinator.execute(prepared)).rejects.toMatchObject({
+      name: "OperationConflictError",
+    })
+    expect(await readFile(path.join(destination, "SKILL.md"), "utf8")).toBe("external edit during applying\n")
+    expect(await harness.operationRepository.get(prepared.plan.id)).toMatchObject({ state: "rolled-back" })
+    expect(harness.store.getProvenance("provenance-applying-race")).toBeUndefined()
+  })
+
   it("refuses a source change after preview without touching the destination", async () => {
     const harness = await updateHarness()
     await harness.makeV2()

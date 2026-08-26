@@ -85,6 +85,11 @@ export class RootWatcherReconciler {
     })
   }
 
+  async ready(): Promise<void> {
+    if (this.#state !== "started") throw new Error("Root watcher must be started before waiting for readiness")
+    await this.#watcher?.ready?.()
+  }
+
   recordJournalMutation(input: JournalMutation): void {
     if (this.#state === "disposed") throw new Error("Root watcher is disposed")
     this.#correlator.record(input)

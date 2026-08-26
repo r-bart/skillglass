@@ -397,6 +397,14 @@ describe("closed channel and event allowlists", () => {
       installationIds: ["installation_alpha"],
       reason: "operation",
       observedAt: NOW,
+      findings: [{
+        code: "ROOT_SCAN_FAILED",
+        severity: "error",
+        message: "The approved root could not be scanned",
+        rootId: "root_global",
+        adapterId: "folder",
+        path: "/skills",
+      }],
     })
     expectJsonRoundTrip(OperationProgressEventSchema, {
       operationId: "operation_alpha",

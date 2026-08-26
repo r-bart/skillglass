@@ -1,6 +1,8 @@
 import type {
+  EffectiveSkill,
   ProjectScope,
   Provenance,
+  ScopeBinding,
   SkillInstallation,
   SkillSnapshot,
   SourceRoot,
@@ -15,6 +17,10 @@ export interface InventoryProjection {
   readonly projects: readonly ProjectScope[]
   readonly roots: readonly SourceRoot[]
   readonly installations: readonly SkillInstallation[]
+  /** Reconstructible adapter-owned visibility/runtime observations. */
+  readonly bindings?: readonly ScopeBinding[]
+  /** Reconstructible adapter-owned collision/precedence results. */
+  readonly effectiveSkills?: readonly EffectiveSkill[]
 }
 
 export interface StoredProvenance {
@@ -104,6 +110,8 @@ export interface ProjectionRepository {
   listRoots(): readonly SourceRoot[]
   listInstallations(): readonly SkillInstallation[]
   getInstallation(id: string): SkillInstallation | undefined
+  listBindings(): readonly ScopeBinding[]
+  listEffectiveSkills(): readonly EffectiveSkill[]
 }
 
 export interface InventoryQueryRepository {

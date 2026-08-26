@@ -17,10 +17,12 @@ import {
   LocalSourceError,
   LocalSourceProvenanceRepository,
   LocalSourceUpdateCoordinator,
+  OperationInterruptedError,
   OperationEngine,
   ProjectionContentFileSystem,
   SourceSelectionService,
   StorageOperationRepository,
+  type OperationPlan,
 } from "@forge/operations"
 import type { ApprovedRootInput } from "@forge/scanner"
 import { openForgeStore } from "@forge/storage"
@@ -50,11 +52,20 @@ function folderInstallationId(candidate: string): string {
   return `installation_${createHash("sha256").update(identity).digest("hex").slice(0, 32)}`
 }
 
-async function harness() {
-  const targetRoot = await temporaryDirectory()
-  const recoveryRoot = await temporaryDirectory()
-  const sourceRoot = await temporaryDirectory()
-  await cp(fixtureRoot, sourceRoot, { recursive: true })
+interface HarnessOptions {
+  readonly targetRoot?: string
+  readonly recoveryRoot?: string
+  readonly sourceRoot?: string
+  readonly databasePath?: string
+  readonly afterPersist?: (plan: OperationPlan) => Promise<void> | void
+}
+
+async function harness(options: HarnessOptions = {}) {
+  const targetRoot = options.targetRoot ?? await temporaryDirectory()
+  const recoveryRoot = options.recoveryRoot ?? await temporaryDirectory()
+  const sourceRoot = options.sourceRoot ?? await temporaryDirectory()
+  if (options.sourceRoot === undefined) await cp(fixtureRoot, sourceRoot, { recursive: true })
+  const databasePath = options.databasePath ?? path.join(await temporaryDirectory(), "forge.sqlite")
   const canonicalTargetRoot = await realpath(targetRoot)
   const root: SourceRoot = {
     id: "root_user_skills",
@@ -78,7 +89,7 @@ async function harness() {
     access: "read-write",
     writableWithoutElevation: true,
   }] })
-  const store = openForgeStore({ path: ":memory:" })
+  const store = openForgeStore({ path: databasePath })
   store.projections.replaceInventory({ projects: [], roots: [root], installations: [] })
   const policy = await RefreshableApprovedRootPolicy.create([root], [recovery])
   const repository = new StorageOperationRepository(store.operations)
@@ -87,6 +98,7 @@ async function harness() {
   const engine = new OperationEngine({
     repository,
     fileSystem: new ArtifactFileSystemRouter(contentFileSystem, treeFileSystem),
+    ...(options.afterPersist === undefined ? {} : { afterPersist: options.afterPersist }),
   })
   await engine.recoverStartup()
   const leases = new PrivateSourceLeaseRepository(store.settings)
@@ -160,10 +172,38 @@ async function harness() {
     leases,
     ids: () => `integration${String(id++)}`,
   })
-  return { targetRoot, recoveryRoot, sourceRoot, root, store, service }
+  return { targetRoot, recoveryRoot, sourceRoot, databasePath, root, store, service, rescan }
 }
 
 describe("desktop local operation integration", () => {
+  it("invalidates a persisted preview when a watcher reports an overlapping external change", async () => {
+    const test = await harness()
+    const selection = await test.service.selectLocalSource({ kind: "directory" })
+    if (selection?.kind !== "directory") throw new Error("directory selection was cancelled")
+    const suggestedName = path.basename(test.sourceRoot)
+    const plan = await test.service.plan({
+      kind: "install-local",
+      targetRootId: test.root.id,
+      source: {
+        kind: "directory",
+        selectionToken: selection.selectionToken,
+        suggestedName,
+        treeHash: selection.treeHash,
+      },
+    })
+    expect(test.service.invalidatePlansForExternalChange({
+      rootId: test.root.id,
+      paths: [path.join(test.root.canonicalPath, suggestedName, "SKILL.md")],
+      observedAt: "2026-08-26T12:00:00.000Z",
+    })).toEqual([plan.planId])
+
+    const result = await test.service.confirm({ planId: plan.planId })
+    expect(result).toMatchObject({ status: "stale", undoAvailable: false })
+    await expect(readFile(path.join(test.targetRoot, suggestedName, "SKILL.md"), "utf8"))
+      .rejects.toMatchObject({ code: "ENOENT" })
+    test.store.close()
+  })
+
   it("installs, discovers an update, applies it, persists provenance, and undoes", async () => {
     const test = await harness()
     const selection = await test.service.selectLocalSource({ kind: "directory" })
@@ -220,6 +260,100 @@ describe("desktop local operation integration", () => {
     expect(await readFile(path.join(destination, "references/guide.md"), "utf8")).toContain("exact LF-terminated")
     expect(test.store.inventory.inspect(currentInstallation.id)?.installation.status.update).toBe("available")
     expect((await test.service.history()).items.map(({ kind }) => kind)).toContain("update-from-local")
+  })
+
+  it("reconstructs committed install and source-update provenance/base rows after SQLite restart", async () => {
+    let interruptedInstall = false
+    const first = await harness({
+      afterPersist: (persisted) => {
+        if (!interruptedInstall && persisted.kind === "install" && persisted.state === "committed") {
+          interruptedInstall = true
+          throw new OperationInterruptedError("crash after durable install commit")
+        }
+      },
+    })
+    const selection = await first.service.selectLocalSource({ kind: "directory" })
+    if (selection?.kind !== "directory") throw new Error("directory selection was cancelled")
+    const installPlan = await first.service.plan({
+      kind: "install-local",
+      targetRootId: first.root.id,
+      source: {
+        kind: "directory",
+        selectionToken: selection.selectionToken,
+        suggestedName: path.basename(first.sourceRoot),
+        treeHash: selection.treeHash,
+      },
+    })
+    expect(await first.service.confirm({ planId: installPlan.planId })).toMatchObject({ status: "failed" })
+    expect(first.store.operations.getPlan(installPlan.planId)?.state).toBe("committed")
+    first.store.close()
+
+    let interruptedUpdate = false
+    const second = await harness({
+      targetRoot: first.targetRoot,
+      recoveryRoot: first.recoveryRoot,
+      sourceRoot: first.sourceRoot,
+      databasePath: first.databasePath,
+      afterPersist: (persisted) => {
+        if (!interruptedUpdate && persisted.kind === "update-source" && persisted.state === "committed") {
+          interruptedUpdate = true
+          throw new OperationInterruptedError("crash after durable source-update commit")
+        }
+      },
+    })
+    await second.rescan()
+    await second.service.recoverCommittedLocalState()
+    const recoveredInstall = second.store.projections.listInstallations()[0]
+    if (recoveredInstall === undefined) throw new Error("recovered installation missing")
+    const recoveredInstallProvenance = new LocalSourceProvenanceRepository(second.store.snapshots)
+      .reconstruct(recoveredInstall.provenanceId)
+    expect(recoveredInstallProvenance).toMatchObject({
+      kind: "forge-import",
+      installedTreeHash: selection.treeHash,
+      createdByJournalId: installPlan.planId,
+    })
+    expect(second.store.updates.get(recoveredInstall.id)).toMatchObject({
+      state: "current",
+      baseTreeHash: selection.treeHash,
+    })
+
+    await writeFile(path.join(second.sourceRoot, "references/guide.md"), "# Recovered v2\n")
+    await second.service.refreshUpdates()
+    const installation = second.store.projections.getInstallation(recoveredInstall.id)
+    if (installation === undefined) throw new Error("installation missing before recovered update")
+    const updatePlan = await second.service.plan({
+      kind: "update-from-local",
+      installationId: installation.id,
+      expectedSnapshotId: installation.snapshotId,
+    })
+    expect(await second.service.confirm({ planId: updatePlan.planId })).toMatchObject({ status: "failed" })
+    expect(second.store.operations.getPlan(updatePlan.planId)?.state).toBe("committed")
+    second.store.close()
+
+    const third = await harness({
+      targetRoot: first.targetRoot,
+      recoveryRoot: first.recoveryRoot,
+      sourceRoot: first.sourceRoot,
+      databasePath: first.databasePath,
+    })
+    await third.rescan()
+    await third.service.recoverCommittedLocalState()
+    await third.service.recoverCommittedLocalState()
+    const recoveredUpdate = third.store.projections.getInstallation(recoveredInstall.id)
+    if (recoveredUpdate === undefined) throw new Error("updated installation missing after restart")
+    const provenance = new LocalSourceProvenanceRepository(third.store.snapshots)
+      .reconstruct(recoveredUpdate.provenanceId)
+    expect(provenance).toMatchObject({
+      updatedByJournalId: updatePlan.planId,
+      previousInstalledTreeHash: selection.treeHash,
+    })
+    expect(third.store.updates.get(recoveredUpdate.id)).toMatchObject({
+      state: "current",
+      baseTreeHash: provenance?.installedTreeHash,
+      installedTreeHash: provenance?.installedTreeHash,
+      sourceTreeHash: provenance?.sourceTreeHash,
+    })
+    third.store.close()
   })
 
   it("returns the Spanish unsafe-path message without exposing a selected ZIP path", async () => {

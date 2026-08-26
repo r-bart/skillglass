@@ -259,6 +259,7 @@ export interface InventoryProps {
 }
 
 export function Inventory({ inventoryBridge, eventBridge, onSelectionChange }: InventoryProps) {
+  const searchRef = useRef<HTMLInputElement>(null)
   const [scope, setScope] = useState<Scope>({ kind: "all" })
   const [search, setSearch] = useState("")
   const [validity, setValidity] = useState("")
@@ -277,6 +278,19 @@ export function Inventory({ inventoryBridge, eventBridge, onSelectionChange }: I
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string>()
   const [revision, setRevision] = useState(0)
+
+  useEffect(() => {
+    const keydown = (event: globalThis.KeyboardEvent): void => {
+      const macOS = /Mac|iPhone|iPad/u.test(navigator.platform)
+      const primaryModifier = macOS ? event.metaKey : event.ctrlKey
+      if (!primaryModifier || event.altKey || event.key.toLocaleLowerCase("en-US") !== "f") return
+      event.preventDefault()
+      searchRef.current?.focus()
+      searchRef.current?.select()
+    }
+    document.addEventListener("keydown", keydown)
+    return () => document.removeEventListener("keydown", keydown)
+  }, [])
 
   useEffect(() => eventBridge?.onInventoryChanged(() => setRevision((current) => current + 1)), [eventBridge])
 
@@ -405,6 +419,7 @@ export function Inventory({ inventoryBridge, eventBridge, onSelectionChange }: I
         { className: "inventory-search" },
         createElement("span", { className: "visually-hidden" }, "Buscar skills"),
         createElement("input", {
+          ref: searchRef,
           type: "search",
           value: search,
           placeholder: "Buscar por nombre, descripción, ruta o metadatos…",

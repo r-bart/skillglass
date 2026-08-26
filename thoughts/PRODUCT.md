@@ -1,6 +1,6 @@
 # Forge — Product Contract
 
-**Status**: Draft for MVP
+**Status**: MVP implemented; beta release gates pending
 **Updated**: 2026-08-26
 
 ## Product Thesis
@@ -185,8 +185,8 @@ The MVP is ready for beta when:
 
 ## Open Decisions
 
-- Validate the exact Codex roots, precedence, observable runtime state, and user-writable destinations on all platforms.
-- Define the first accepted installation source and its provenance requirements.
+- Execute the native Windows/Linux adapter, filesystem, and packaged SQLite matrix; macOS arm64 is validated.
+- Choose the repository's open-source license.
 - Select the first supported registry, if remote discovery returns after the MVP.
 - Decide whether packages become navigable objects after package operations exist.
 - Define the future telemetry contract per runtime before restoring trigger logs.

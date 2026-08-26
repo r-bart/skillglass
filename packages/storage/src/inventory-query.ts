@@ -17,10 +17,13 @@ import {
   observed,
   unknown,
   type Evidenced,
+  type EffectiveSkill,
   type Provenance,
   type ProjectScope,
+  type ScopeBinding,
   type SkillInstallation,
   type SkillSnapshot,
+  type TargetScope,
 } from "@forge/domain"
 import { parseSkillSource } from "@forge/scanner"
 
@@ -135,8 +138,10 @@ function provenanceClaim(
 
 function matchesScope(
   installation: SkillInstallation,
+  key: string,
   query: ReturnType<typeof InventoryQuerySchema.parse>,
   projects: ReadonlyMap<string, ProjectScope>,
+  effectiveSkills: readonly EffectiveSkill[],
 ): boolean {
   switch (query.scope.kind) {
     case "all": return true
@@ -145,15 +150,63 @@ function matchesScope(
     case "project": {
       const project = projects.get(query.scope.projectId)
       if (project === undefined) return false
-      return (
+      if (
         typeof installation.scope === "object" &&
         installation.scope.projectId === query.scope.projectId
-      ) || (
-        installation.scope === "global" &&
-        project.adapterIds.includes(installation.adapterId)
+      ) return true
+      const resolution = effectiveSkills.find((candidate) =>
+        candidate.adapterId === installation.adapterId &&
+        candidate.key === key &&
+        sameTargetScope(candidate.targetScope, { projectId: project.id }),
       )
+      return resolution?.candidateInstallationIds.includes(installation.id) ?? false
     }
   }
+}
+
+function sameTargetScope(left: TargetScope, right: TargetScope): boolean {
+  if (left === "global" || right === "global") return left === right
+  return left.projectId === right.projectId
+}
+
+function nativeTargetScope(installation: SkillInstallation): TargetScope {
+  return typeof installation.scope === "object"
+    ? { projectId: installation.scope.projectId }
+    : "global"
+}
+
+function queryTargetScope(
+  query: ReturnType<typeof InventoryQuerySchema.parse>,
+  installation: SkillInstallation,
+): TargetScope {
+  if (query.scope.kind === "global") return "global"
+  if (query.scope.kind === "project") return { projectId: query.scope.projectId }
+  return nativeTargetScope(installation)
+}
+
+function bindingFor(
+  bindings: readonly ScopeBinding[],
+  installationId: string,
+  targetScope: TargetScope,
+): ScopeBinding | undefined {
+  return bindings.find((binding) =>
+    binding.installationId === installationId &&
+    sameTargetScope(binding.targetScope, targetScope),
+  )
+}
+
+function resolutionFor(
+  effectiveSkills: readonly EffectiveSkill[],
+  installation: SkillInstallation,
+  key: string,
+  targetScope: TargetScope,
+): EffectiveSkill | undefined {
+  return effectiveSkills.find((candidate) =>
+    candidate.adapterId === installation.adapterId &&
+    candidate.key === key &&
+    sameTargetScope(candidate.targetScope, targetScope) &&
+    candidate.candidateInstallationIds.includes(installation.id),
+  )
 }
 
 function includes<T>(filter: readonly T[] | undefined, value: T): boolean {
@@ -223,13 +276,14 @@ export class StoredInventoryQueryRepository implements InventoryQueryRepository 
     const projectsById = new Map(projects.map((project) => [project.id, project]))
     const projectNames = new Map(projects.map((project) => [project.id, project.displayName]))
     const records: InventoryRecord[] = []
+    const bindings = this.#projections.listBindings()
+    const effectiveSkills = this.#projections.listEffectiveSkills()
 
     for (const installation of this.#projections.listInstallations()) {
       const snapshot = this.#snapshots.get(installation.snapshotId)
-      if (
-        snapshot === undefined ||
-        !matchesScope(installation, query, projectsById)
-      ) continue
+      if (snapshot === undefined) continue
+      const name = isEvidenced(snapshot.name) ? snapshot.name.value : pathBasename(installation.canonicalPath)
+      if (!matchesScope(installation, name, query, projectsById, effectiveSkills)) continue
       const provenance = this.#snapshots.getProvenance(installation.provenanceId)
       const updateObservation = this.#updates?.get(installation.id)
       const authorClaim = observedScalar(snapshot, "author")
@@ -238,7 +292,7 @@ export class StoredInventoryQueryRepository implements InventoryQueryRepository 
       const packageId = packageClaimValue === undefined
         ? undefined
         : evidenceDto(packageClaimValue)
-      const name = isEvidenced(snapshot.name) ? snapshot.name.value : pathBasename(installation.canonicalPath)
+      const binding = bindingFor(bindings, installation.id, queryTargetScope(query, installation))
       const item: InventoryItemDto = {
         installationId: installation.id,
         adapterId: installation.adapterId,
@@ -253,6 +307,7 @@ export class StoredInventoryQueryRepository implements InventoryQueryRepository 
         status: composeSkillStatus({
           findings: snapshot.findings,
           access: installation.access,
+          ...(binding === undefined ? {} : { binding }),
           ...(provenance === undefined ? {} : { provenance: provenance.value }),
           ...(updateObservation === undefined ? {} : { update: updateObservation.state }),
         }),
@@ -325,6 +380,8 @@ export class StoredInventoryQueryRepository implements InventoryQueryRepository 
     if (snapshot === undefined) return undefined
     const provenance = this.#snapshots.getProvenance(installation.provenanceId)
     const updateObservation = this.#updates?.get(installation.id)
+    const targetScope = nativeTargetScope(installation)
+    const binding = bindingFor(this.#projections.listBindings(), installation.id, targetScope)
     const root = this.#projections.listRoots().find(({ id }) => id === installation.rootId)
     if (root === undefined) return undefined
 
@@ -351,6 +408,7 @@ export class StoredInventoryQueryRepository implements InventoryQueryRepository 
       status: composeSkillStatus({
         findings: snapshot.findings,
         access: installation.access,
+        ...(binding === undefined ? {} : { binding }),
         ...(provenance === undefined ? {} : { provenance: provenance.value }),
         ...(updateObservation === undefined ? {} : { update: updateObservation.state }),
       }),
@@ -375,6 +433,12 @@ export class StoredInventoryQueryRepository implements InventoryQueryRepository 
           : "La procedencia no permite editar esta instalación"]
     const provenanceValue = provenance?.value
     const provenanceObservedAt = provenance?.observedAt
+    const precedence = resolutionFor(
+      this.#projections.listEffectiveSkills(),
+      installation,
+      name,
+      targetScope,
+    )
 
     return InstallationDetailDtoSchema.parse({
       installation: inventoryItem,
@@ -411,6 +475,13 @@ export class StoredInventoryQueryRepository implements InventoryQueryRepository 
         }
       }),
       requirements: snapshot.requirements,
+      ...(binding === undefined ? {} : { scopeBinding: binding }),
+      ...(precedence === undefined ? {} : {
+        precedence: {
+          ...precedence,
+          reason: evidenceDto(precedence.reason),
+        },
+      }),
       provenance: {
         id: provenance?.id ?? installation.provenanceId,
         kind: provenanceValue?.kind ?? "unknown",

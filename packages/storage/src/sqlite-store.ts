@@ -4,7 +4,9 @@ import { DatabaseSync, type SQLInputValue } from "node:sqlite"
 
 import {
   canonicalPath,
+  type EffectiveSkill,
   type ProjectScope,
+  type ScopeBinding,
   type SkillInstallation,
   type SkillSnapshot,
   type SourceRoot,
@@ -149,19 +151,27 @@ class SqliteProjectionRepository implements ProjectionRepository {
   readonly #deleteInstallations
   readonly #deleteRoots
   readonly #deleteProjects
+  readonly #deleteBindings
+  readonly #deleteEffectiveSkills
   readonly #insertProject
   readonly #insertRoot
   readonly #insertInstallation
+  readonly #insertBinding
+  readonly #insertEffectiveSkill
   readonly #listProjects
   readonly #listRoots
   readonly #listInstallations
   readonly #getInstallation
+  readonly #listBindings
+  readonly #listEffectiveSkills
 
   constructor(database: DatabaseSync) {
     this.#database = database
     this.#deleteInstallations = database.prepare("DELETE FROM installations")
     this.#deleteRoots = database.prepare("DELETE FROM roots")
     this.#deleteProjects = database.prepare("DELETE FROM projects")
+    this.#deleteBindings = database.prepare("DELETE FROM scope_bindings")
+    this.#deleteEffectiveSkills = database.prepare("DELETE FROM effective_skills")
     this.#insertProject = database.prepare(`
       INSERT INTO projects(id, display_name, canonical_path, adapter_ids_json)
       VALUES (?, ?, ?, ?)
@@ -177,6 +187,14 @@ class SqliteProjectionRepository implements ProjectionRepository {
         project_id, snapshot_id, provenance_id, access
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
+    this.#insertBinding = database.prepare(`
+      INSERT INTO scope_bindings(installation_id, target_scope_json, value_json)
+      VALUES (?, ?, ?)
+    `)
+    this.#insertEffectiveSkill = database.prepare(`
+      INSERT INTO effective_skills(adapter_id, target_scope_json, skill_key, value_json)
+      VALUES (?, ?, ?, ?)
+    `)
     this.#listProjects = database.prepare("SELECT * FROM projects ORDER BY id")
     this.#listRoots = database.prepare("SELECT * FROM roots ORDER BY id")
     this.#listInstallations = database.prepare(
@@ -185,10 +203,18 @@ class SqliteProjectionRepository implements ProjectionRepository {
     this.#getInstallation = database.prepare(
       "SELECT * FROM installations WHERE id = ?",
     )
+    this.#listBindings = database.prepare(
+      "SELECT value_json FROM scope_bindings ORDER BY installation_id, target_scope_json",
+    )
+    this.#listEffectiveSkills = database.prepare(
+      "SELECT value_json FROM effective_skills ORDER BY adapter_id, target_scope_json, skill_key",
+    )
   }
 
   replaceInventory(projection: InventoryProjection): void {
     transaction(this.#database, () => {
+      this.#deleteBindings.run()
+      this.#deleteEffectiveSkills.run()
       this.#deleteInstallations.run()
       this.#deleteRoots.run()
       this.#deleteProjects.run()
@@ -230,6 +256,21 @@ class SqliteProjectionRepository implements ProjectionRepository {
           installation.access,
         )
       }
+      for (const binding of projection.bindings ?? []) {
+        this.#insertBinding.run(
+          binding.installationId,
+          json(binding.targetScope),
+          json(binding),
+        )
+      }
+      for (const effective of projection.effectiveSkills ?? []) {
+        this.#insertEffectiveSkill.run(
+          effective.adapterId,
+          json(effective.targetScope),
+          effective.key,
+          json(effective),
+        )
+      }
     })
   }
 
@@ -248,6 +289,18 @@ class SqliteProjectionRepository implements ProjectionRepository {
   getInstallation(id: string): SkillInstallation | undefined {
     const row = this.#getInstallation.get(id) as SqlRow | undefined
     return row === undefined ? undefined : installationFromRow(row)
+  }
+
+  listBindings(): readonly ScopeBinding[] {
+    return rows<SqlRow>(this.#listBindings.all()).map((row) =>
+      parseJson<ScopeBinding>(row.value_json, "scope_bindings.value_json"),
+    )
+  }
+
+  listEffectiveSkills(): readonly EffectiveSkill[] {
+    return rows<SqlRow>(this.#listEffectiveSkills.all()).map((row) =>
+      parseJson<EffectiveSkill>(row.value_json, "effective_skills.value_json"),
+    )
   }
 }
 

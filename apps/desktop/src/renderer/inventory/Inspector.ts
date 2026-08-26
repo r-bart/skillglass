@@ -2,6 +2,7 @@ import {
   createElement,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react"
@@ -13,6 +14,8 @@ import type {
   InventoryItemDto,
   OperationPlanDto,
 } from "@forge/contracts"
+
+import { AccessibleDialog } from "../AccessibleDialog.js"
 
 type Finding = InstallationDetailDto["findings"][number]
 type SourceView = "preview" | "source"
@@ -105,14 +108,30 @@ function scopeLabel(scope: InventoryItemDto["scope"]): string {
   }
 }
 
-function precedenceText(scope: InventoryItemDto["scope"]): string {
-  if (scope.kind === "global") {
-    return "Instalación global. El adaptador no aportó una precedencia efectiva para esta vista."
+function precedenceText(detail: InstallationDetailDto): string {
+  const precedence = detail.precedence
+  if (precedence === undefined) return "El scan no aportó una resolución de ámbito para esta instalación."
+  switch (precedence.status) {
+    case "conflict":
+      return `${precedence.candidateInstallationIds.length} candidatas coexisten y el adaptador no acredita una ganadora.`
+    case "unsupported":
+      return "El adaptador declara que no puede resolver precedencia para este ámbito."
+    case "unknown":
+      return "La precedencia efectiva no está verificada por el adaptador."
+    case "resolved":
+      return precedence.winnerInstallationId === detail.installation.installationId
+        ? "El adaptador identifica esta instalación como candidata efectiva para el ámbito."
+        : "El adaptador identifica otra instalación como candidata efectiva para el ámbito."
   }
-  if (scope.kind === "project") {
-    return "Instalación propia del proyecto. El ganador efectivo depende del adaptador."
-  }
-  return "La ubicación es de inventario; no se afirma una precedencia efectiva."
+}
+
+function precedenceEvidence(detail: InstallationDetailDto): string {
+  const evidence = detail.precedence?.reason.evidence
+  if (evidence === undefined) return "Sin evidencia de resolución proyectada"
+  const reason = detail.precedence?.reason.state === "known"
+    ? detail.precedence.reason.value
+    : "Razón no observada"
+  return `${reason} · ${evidenceLabel(evidence)}${evidence.source === undefined ? "" : ` · ${evidence.source}`}`
 }
 
 function findingTitle(finding: Finding): string {
@@ -225,6 +244,7 @@ function Inspection({
   const [sourcePlan, setSourcePlan] = useState<OperationPlanDto>()
   const [sourceConflict, setSourceConflict] = useState<string>()
   const [operationBusy, setOperationBusy] = useState(false)
+  const reviewButtonRef = useRef<HTMLButtonElement>(null)
   const path = entryPath(detail)
   const name = detail.installation.name.state === "known"
     ? detail.installation.name.value
@@ -398,6 +418,7 @@ function Inspection({
             "div",
             { className: "inspector-actions" },
             createElement("button", {
+              ref: reviewButtonRef,
               type: "button",
               className: "primary-action",
               disabled: operationBusy || content === detail.rawEntryContent,
@@ -415,11 +436,12 @@ function Inspection({
     plan === undefined
       ? null
       : createElement(
-          "div",
-          { className: "modal-backdrop" },
-          createElement(
-            "div",
-            { role: "dialog", "aria-modal": "true", "aria-labelledby": "update-dialog-title", className: "operation-dialog" },
+          AccessibleDialog,
+          {
+            labelledBy: "update-dialog-title",
+            returnFocus: reviewButtonRef.current,
+            ...(operationBusy ? {} : { onDismiss: () => setPlan(undefined) }),
+          },
             createElement("h3", { id: "update-dialog-title" }, "Confirmar actualización"),
             createElement("p", null, "Archivo que se modificará:"),
             createElement("p", { className: "inspector-path" }, path),
@@ -441,29 +463,24 @@ function Inspection({
                 onClick: () => setPlan(undefined),
               }, "Volver"),
             ),
-          ),
         ),
     sourceConflict === undefined
       ? null
       : createElement(
-          "div",
-          { className: "modal-backdrop" },
-          createElement(
-            "div",
-            { role: "dialog", "aria-modal": "true", "aria-labelledby": "source-conflict-title", className: "operation-dialog" },
+          AccessibleDialog,
+          { labelledBy: "source-conflict-title", onDismiss: () => setSourceConflict(undefined) },
             createElement("h3", { id: "source-conflict-title" }, "Conflicto de actualización"),
             createElement("p", null, sourceConflict),
             createElement("button", { type: "button", className: "secondary-action", onClick: () => setSourceConflict(undefined) }, "Cerrar"),
-          ),
         ),
     sourcePlan === undefined
       ? null
       : createElement(
-          "div",
-          { className: "modal-backdrop" },
-          createElement(
-            "div",
-            { role: "dialog", "aria-modal": "true", "aria-labelledby": "source-update-title", className: "operation-dialog" },
+          AccessibleDialog,
+          {
+            labelledBy: "source-update-title",
+            ...(operationBusy ? {} : { onDismiss: () => setSourcePlan(undefined) }),
+          },
             createElement("h3", { id: "source-update-title" }, "Confirmar actualización de origen"),
             sourcePlan.destinationLabel === undefined ? null : createElement("p", { className: "inspector-path" }, sourcePlan.destinationLabel),
             createElement(
@@ -482,7 +499,6 @@ function Inspection({
               createElement("button", { type: "button", className: "primary-action", disabled: operationBusy, onClick: () => { void confirmSourceUpdate() } }, operationBusy ? "Actualizando…" : "Actualizar skill"),
               createElement("button", { type: "button", className: "secondary-action", disabled: operationBusy, onClick: () => setSourcePlan(undefined) }, "Cancelar"),
             ),
-          ),
         ),
     actionError === undefined
       ? null
@@ -514,8 +530,18 @@ function Inspection({
       "section",
       { className: "inspector-section", "aria-labelledby": "precedence-heading" },
       createElement("h3", { id: "precedence-heading" }, "Ámbito y precedencia"),
-      createElement("p", null, precedenceText(detail.installation.scope)),
-      createElement("p", { className: "evidence-note" }, "Evidencia de precedencia desconocida"),
+      createElement("p", null, precedenceText(detail)),
+      detail.precedence === undefined || detail.precedence.candidateInstallationIds.length === 0
+        ? null
+        : createElement("p", { className: "inspector-path" }, `Candidatas: ${detail.precedence.candidateInstallationIds.join(", ")}`),
+      createElement("p", { className: "evidence-note" }, precedenceEvidence(detail)),
+      detail.scopeBinding === undefined
+        ? createElement("p", { className: "evidence-note" }, "Sin vínculo de runtime proyectado")
+        : createElement(
+            "p",
+            { className: "evidence-note" },
+            `Vínculo ${detail.scopeBinding.relationship} · ${runtimeLabels[detail.installation.status.runtimeState]} · ${evidenceLabel(detail.scopeBinding.evidence)}${detail.scopeBinding.evidence.source === undefined ? "" : ` · ${detail.scopeBinding.evidence.source}`}`,
+          ),
     ),
     createElement(
       "section",
@@ -559,7 +585,7 @@ function Inspection({
       { className: "inspector-section", "aria-labelledby": "requirements-heading" },
       createElement("h3", { id: "requirements-heading" }, "Requisitos"),
       detail.requirements.length === 0
-        ? createElement("p", null, "Ningún requisito declarado")
+        ? createElement("p", null, "Dependencias no observadas; un resultado vacío no demuestra que no existan.")
         : createElement(
             "ul",
             { className: "inspector-list" },
@@ -621,9 +647,10 @@ export interface InspectorProps {
   readonly inventoryBridge: ForgeBridge["inventory"]
   readonly operationBridge?: ForgeBridge["operations"]
   readonly onStatus?: (message: string) => void
+  readonly revision?: number
 }
 
-export function Inspector({ installationId, inventoryBridge, operationBridge, onStatus }: InspectorProps) {
+export function Inspector({ installationId, inventoryBridge, operationBridge, onStatus, revision = 0 }: InspectorProps) {
   const [detail, setDetail] = useState<InstallationDetailDto>()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string>()
@@ -651,7 +678,7 @@ export function Inspector({ installationId, inventoryBridge, operationBridge, on
       if (current) setLoading(false)
     })
     return () => { current = false }
-  }, [installationId, inventoryBridge])
+  }, [installationId, inventoryBridge, revision])
 
   const content = useMemo(() => {
     if (installationId === undefined) return createElement(EmptyInspector)

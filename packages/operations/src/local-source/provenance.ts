@@ -1,11 +1,25 @@
 import { createLocalSourceManifest, type LocalSourceManifestV1, type ManifestFileV1 } from "@forge/scanner"
 import type { SnapshotRepository } from "@forge/storage"
 
+import type { OperationPlan } from "../core/index.js"
 import { LocalSourceError } from "./errors.js"
 import { admitPortablePath, assertUniquePortablePaths, bytewisePathSort } from "./path-policy.js"
 import type { LocalImportProvenanceV1, SourceIdentity } from "./types.js"
 
 type ProvenanceStore = Pick<SnapshotRepository, "getProvenance" | "putProvenance">
+
+export const LOCAL_SOURCE_COMMIT_METADATA_V1 = "forge-local-source-commit-v1"
+
+export type LocalSourceCommitMetadataV1 =
+  | Readonly<{
+      kind: "install"
+      provenance: LocalImportProvenanceV1
+    }>
+  | Readonly<{
+      kind: "update-source"
+      provenanceId: string
+      provenance: LocalImportProvenanceV1
+    }>
 
 function record(value: unknown, label: string): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -130,6 +144,34 @@ export function parseLocalImportProvenanceV1(value: unknown): LocalImportProvena
     ...(previousInstalledTreeHash === undefined ? {} : { previousInstalledTreeHash }),
     ...(updatedByJournalId === undefined ? {} : { updatedByJournalId }),
   }
+}
+
+/** Builds the durable, private completion effect stored inside an operation plan. */
+export function localSourceCommitMetadata(
+  value: LocalSourceCommitMetadataV1,
+): NonNullable<OperationPlan["commitMetadata"]> {
+  return {
+    contract: LOCAL_SOURCE_COMMIT_METADATA_V1,
+    value: structuredClone(value),
+  }
+}
+
+/** Returns undefined for unrelated plans and rejects malformed matching metadata. */
+export function parseLocalSourceCommitMetadata(
+  plan: Pick<OperationPlan, "kind" | "commitMetadata">,
+): LocalSourceCommitMetadataV1 | undefined {
+  const metadata = plan.commitMetadata
+  if (metadata?.contract !== LOCAL_SOURCE_COMMIT_METADATA_V1) return undefined
+  const candidate = record(metadata.value, "local source commit metadata")
+  const provenance = parseLocalImportProvenanceV1(candidate.provenance)
+  if (candidate.kind === "install" && plan.kind === "install") {
+    return { kind: "install", provenance }
+  }
+  if (candidate.kind === "update-source" && plan.kind === "update-source") {
+    const provenanceId = string(candidate.provenanceId, "local source commit provenanceId")
+    return { kind: "update-source", provenanceId, provenance }
+  }
+  throw new LocalSourceError("SOURCE_INVALID", "Local source commit metadata does not match its operation")
 }
 
 /** Storage adapter that retains the complete local provenance in the existing provenance journal. */

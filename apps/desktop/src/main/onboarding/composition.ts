@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto"
-import { chmod, lstat, mkdir } from "node:fs/promises"
+import { access, chmod, lstat, mkdir } from "node:fs/promises"
+import { constants as fsConstants } from "node:fs"
 import path from "node:path"
 
 import { app, dialog, ipcMain, shell, type BrowserWindow } from "electron"
@@ -44,6 +45,8 @@ import { registerOnboardingIpc } from "./ipc.js"
 import { RootService } from "./root-service.js"
 import { ApprovedRootScanService } from "./scan-service.js"
 import { ForgeRootApprovalSettingsRepository } from "./settings-repository.js"
+import { ForgeProjectSettingsRepository } from "./project-settings-repository.js"
+import { ApprovedRootWatcherService } from "./watcher-service.js"
 
 function projectId(candidate: string): string {
   return `project_${createHash("sha256").update(candidate).digest("hex").slice(0, 32)}`
@@ -92,6 +95,38 @@ async function repositoryRoot(workingDirectory: string): Promise<string | undefi
   }
 }
 
+async function verifiedProject(candidate: string): Promise<ProjectScope> {
+  const selected = (await resolveCanonicalPath(candidate)).canonicalPath
+  if (!(await lstat(selected)).isDirectory()) throw new TypeError("El proyecto seleccionado debe ser una carpeta")
+  await access(selected, fsConstants.R_OK)
+  const repository = await repositoryRoot(selected)
+  if (repository === undefined) throw new TypeError("La carpeta seleccionada no pertenece a un repositorio Git")
+  const canonicalRepository = (await resolveCanonicalPath(repository)).canonicalPath
+  return {
+    id: projectId(canonicalRepository),
+    displayName: path.basename(canonicalRepository),
+    canonicalPath: canonicalPath(canonicalRepository),
+    adapterIds: ["codex", "folder"],
+  }
+}
+
+async function currentlyVerifiedProjects(projects: readonly ProjectScope[]): Promise<ProjectScope[]> {
+  const verified: ProjectScope[] = []
+  for (const project of projects) {
+    try {
+      const current = await verifiedProject(project.canonicalPath)
+      if (current.canonicalPath === project.canonicalPath) verified.push(current)
+    } catch {
+      // A missing or inaccessible saved project stays persisted but inactive.
+    }
+  }
+  return verified
+}
+
+function uniqueProjects(projects: readonly ProjectScope[]): ProjectScope[] {
+  return [...new Map(projects.map((project) => [project.canonicalPath, project])).values()]
+}
+
 export interface OnboardingComposition {
   readonly rootService: RootService
   startPersistedScan(): Promise<boolean>
@@ -107,19 +142,26 @@ export async function createOnboardingComposition(
   const canonicalRepository = repository === undefined
     ? undefined
     : (await resolveCanonicalPath(repository)).canonicalPath
-  const projects: readonly ProjectScope[] = canonicalRepository === undefined ? [] : [{
+  const cwdProposal: readonly ProjectScope[] = canonicalRepository === undefined ? [] : [{
     id: projectId(canonicalRepository),
     displayName: path.basename(canonicalRepository),
     canonicalPath: canonicalRepository,
     adapterIds: ["codex", "folder"],
   }]
-  const context = {
+  const store = openForgeStore({ path: path.join(app.getPath("userData"), "forge.sqlite") })
+  const projectSettings = new ForgeProjectSettingsRepository(store.settings)
+  const projectsState: { current: ProjectScope[] } = {
+    current: uniqueProjects([
+      ...await currentlyVerifiedProjects(projectSettings.load()),
+      ...cwdProposal,
+    ]),
+  }
+  const discoveryContext = () => ({
     homeDirectory: canonicalPath(home),
     workingDirectory: canonicalPath(workingDirectory),
     ...(canonicalRepository === undefined ? {} : { repositoryRoot: canonicalPath(canonicalRepository) }),
-    projects,
-  }
-  const store = openForgeStore({ path: path.join(app.getPath("userData"), "forge.sqlite") })
+    projects: projectsState.current,
+  })
   const adminSkillsRoot = e2eAdminSkillsRoot()
   const codexAdapter = new CodexAdapter(
     adminSkillsRoot === undefined ? {} : { adminSkillsRoot },
@@ -131,14 +173,15 @@ export async function createOnboardingComposition(
   }
   const scanService = new ApprovedRootScanService({
     codexAdapter,
-    projects,
+    projects: () => projectsState.current,
     store,
     onInventoryChanged: (event) => send(IPC_EVENT_CHANNELS.inventoryChanged, InventoryChangedEventSchema.parse(event)),
   })
   const operationPolicyState: { current?: RefreshableApprovedRootPolicy } = {}
+  const watcherState: { current?: ApprovedRootWatcherService } = {}
   const rootService = new RootService({
     adapters: [codexAdapter, folderAdapter],
-    discoveryContext: context,
+    discoveryContext,
     settings: new ForgeRootApprovalSettingsRepository(store.settings),
     picker: {
       async selectDirectory() {
@@ -150,9 +193,26 @@ export async function createOnboardingComposition(
         return result.canceled ? null : (result.filePaths[0] ?? null)
       },
     },
+    projectPicker: {
+      async selectProject() {
+        const result = await dialog.showOpenDialog({
+          title: "Añadir proyecto Codex",
+          buttonLabel: "Añadir proyecto",
+          properties: ["openDirectory"],
+        })
+        const selected = result.canceled ? undefined : result.filePaths[0]
+        if (selected === undefined) return false
+        const project = await verifiedProject(selected)
+        const persisted = uniqueProjects([...projectSettings.load(), project])
+        projectSettings.save(persisted, new Date().toISOString())
+        projectsState.current = uniqueProjects([...projectsState.current, project])
+        return true
+      },
+    },
     onApprovalPersisted: async (roots) => {
       await operationPolicyState.current?.replaceApprovedRoots(roots)
       await scanService.scan(roots)
+      await watcherState.current?.replaceApprovedRoots(roots)
       send(IPC_EVENT_CHANNELS.rootsChanged, RootsChangedEventSchema.parse({
         rootIds: roots.map(({ id }) => id),
         observedAt: new Date().toISOString(),
@@ -204,6 +264,16 @@ export async function createOnboardingComposition(
     fileSystem: operationFileSystem,
     afterPersist: (plan) => {
       if (!["preconditions-checked", "staged", "snapshot-created", "applying", "verifying", "rolling-back"].includes(plan.state)) return
+      if (plan.state === "applying") {
+        const approvedRoots = new Map(rootService.approvedSourceRoots().map((root) => [root.id, root.canonicalPath]))
+        const affectedPaths = plan.affectedPaths.flatMap((affected) => {
+          const rootPath = approvedRoots.get(affected.rootId)
+          return rootPath === undefined ? [] : [path.resolve(rootPath, affected.relativePath)]
+        })
+        if (affectedPaths.length > 0) {
+          watcherState.current?.recordJournalMutation({ journalId: plan.id, paths: affectedPaths })
+        }
+      }
       send(IPC_EVENT_CHANNELS.operationProgress, OperationProgressEventSchema.parse({
         operationId: `operation_${createHash("sha256").update(plan.id).digest("hex").slice(0, 24)}`,
         planId: plan.id,
@@ -268,41 +338,58 @@ export async function createOnboardingComposition(
       await rootService.scanPersistedApproval()
     },
   })
+  const operationService = new DesktopOperationService({
+    selections,
+    installs: localInstalls,
+    updates: localUpdates,
+    contentUpdates,
+    repository: operationRepository,
+    projections: store.projections,
+    settings: store.settings,
+    updateObservations: store.updates,
+    provenance,
+    rootPolicy: operationRootPolicy,
+    approvedRoots: () => rootService.approvedSourceRoots(),
+    adapterForRoot: (root) => {
+      if (root.adapterId === codexAdapter.id) return codexAdapter
+      if (root.adapterId === "folder") {
+        return new FolderAdapter({
+          roots: rootService.approvedSourceRoots()
+            .filter(({ adapterId }) => adapterId === "folder")
+            .map((candidate) => folderConfiguration(candidate, projectsState.current)),
+        })
+      }
+      throw new TypeError("No adapter is available for the approved root")
+    },
+    rescan: async () => { await rootService.scanPersistedApproval() },
+    recoveryRootId: RECOVERY_ROOT_ID,
+    leases,
+    onInventoryChanged: (installationIds) => send(IPC_EVENT_CHANNELS.inventoryChanged, InventoryChangedEventSchema.parse({
+      installationIds,
+      reason: "operation",
+      observedAt: new Date().toISOString(),
+    })),
+    onCompleted: (result) => send(IPC_EVENT_CHANNELS.operationCompleted, OperationCompletedEventSchema.parse(result)),
+  })
+  const watcherService = new ApprovedRootWatcherService({
+    onInvalidatePlans: (invalidation) => {
+      operationService.invalidatePlansForExternalChange(invalidation)
+    },
+    onReconcile: async () => {
+      const roots = rootService.approvedSourceRoots()
+      if (roots.length > 0) await scanService.scan(roots, "watcher")
+    },
+    onFinding: (finding) => send(IPC_EVENT_CHANNELS.inventoryChanged, InventoryChangedEventSchema.parse({
+      installationIds: [],
+      reason: "watcher",
+      observedAt: new Date().toISOString(),
+      findings: [finding],
+    })),
+  })
+  watcherState.current = watcherService
   const unregisterOperations = registerOperationIpc({
     ipcMain,
-    service: new DesktopOperationService({
-      selections,
-      installs: localInstalls,
-      updates: localUpdates,
-      contentUpdates,
-      repository: operationRepository,
-      projections: store.projections,
-      settings: store.settings,
-      updateObservations: store.updates,
-      provenance,
-      rootPolicy: operationRootPolicy,
-      approvedRoots: () => rootService.approvedSourceRoots(),
-      adapterForRoot: (root) => {
-        if (root.adapterId === codexAdapter.id) return codexAdapter
-        if (root.adapterId === "folder") {
-          return new FolderAdapter({
-            roots: rootService.approvedSourceRoots()
-              .filter(({ adapterId }) => adapterId === "folder")
-              .map((candidate) => folderConfiguration(candidate, projects)),
-          })
-        }
-        throw new TypeError("No adapter is available for the approved root")
-      },
-      rescan: async () => { await rootService.scanPersistedApproval() },
-      recoveryRootId: RECOVERY_ROOT_ID,
-      leases,
-      onInventoryChanged: (installationIds) => send(IPC_EVENT_CHANNELS.inventoryChanged, InventoryChangedEventSchema.parse({
-        installationIds,
-        reason: "operation",
-        observedAt: new Date().toISOString(),
-      })),
-      onCompleted: (result) => send(IPC_EVENT_CHANNELS.operationCompleted, OperationCompletedEventSchema.parse(result)),
-    }),
+    service: operationService,
     isTrustedSender: (url) => isTrustedRendererUrl(
       url,
       usesBuiltAssets,
@@ -311,12 +398,16 @@ export async function createOnboardingComposition(
   })
   return {
     rootService,
-    startPersistedScan: () => rootService.scanPersistedApproval(),
+    startPersistedScan: async () => {
+      const scanned = await rootService.scanPersistedApproval()
+      await operationService.recoverCommittedLocalState()
+      return scanned
+    },
     dispose: () => {
       unregisterOperations()
       unregisterInventory()
       unregister()
-      store.close()
+      void watcherService.dispose().finally(() => store.close())
     },
   }
 }

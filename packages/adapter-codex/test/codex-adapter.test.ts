@@ -112,6 +112,24 @@ describe("Codex verified root discovery", () => {
     expect(candidates.some(({ canonicalPath: candidate }) => candidate === outsideRoot)).toBe(false)
     expect(candidates.filter(({ kind }) => kind === "project")).toHaveLength(4)
   })
+
+  it("discovers an explicitly registered project from an unrelated working directory", async () => {
+    const candidates = await adapter().discoverRoots({
+      homeDirectory: canonicalPath(home),
+      workingDirectory: canonicalPath(temporaryDirectory),
+      projects: [{
+        id: "project_fixture",
+        displayName: "Fixture repository",
+        canonicalPath: canonicalPath(repositoryRoot),
+        adapterIds: ["codex"],
+      }],
+    })
+    expect(candidates).toContainEqual(expect.objectContaining({
+      kind: "project",
+      canonicalPath: canonicalPath(path.join(repositoryRoot, ".agents", "skills")),
+      projectPath: canonicalPath(repositoryRoot),
+    }))
+  })
 })
 
 describe("Codex inventory semantics", () => {
@@ -131,7 +149,7 @@ describe("Codex inventory semantics", () => {
     const instance = adapter()
     const { observations } = await rootsAndObservations(instance)
     const duplicates = observations.filter(({ snapshot }) => snapshot.name.evidence.kind !== "unknown" && snapshot.name.value === "duplicate-skill")
-    const [resolution] = await instance.resolveScope({ targetScope: "global", key: "duplicate-skill", candidates: duplicates.map(({ installation }) => installation) })
+    const [resolution] = await instance.resolveScope({ targetScope: { projectId: "project_fixture" }, key: "duplicate-skill", candidates: duplicates.map(({ installation }) => installation) })
     expect(duplicates).toHaveLength(3)
     expect(resolution).toMatchObject({ status: "conflict", candidateInstallationIds: expect.arrayContaining(duplicates.map(({ installation }) => installation.id)) })
     expect(resolution).not.toHaveProperty("winnerInstallationId")
@@ -145,6 +163,61 @@ describe("Codex inventory semantics", () => {
       const name = observation.snapshot.name.evidence.kind === "unknown" ? "" : observation.snapshot.name.value
       expect(binding.runtimeState).toBe(name === "disabled-skill" ? "disabled" : "unknown")
     }
+  })
+
+  it("keeps byte-identical installations independently addressable and editable", async () => {
+    const instance = adapter()
+    const candidates = await instance.discoverRoots(context())
+    const userCandidate = candidates.find(({ kind }) => kind === "global")
+    if (userCandidate === undefined) throw new Error("Fixture USER root is missing")
+    const userRoot = sourceRoot(userCandidate)
+    const original = path.join(userRoot.canonicalPath, "personal-skill")
+    await cp(original, path.join(userRoot.canonicalPath, "personal-skill-copy"), { recursive: true })
+    const copies = []
+    for await (const observation of instance.scanRoot(userRoot)) {
+      if (observation.snapshot.name.evidence.kind !== "unknown" && observation.snapshot.name.value === "personal-skill") {
+        copies.push(observation)
+      }
+    }
+    expect(copies).toHaveLength(2)
+    expect(new Set(copies.map(({ snapshot }) => snapshot.contentHash))).toHaveProperty("size", 1)
+    expect(new Set(copies.map(({ snapshot }) => snapshot.id))).toHaveProperty("size", 2)
+    expect(copies.every(({ snapshot, installation }) => snapshot.installationId === installation.id)).toBe(true)
+
+    const rootPolicy = await createApprovedRootPolicy([{
+      rootId: userRoot.id,
+      path: userRoot.canonicalPath,
+      kind: userRoot.kind,
+      access: userRoot.access,
+      writableWithoutElevation: true,
+    }])
+    for (const copy of copies) {
+      const result = await instance.planOperation({
+        request: {
+          kind: "update-entry-content",
+          installationId: copy.installation.id,
+          expectedSnapshotId: copy.snapshot.id,
+          content: `${copy.snapshot.rawSource}\n# independently editable\n`,
+        },
+        targetRoot: userRoot,
+        installation: copy.installation,
+        rootPolicy,
+      })
+      expect(result).toMatchObject({
+        status: "planned",
+        plan: {
+          steps: [expect.objectContaining({ expectedBeforeHash: copy.snapshot.contentHash })],
+        },
+      })
+    }
+  })
+
+  it("does not advertise dependency support until agents/openai.yaml is parsed", async () => {
+    const instance = adapter()
+    expect((await instance.capabilities()).dependencies).toBe("unknown")
+    expect(await instance.capabilityEvidence()).toEqual(expect.arrayContaining([
+      expect.objectContaining({ capability: "dependencies", state: "unknown" }),
+    ]))
   })
 })
 

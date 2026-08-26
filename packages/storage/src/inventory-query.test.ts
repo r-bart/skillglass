@@ -58,6 +58,14 @@ const roots: readonly SourceRoot[] = [
     access: "read-only",
     discovery: observed({ source: "fixture" }),
   },
+  {
+    id: "root_folder_global",
+    adapterId: "folder",
+    canonicalPath: canonicalPath("/home/person/custom-skills"),
+    kind: "global",
+    access: "read-write",
+    discovery: observed({ source: "fixture" }),
+  },
 ]
 
 interface SkillFixture {
@@ -180,6 +188,14 @@ const fixtures: readonly SkillFixture[] = [
       source: "core",
     },
   }),
+  skillFixture({
+    id: "folder_global",
+    name: "folder-global",
+    pathName: "folder-global",
+    adapterId: "folder",
+    rootId: "root_folder_global",
+    scope: "global",
+  }),
 ]
 
 let store: ForgeStore
@@ -194,6 +210,73 @@ beforeEach(() => {
     projects,
     roots,
     installations: fixtures.map(({ installation }) => installation),
+    bindings: [
+      {
+        installationId: "installation_global_review",
+        targetScope: "global",
+        relationship: "owned",
+        runtimeState: "disabled",
+        evidence: observed({ source: "config.toml" }),
+      },
+      {
+        installationId: "installation_project_release",
+        targetScope: { projectId: "project_acme" },
+        relationship: "owned",
+        runtimeState: "unknown",
+        evidence: { kind: "unknown", source: "codex-runtime" },
+      },
+      {
+        installationId: "installation_broken_frontmatter",
+        targetScope: { projectId: "project_beta" },
+        relationship: "owned",
+        runtimeState: "unsupported",
+        evidence: { kind: "derived", source: "folder-scope" },
+      },
+      {
+        installationId: "installation_folder_global",
+        targetScope: "global",
+        relationship: "owned",
+        runtimeState: "unsupported",
+        evidence: { kind: "derived", source: "folder-scope" },
+      },
+    ],
+    effectiveSkills: [
+      {
+        adapterId: "codex",
+        targetScope: "global",
+        key: "global-review",
+        winnerInstallationId: "installation_global_review",
+        candidateInstallationIds: ["installation_global_review"],
+        reason: { value: "Only candidate", evidence: { kind: "derived", source: "candidate-set" } },
+        status: "resolved",
+      },
+      {
+        adapterId: "codex",
+        targetScope: { projectId: "project_acme" },
+        key: "global-review",
+        winnerInstallationId: "installation_global_review",
+        candidateInstallationIds: ["installation_global_review"],
+        reason: { value: "Only candidate", evidence: { kind: "derived", source: "candidate-set" } },
+        status: "resolved",
+      },
+      {
+        adapterId: "codex",
+        targetScope: { projectId: "project_acme" },
+        key: "project-release",
+        winnerInstallationId: "installation_project_release",
+        candidateInstallationIds: ["installation_project_release"],
+        reason: { value: "Only candidate", evidence: { kind: "derived", source: "candidate-set" } },
+        status: "resolved",
+      },
+      {
+        adapterId: "folder",
+        targetScope: { projectId: "project_beta" },
+        key: "broken-frontmatter",
+        candidateInstallationIds: ["installation_broken_frontmatter"],
+        reason: { evidence: { kind: "unknown", source: "adapter-resolution" } },
+        status: "unsupported",
+      },
+    ],
   })
 })
 
@@ -202,10 +285,10 @@ afterEach(() => store.close())
 describe("StoredInventoryQueryRepository", () => {
   it("distinguishes the whole machine, true global, and project-effective scopes", () => {
     expect(store.inventory.list({ scope: { kind: "all" } }).items.map(({ key }) => key))
-      .toEqual(["broken-frontmatter", "global-review", "project-release"])
+      .toEqual(["broken-frontmatter", "folder-global", "global-review", "project-release"])
 
     expect(store.inventory.list({ scope: { kind: "global" } }).items.map(({ key }) => key))
-      .toEqual(["global-review"])
+      .toEqual(["folder-global", "global-review"])
 
     expect(store.inventory.list({
       scope: { kind: "project", projectId: "project_acme" },
@@ -221,6 +304,28 @@ describe("StoredInventoryQueryRepository", () => {
     expect(store.inventory.list({
       scope: { kind: "project", projectId: "project_missing" },
     }).items).toEqual([])
+
+    expect(store.inventory.list({
+      scope: { kind: "project", projectId: "project_beta" },
+    }).items.map(({ key }) => key)).not.toContain("folder-global")
+  })
+
+  it("projects adapter runtime state and real precedence evidence", () => {
+    const item = store.inventory.list({
+      scope: { kind: "global" },
+      runtimeStates: ["disabled"],
+    }).items.at(0)
+    expect(item?.installationId).toBe("installation_global_review")
+
+    expect(store.inventory.inspect("installation_global_review")).toMatchObject({
+      installation: { status: { runtimeState: "disabled" } },
+      scopeBinding: { runtimeState: "disabled", evidence: { source: "config.toml" } },
+      precedence: {
+        status: "resolved",
+        winnerInstallationId: "installation_global_review",
+        reason: { state: "known", value: "Only candidate" },
+      },
+    })
   })
 
   it("maps domain evidence without inventing values and keeps invalid skills visible", () => {
@@ -280,7 +385,7 @@ describe("StoredInventoryQueryRepository", () => {
       "project-release",
       "global-review",
     ])
-    expect(first.total).toBe(3)
+    expect(first.total).toBe(4)
     expect(first.nextCursor).toBe("installation_global_review")
 
     const second = store.inventory.list({
@@ -290,6 +395,7 @@ describe("StoredInventoryQueryRepository", () => {
       pageSize: 2,
     })
     expect(second.items.map(({ key }) => key)).toEqual([
+      "folder-global",
       "broken-frontmatter",
     ])
     expect(second.nextCursor).toBeNull()

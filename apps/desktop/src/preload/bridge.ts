@@ -36,6 +36,7 @@ export function createForgeBridge(port: IpcRendererPort): ForgeBridge {
       state: () => invoke(port, IPC_INVOKE_CHANNELS.onboardingState, {}) as ReturnType<ForgeBridge["onboarding"]["state"]>,
       proposedRoots: () => invoke(port, IPC_INVOKE_CHANNELS.onboardingProposedRoots, {}) as ReturnType<ForgeBridge["onboarding"]["proposedRoots"]>,
       selectAdditionalRoot: (input) => invoke(port, IPC_INVOKE_CHANNELS.onboardingSelectAdditionalRoot, input) as ReturnType<ForgeBridge["onboarding"]["selectAdditionalRoot"]>,
+      selectProject: () => invoke(port, IPC_INVOKE_CHANNELS.onboardingSelectProject, {}) as ReturnType<ForgeBridge["onboarding"]["selectProject"]>,
       approveRoots: (input) => invoke(port, IPC_INVOKE_CHANNELS.onboardingApproveRoots, input) as ReturnType<ForgeBridge["onboarding"]["approveRoots"]>,
     },
     inventory: {

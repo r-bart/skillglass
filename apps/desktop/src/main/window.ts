@@ -1,8 +1,19 @@
-import { BrowserWindow, session } from "electron"
+import { BrowserWindow, session, shell } from "electron"
 import { join } from "node:path"
 
 import { FORGE_APP_ORIGIN } from "./protocol.js"
-import { contentSecurityPolicy, createSecureWebPreferences } from "./security.js"
+import {
+  contentSecurityPolicy,
+  createSecureWebPreferences,
+  isAllowedExternalUrl,
+} from "./security.js"
+
+function openAllowedExternalUrl(candidate: string): void {
+  if (!isAllowedExternalUrl(candidate)) return
+  void shell.openExternal(candidate).catch(() => {
+    // Opening an allowlisted URL is optional and must never destabilize Forge.
+  })
+}
 
 function installDefaultDenyPermissions(): void {
   session.defaultSession.setPermissionCheckHandler(() => false)
@@ -36,11 +47,19 @@ export async function createMainWindow(isPackaged: boolean): Promise<BrowserWind
     minHeight: 520,
     show: false,
     backgroundColor: "#111318",
-    webPreferences: createSecureWebPreferences(join(__dirname, "preload.js")),
+    webPreferences: createSecureWebPreferences(join(__dirname, "preload.js"), isPackaged),
   })
 
-  window.webContents.setWindowOpenHandler(() => ({ action: "deny" }))
-  window.webContents.on("will-navigate", (event) => {
+  if (isPackaged) window.setMenu(null)
+  window.webContents.setWindowOpenHandler(({ url }) => {
+    openAllowedExternalUrl(url)
+    return { action: "deny" }
+  })
+  window.webContents.on("will-navigate", (event, url) => {
+    event.preventDefault()
+    openAllowedExternalUrl(url)
+  })
+  window.webContents.on("will-attach-webview", (event) => {
     event.preventDefault()
   })
   window.once("ready-to-show", () => {

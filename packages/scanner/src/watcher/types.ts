@@ -31,6 +31,7 @@ export interface WatcherFinding {
 export interface WatchSource {
   onAll(listener: (kind: WatchEventKind, path: string) => void): void
   onError(listener: (error: unknown) => void): void
+  ready?(): Promise<void>
   close(): Promise<void>
 }
 

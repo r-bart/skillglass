@@ -8,6 +8,7 @@ import {
   type OperationEngine,
 } from "../core/index.js"
 import { LocalSourceError } from "./errors.js"
+import { localSourceCommitMetadata, parseLocalSourceCommitMetadata } from "./provenance.js"
 import { inspectStrictTree, strictTreeMatchesManifest } from "./strict-tree.js"
 import type {
   AdmittedLocalSource,
@@ -129,6 +130,30 @@ export class LocalInstallCoordinator {
         throw new LocalSourceError("SOURCE_INVALID", "Adapter expiry and journal ID must be valid")
       }
       const expiresAt = new Date(Math.min(selectionExpiry, adapterExpiry)).toISOString()
+      const provenance = {
+        contract: "local-source-v1",
+        sourceKind: source.kind,
+        sourceLocator: source.sourceLocator,
+        sourceObservedAt: source.observedAt,
+        sourceIdentity: source.identity,
+        sourceTreeHash: source.manifest.treeHash,
+        ...(source.archiveSha256 === undefined ? {} : { archiveSha256: source.archiveSha256 }),
+        ...(source.payloadWrapper === undefined ? {} : { payloadWrapper: source.payloadWrapper }),
+        ignoredEntries: source.ignoredEntries,
+        sourceManifest: source.manifest,
+        targetRootId: target.rootId,
+        installationId,
+        destinationCanonicalPath: target.canonicalPath,
+        createdByJournalId: input.journalId,
+      } as const
+      const committedProvenance: LocalImportProvenanceV1 = {
+        ...provenance,
+        kind: "forge-import",
+        managedBy: "forge",
+        installedHash: source.manifest.treeHash,
+        installedTreeHash: source.manifest.treeHash,
+        installedManifest: source.manifest,
+      }
       const plan = createInstallPlan({
         id: planId,
         createdAt: input.adapterPlan.operation.createdAt,
@@ -139,26 +164,12 @@ export class LocalInstallCoordinator {
         sourceHash: source.manifest.treeHash,
         destination: { rootId: target.rootId, relativePath: target.childSegment },
         stage,
+        commitMetadata: localSourceCommitMetadata({ kind: "install", provenance: committedProvenance }),
       })
       const prepared: PreparedLocalInstall = {
         plan,
         preview: previewEntries(source, target),
-        provenance: {
-          contract: "local-source-v1",
-          sourceKind: source.kind,
-          sourceLocator: source.sourceLocator,
-          sourceObservedAt: source.observedAt,
-          sourceIdentity: source.identity,
-          sourceTreeHash: source.manifest.treeHash,
-          ...(source.archiveSha256 === undefined ? {} : { archiveSha256: source.archiveSha256 }),
-          ...(source.payloadWrapper === undefined ? {} : { payloadWrapper: source.payloadWrapper }),
-          ignoredEntries: source.ignoredEntries,
-          sourceManifest: source.manifest,
-          targetRootId: target.rootId,
-          installationId,
-          destinationCanonicalPath: target.canonicalPath,
-          createdByJournalId: input.journalId,
-        },
+        provenance,
         sourceArtifact,
         selectionToken: input.source.selectionToken,
         adapterPlan: input.adapterPlan,
@@ -201,14 +212,11 @@ export class LocalInstallCoordinator {
       if (!strictTreeMatchesManifest(installed, prepared.provenance.sourceManifest)) {
         throw new LocalSourceError("STAGING_MISMATCH", "Committed installation differs from the preview")
       }
-      const provenance: LocalImportProvenanceV1 = {
-        ...prepared.provenance,
-        kind: "forge-import",
-        managedBy: "forge",
-        installedHash: installed.manifest.treeHash,
-        installedTreeHash: installed.manifest.treeHash,
-        installedManifest: installed.manifest,
+      const completion = parseLocalSourceCommitMetadata(result)
+      if (completion?.kind !== "install") {
+        throw new LocalSourceError("SOURCE_INVALID", "Committed install has no durable provenance")
       }
+      const provenance = completion.provenance
       await this.#materializer.removeExact(prepared.sourceArtifact, prepared.provenance.sourceTreeHash)
       this.#selections.forgetPersistedSelection(prepared.selectionToken, prepared.plan.id)
       this.#pending.delete(prepared.plan.id)

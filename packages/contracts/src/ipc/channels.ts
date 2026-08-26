@@ -4,6 +4,7 @@ export const IPC_INVOKE_CHANNELS = {
   onboardingState: "forge:onboarding:state",
   onboardingProposedRoots: "forge:onboarding:proposed-roots",
   onboardingSelectAdditionalRoot: "forge:onboarding:select-additional-root",
+  onboardingSelectProject: "forge:onboarding:select-project",
   onboardingApproveRoots: "forge:onboarding:approve-roots",
   inventoryList: "forge:inventory:list",
   inventoryInspect: "forge:inventory:inspect",

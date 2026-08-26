@@ -97,6 +97,15 @@ export interface OperationPlan {
   readonly expectedAfterHash: string
   /** Present only for update-content; persisted so restart recovery is deterministic. */
   readonly content?: string
+  /**
+   * Opaque, operation-specific data required to finish idempotent projections
+   * after a filesystem commit. It is durable with the plan and must be parsed
+   * defensively by the owning operation module before use.
+   */
+  readonly commitMetadata?: Readonly<{
+    contract: string
+    value: unknown
+  }>
   readonly preconditions: readonly OperationPrecondition[]
   readonly affectedPaths: readonly RootRelativePath[]
   readonly backup: BackupStrategy

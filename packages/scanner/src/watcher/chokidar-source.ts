@@ -24,6 +24,14 @@ export const createChokidarWatchSource: WatchSourceFactory = (paths) => {
     ignoreInitial: true,
     persistent: true,
   })
+  const ready = new Promise<void>((resolve, reject) => {
+    const onStartupError = (error: unknown): void => reject(error)
+    watcher.once("error", onStartupError)
+    watcher.once("ready", () => {
+      watcher.off("error", onStartupError)
+      resolve()
+    })
+  })
   const source: WatchSource = {
     onAll(listener) {
       watcher.on("all", (kind, candidate) => {
@@ -32,6 +40,9 @@ export const createChokidarWatchSource: WatchSourceFactory = (paths) => {
     },
     onError(listener) {
       watcher.on("error", listener)
+    },
+    ready() {
+      return ready
     },
     async close() {
       await watcher.close()

@@ -39,6 +39,7 @@ export interface ForgeBridge {
     selectAdditionalRoot(
       input: SelectAdditionalRootInput,
     ): Promise<RootCandidateDto | null>
+    selectProject(): Promise<OnboardingStateDto>
     approveRoots(input: ApproveRootsInput): Promise<ApprovedRootDto[]>
   }
   inventory: {

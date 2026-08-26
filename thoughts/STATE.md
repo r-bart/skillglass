@@ -2,8 +2,8 @@
 
 **Updated**: 2026-08-26
 **Branch**: `codex/forge-mvp`
-**Active Feature**: Forge MVP strategic planning
-**Workflow Position**: Phase 0 locally validated; executing repository foundation
+**Active Feature**: Forge MVP implementation and release readiness
+**Workflow Position**: Implementation and macOS acceptance complete; external release gates pending
 **Active Plan**: `thoughts/plans/2026-08-26_forge-mvp.md` (In Progress)
 
 ## Key Decisions
@@ -21,16 +21,15 @@
 
 ## Current Blockers
 
-- Native packaged SQLite evidence is still required on Windows and Linux before release.
-- The application package and workspace have not yet been scaffolded.
+- Native packaged SQLite/filesystem evidence is still required on Windows and Linux before release.
+- The owner must choose the open-source license before `LICENSE` can be added.
+- No Git remote is configured, so the native GitHub Actions matrix cannot yet be executed.
 
-## Modified Files This Session
+## Current Evidence
 
-- `thoughts/PRODUCT.md` — complete draft.
-- `thoughts/DOMAIN.md` — complete draft.
-- `thoughts/ADAPTERS.md` — complete draft; Codex verification pending.
-- `thoughts/OPERATIONS.md` — complete draft.
-- `thoughts/checkpoints/2026-08-26_12-23_product-contracts.md` — complete.
-- `thoughts/STATE.md` — complete.
-- `thoughts/SUMMARY.md` — complete.
-- `thoughts/plans/2026-08-26_forge-mvp.md` — draft strategic implementation plan.
+- Unit/integration: 37 files, 262 tests passing on Node 24.19.0 arm64.
+- Electron acceptance: 16/16 passing; immutable BV suite 10/10 and hash unchanged.
+- macOS package/make, strict code-sign verification, ASAR/fuses, and packaged SQLite reopen smoke pass.
+- CI and manual draft-Release workflows are implemented for native macOS, Windows, and Linux runners.
+- Final strict architecture re-review: APPROVE; no internal release-blocking finding remains.
+- Acceptance record: `thoughts/reviews/2026-08-26_forge-mvp-acceptance.md`.

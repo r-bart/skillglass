@@ -29,6 +29,7 @@ function onboardingBridge(state: OnboardingStateDto): ForgeBridge["onboarding"] 
     state: () => Promise.resolve(state),
     proposedRoots: () => Promise.resolve(state.proposedRoots),
     selectAdditionalRoot: () => Promise.resolve(null),
+    selectProject: () => Promise.resolve(state),
     approveRoots: () => Promise.resolve([approved]),
   }
 }
@@ -154,6 +155,38 @@ describe("Forge application shell", () => {
     expect(container.querySelector("h1")?.textContent).toBe("Inventario")
   })
 
+  it("adds a Codex project through the typed onboarding bridge", async () => {
+    const required: OnboardingStateDto = {
+      status: "required",
+      proposedRoots: [candidate],
+      selectedCandidateIds: [],
+      approvedRoots: [],
+    }
+    const projectCandidate = {
+      ...candidate,
+      candidateId: "candidate_project",
+      displayName: "Codex · Proyecto",
+      displayPath: "/projects/acme/.agents/skills",
+      kind: "project" as const,
+    }
+    const selectedState: OnboardingStateDto = {
+      ...required,
+      proposedRoots: [candidate, projectCandidate],
+      selectedCandidateIds: [projectCandidate.candidateId],
+    }
+    const selectProject = vi.fn(() => Promise.resolve(selectedState))
+    const bridge = { ...onboardingBridge(required), selectProject }
+    await act(async () => root.render(createElement(App, {
+      onboardingBridge: bridge, inventoryBridge, eventBridge, operationBridge,
+    })))
+
+    await act(async () => buttonNamed("Añadir proyecto Codex…").click())
+
+    expect(selectProject).toHaveBeenCalledOnce()
+    expect(container.textContent).toContain("/projects/acme/.agents/skills")
+    expect(container.querySelector('input[type="checkbox"]:checked')).not.toBeNull()
+  })
+
   it("selects a local directory by token and previews exact install files before confirmation", async () => {
     const selectLocalSource = vi.fn(() => Promise.resolve({
       kind: "directory" as const,
@@ -219,6 +252,48 @@ describe("Forge application shell", () => {
     expect(container.querySelector('[role="status"]')?.textContent).toContain("Skill instalada")
   })
 
+  it("requires an explicit destination choice when several approved roots are writable", async () => {
+    const projectCandidate = {
+      ...candidate,
+      candidateId: "candidate_project",
+      displayName: "Codex · Proyecto",
+      displayPath: "/projects/acme/.agents/skills",
+      kind: "project" as const,
+    }
+    const second = { ...projectCandidate, rootId: "root_project" }
+    const state: OnboardingStateDto = {
+      status: "complete",
+      proposedRoots: [candidate, projectCandidate],
+      selectedCandidateIds: [candidate.candidateId, second.candidateId],
+      approvedRoots: [approved, second],
+    }
+    const selectLocalSource = vi.fn(() => Promise.resolve({
+      kind: "directory" as const,
+      selectionToken: "a".repeat(32),
+      displayName: "local-installable",
+      treeHash: "b".repeat(64),
+      expiresAt: "2026-08-26T10:15:00.000Z",
+    }))
+    const plan = vi.fn(() => Promise.reject(new Error("stop after observing the selected target")))
+    await act(async () => root.render(createElement(App, {
+      onboardingBridge: onboardingBridge(state),
+      inventoryBridge,
+      eventBridge,
+      operationBridge: { ...operationBridge, selectLocalSource, plan },
+    })))
+
+    await act(async () => buttonNamed("Instalar desde carpeta").click())
+    expect(plan).not.toHaveBeenCalled()
+    const target = container.querySelector<HTMLSelectElement>("#install-target")
+    if (target === null) throw new Error("install target selector missing")
+    await act(async () => {
+      target.value = second.rootId
+      target.dispatchEvent(new Event("change", { bubbles: true }))
+    })
+    await act(async () => buttonNamed("Continuar").click())
+    expect(plan).toHaveBeenCalledWith(expect.objectContaining({ targetRootId: second.rootId }))
+  })
+
   it("announces authoritative operation progress and completion", async () => {
     let progress: Parameters<ForgeBridge["events"]["onOperationProgress"]>[0] = () => undefined
     let completed: Parameters<ForgeBridge["events"]["onOperationCompleted"]>[0] = () => undefined
@@ -258,5 +333,27 @@ describe("Forge application shell", () => {
       undoAvailable: true,
     }))
     expect(container.querySelector('[role="status"]')?.textContent).toContain("Skill instalada")
+  })
+
+  it("announces scan and watcher findings instead of silently dropping them", async () => {
+    let inventoryChanged: Parameters<ForgeBridge["events"]["onInventoryChanged"]>[0] = () => undefined
+    const bridge: ForgeBridge["events"] = {
+      ...eventBridge,
+      onInventoryChanged: (listener) => {
+        inventoryChanged = listener
+        return () => undefined
+      },
+    }
+    await act(async () => root.render(createElement(App, {
+      onboardingBridge: onboardingBridge(completeState), inventoryBridge, eventBridge: bridge, operationBridge,
+    })))
+
+    act(() => inventoryChanged({
+      installationIds: [],
+      reason: "watcher",
+      observedAt: "2026-08-26T10:02:00.000Z",
+      findings: [{ code: "WATCHER_ERROR", severity: "warning", message: "No se pudo observar una carpeta" }],
+    }))
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain("No se pudo observar una carpeta")
   })
 })

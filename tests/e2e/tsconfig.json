@@ -6,6 +6,6 @@
   },
   "include": [
     "../../playwright.config.ts",
-    "./support/**/*.ts"
+    "./**/*.ts"
   ]
 }

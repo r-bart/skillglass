@@ -60,6 +60,41 @@ export const SkillStatusDtoSchema = z
   })
   .strict()
 
+const TargetScopeDtoSchema = z.union([
+  z.literal("global"),
+  z.object({ projectId: ProjectIdSchema }).strict(),
+])
+
+export const ScopeBindingDtoSchema = z.object({
+  installationId: InstallationIdSchema,
+  targetScope: TargetScopeDtoSchema,
+  relationship: z.enum([
+    "owned",
+    "inherited",
+    "shadowed",
+    "excluded",
+    "unavailable",
+  ]),
+  runtimeState: z.enum([
+    "enabled",
+    "disabled",
+    "inherit",
+    "unsupported",
+    "unknown",
+  ]),
+  evidence: EvidenceSchema,
+}).strict()
+
+export const EffectiveSkillDtoSchema = z.object({
+  adapterId: AdapterIdSchema,
+  targetScope: TargetScopeDtoSchema,
+  key: z.string().min(1).max(256),
+  winnerInstallationId: InstallationIdSchema.optional(),
+  candidateInstallationIds: z.array(InstallationIdSchema).max(2_000),
+  reason: evidencedSchema(z.string().max(2_000)),
+  status: z.enum(["resolved", "conflict", "unsupported", "unknown"]),
+}).strict()
+
 export const InventoryQuerySchema = z
   .object({
     scope: InventoryScopeSchema,
@@ -224,6 +259,8 @@ export const InstallationDetailDtoSchema = z
     files: z.array(InstallationFileDtoSchema).max(2_000),
     findings: z.array(ValidationFindingDtoSchema).max(2_000),
     requirements: z.array(RequirementDtoSchema).max(2_000),
+    scopeBinding: ScopeBindingDtoSchema.optional(),
+    precedence: EffectiveSkillDtoSchema.optional(),
     provenance: ProvenanceDtoSchema,
     capabilities: InstallationCapabilitiesDtoSchema,
   })

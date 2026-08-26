@@ -12,7 +12,8 @@ import { MemoryRootApprovalSettingsRepository } from "./settings-repository.js"
 type Handler = (event: IpcMainInvokeEvent, input: unknown) => Promise<unknown>
 
 function event(url: string): IpcMainInvokeEvent {
-  return { senderFrame: { url }, sender: { getURL: () => url } } as unknown as IpcMainInvokeEvent
+  const frame = { url }
+  return { senderFrame: frame, sender: { mainFrame: frame, getURL: () => url } } as unknown as IpcMainInvokeEvent
 }
 
 describe("onboarding main IPC", () => {
@@ -34,11 +35,13 @@ describe("onboarding main IPC", () => {
     })
     const dispose = registerOnboardingIpc({ ipcMain, rootService: service, isTrustedSender: (url) => url === "forge://app/index.html" })
     const stateHandler = handlers.get(IPC_INVOKE_CHANNELS.onboardingState)
+    const selectProjectHandler = handlers.get(IPC_INVOKE_CHANNELS.onboardingSelectProject)
     const approveHandler = handlers.get(IPC_INVOKE_CHANNELS.onboardingApproveRoots)
-    if (stateHandler === undefined || approveHandler === undefined) throw new Error("Handlers were not registered")
+    if (stateHandler === undefined || selectProjectHandler === undefined || approveHandler === undefined) throw new Error("Handlers were not registered")
 
     await expect(stateHandler(event("forge://evil/index.html"), {})).rejects.toThrow("Untrusted")
     await expect(stateHandler(event("forge://app/index.html"), {})).resolves.toMatchObject({ status: "required" })
+    await expect(selectProjectHandler(event("forge://app/index.html"), { unexpected: true })).rejects.toThrow()
     await expect(approveHandler(event("forge://app/index.html"), { candidateIds: ["/tmp/path"] })).rejects.toThrow()
     dispose()
     expect(handlers.size).toBe(0)

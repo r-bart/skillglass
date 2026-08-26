@@ -113,6 +113,7 @@ export class OperationEngine {
     this.#assertReady()
     return this.#exclusive(async () => {
       let plan = await this.#requirePlan(planId)
+      let destinationMutationAttempted = false
       if (plan.state !== "planned") {
         throw new OperationValidationError(`Plan ${plan.id} is not awaiting confirmation`)
       }
@@ -134,6 +135,11 @@ export class OperationEngine {
         })
 
         plan = await this.#transition(plan, "applying", {}, plan.undoStatus, true)
+        // The preview check can be arbitrarily old after staging and snapshot I/O.
+        // Revalidate after the durable applying marker and immediately before the
+        // only live replacement so an external edit is never overwritten.
+        await this.#assertDestinationMatchesPreview(plan)
+        destinationMutationAttempted = true
         await this.#fileSystem.replace(
           plan.artifacts.stage,
           plan.artifacts.destination,
@@ -152,7 +158,7 @@ export class OperationEngine {
         if (error instanceof OperationInterruptedError) throw error
         plan = await this.#requirePlan(planId)
         if (!TERMINAL_STATES.includes(plan.state)) {
-          await this.#rollback(plan, error)
+          await this.#rollback(plan, error, destinationMutationAttempted)
         }
         throw error
       }
@@ -200,15 +206,19 @@ export class OperationEngine {
         throw new OperationConflictError("Source changed after the operation preview")
       }
     }
-    const destinationObserved = await this.#fileSystem.observe(destination)
-    if (!observationMatches(destinationObserved, plan.expectedBefore)) {
-      throw new OperationConflictError("Destination changed after the operation preview")
-    }
+    await this.#assertDestinationMatchesPreview(plan)
     if ((await this.#fileSystem.observe(stage)).exists) {
       throw new OperationConflictError("Stage path already exists")
     }
     if (snapshot !== undefined && (await this.#fileSystem.observe(snapshot)).exists) {
       throw new OperationConflictError("Snapshot path already exists")
+    }
+  }
+
+  async #assertDestinationMatchesPreview(plan: OperationPlan): Promise<void> {
+    const destinationObserved = await this.#fileSystem.observe(plan.artifacts.destination)
+    if (!observationMatches(destinationObserved, plan.expectedBefore)) {
+      throw new OperationConflictError("Destination changed after the operation preview")
     }
   }
 
@@ -266,7 +276,11 @@ export class OperationEngine {
     return this.#rollback(plan, new OperationInterruptedError("Recovered interrupted operation"))
   }
 
-  async #rollback(plan: OperationPlan, cause: unknown): Promise<OperationPlan> {
+  async #rollback(
+    plan: OperationPlan,
+    cause: unknown,
+    destinationMutationAttempted = plan.applyStarted,
+  ): Promise<OperationPlan> {
     try {
       if (plan.state !== "rolling-back") {
         plan = await this.#transition(plan, "rolling-back", {
@@ -274,7 +288,7 @@ export class OperationEngine {
         })
       }
       const destination = await this.#fileSystem.observe(plan.artifacts.destination)
-      if (!plan.applyStarted) {
+      if (!destinationMutationAttempted) {
         // Preconditions/staging/snapshot work never touched the live destination.
       } else if (plan.kind === "install") {
         if (exactObservation(destination, plan.expectedAfterHash)) {

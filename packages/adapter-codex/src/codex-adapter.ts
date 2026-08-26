@@ -63,7 +63,7 @@ const CAPABILITIES = defineAdapterCapabilities({
   declaredVersions: "unknown",
   sourceProvenance: "unknown",
   updateDiscovery: "unknown",
-  dependencies: "supported",
+  dependencies: "unknown",
   permissionDeclarations: "unsupported",
   triggerTelemetry: "unknown",
   usageTelemetry: "unknown",
@@ -140,8 +140,21 @@ function domainFindings(
 }
 
 function expectedHash(snapshotId: string): string {
-  const tail = snapshotId.startsWith("snapshot:") ? snapshotId.slice("snapshot:".length) : snapshotId
-  return HASH_PATTERN.test(tail) ? tail : sha256(snapshotId)
+  const encoded = /^snapshot:([a-f0-9]{64})(?::[a-f0-9]+)?$/u.exec(snapshotId)?.[1]
+  return encoded !== undefined && HASH_PATTERN.test(encoded) ? encoded : sha256(snapshotId)
+}
+
+function isCandidateInTarget(installation: SkillInstallation, targetScope: ResolutionInput["targetScope"]): boolean {
+  if (targetScope === "global") return installation.scope === "global"
+  return installation.scope === "global" || (
+    typeof installation.scope === "object" &&
+    installation.scope.projectId === targetScope.projectId
+  )
+}
+
+function isOwnedByTarget(installation: SkillInstallation, targetScope: ResolutionInput["targetScope"]): boolean {
+  if (targetScope === "global") return installation.scope === "global"
+  return typeof installation.scope === "object" && installation.scope.projectId === targetScope.projectId
 }
 
 function relativeDisplay(root: SourceRoot, candidate: string): string | undefined {
@@ -224,6 +237,10 @@ export class CodexAdapter implements SkillRuntimeAdapter {
         cursor = parent as CanonicalPath
       }
     }
+    for (const project of context.projects) {
+      await add(path.join(project.canonicalPath, ".agents", "skills"), "project", order, project.canonicalPath)
+      order += 1
+    }
     await add(path.join(context.homeDirectory, ".agents", "skills"), "global", order)
     order += 1
     await add(this.#adminSkillsRoot, "system", order)
@@ -285,11 +302,12 @@ export class CodexAdapter implements SkillRuntimeAdapter {
   }
 
   resolveScope(input: ResolutionInput): Promise<readonly ReturnType<typeof resolveEffectiveSkill>[]> {
+    const candidates = input.candidates.filter((installation) => isCandidateInTarget(installation, input.targetScope))
     return Promise.resolve([resolveEffectiveSkill({
       adapterId: this.id,
       targetScope: input.targetScope,
       key: input.key,
-      candidateInstallationIds: input.candidates.map(({ id }) => id),
+      candidateInstallationIds: candidates.map(({ id }) => id),
       semantics: "supported",
     })])
   }
@@ -297,14 +315,17 @@ export class CodexAdapter implements SkillRuntimeAdapter {
   async describeBinding(input: BindingInput): Promise<ScopeBinding> {
     const disabled = await readDisabledSkillEntries(this.#discoveredConfigFile)
     const isDisabled = disabled.has(input.installation.entryFile)
+    const owned = isOwnedByTarget(input.installation, input.targetScope)
     return {
       installationId: input.installation.id,
       targetScope: input.targetScope,
-      relationship: "owned",
+      relationship: owned ? "owned" : "unavailable",
       runtimeState: isDisabled ? "disabled" : "unknown",
       evidence: isDisabled
         ? observed(this.#discoveredConfigFile === undefined ? {} : { source: this.#discoveredConfigFile })
-        : unknownEvidence({ source: "Codex exposes no affirmative enabled-state observation" }),
+        : owned
+          ? unknownEvidence({ source: "Codex exposes no affirmative enabled-state observation" })
+          : unknownEvidence({ source: "Codex does not expose an inherited or shadowed binding for this target" }),
     }
   }
 
@@ -423,7 +444,7 @@ export class CodexAdapter implements SkillRuntimeAdapter {
     const hashed = await hashDirectorySource(installationPath)
     const contentHash = hashed.manifest?.treeHash ?? sha256(`${installationPath}:${JSON.stringify(observation.validation.findings)}`)
     const installationId = opaqueId("codex-installation", canonicalInstallationIdentity({ adapterId: this.id, canonicalPath: installationPath }))
-    const snapshotId = `snapshot:${contentHash}`
+    const snapshotId = `snapshot:${contentHash}:${sha256(installationId).slice(0, 16)}`
     const provenanceId = opaqueId("codex-provenance", installationPath)
     const observedAt = this.#now().toISOString()
     const findings = domainFindings(installationPath, observation.validation.findings)

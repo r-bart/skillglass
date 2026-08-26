@@ -8,6 +8,7 @@ import type {
   RootCandidateDto,
 } from "@forge/contracts"
 
+import { AccessibleDialog } from "./AccessibleDialog.js"
 import { Inspector, Inventory } from "./inventory/index.js"
 
 type Surface = "onboarding" | "inventory"
@@ -140,6 +141,7 @@ function Onboarding({
   error,
   onToggle,
   onAdd,
+  onAddProject,
   onApprove,
 }: {
   state: OnboardingStateDto | null
@@ -148,6 +150,7 @@ function Onboarding({
   error: string | null
   onToggle: (candidateId: string) => void
   onAdd: () => void
+  onAddProject: () => void
   onApprove: () => void
 }) {
   return createElement(
@@ -203,6 +206,7 @@ function Onboarding({
             "div",
             { className: "root-actions" },
             createElement("button", { className: "secondary-action", type: "button", disabled: busy, onClick: onAdd }, "Añadir carpeta…"),
+            createElement("button", { className: "secondary-action", type: "button", disabled: busy, onClick: onAddProject }, "Añadir proyecto Codex…"),
             createElement("button", { className: "primary-action", type: "submit", disabled: busy || selected.size === 0 }, busy ? "Escaneando…" : state.status === "complete" ? "Guardar cambios" : "Escanear carpetas aprobadas"),
           ),
           createElement("p", { className: "root-safety-note" }, "La carpeta se elige mediante el diálogo del sistema. Forge nunca solicita privilegios de administrador."),
@@ -243,6 +247,8 @@ export function App({
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [scanNotice, setScanNotice] = useState<string>()
+  const [inventoryRevision, setInventoryRevision] = useState(0)
   const [selectedInstallationId, setSelectedInstallationId] = useState<string>()
   const [operationStatus, setOperationStatus] = useState<string>()
   const [historyOpen, setHistoryOpen] = useState(false)
@@ -251,6 +257,10 @@ export function App({
   const [operationError, setOperationError] = useState<string>()
   const [operationBusy, setOperationBusy] = useState(false)
   const [installPlan, setInstallPlan] = useState<OperationPlanDto>()
+  const [pendingInstallSource, setPendingInstallSource] = useState<LocalSourceSelectionDto>()
+  const [pendingInstallTargetId, setPendingInstallTargetId] = useState<string>()
+
+  const writableInstallTargets = onboardingState?.approvedRoots.filter((root) => root.access === "read-write") ?? []
 
   const sourceClaim = (selection: LocalSourceSelectionDto) => {
     const suggestedName = selection.kind === "zip"
@@ -278,20 +288,43 @@ export function App({
     try {
       const selection = await operationBridge.selectLocalSource({ kind })
       if (selection === null) return
-      const target = onboardingState?.approvedRoots.find((root) =>
-        root.access === "read-write" && root.kind === "global") ??
-        onboardingState?.approvedRoots.find((root) => root.access === "read-write")
+      if (writableInstallTargets.length === 0) throw new Error("No hay una carpeta aprobada con escritura para instalar")
+      const target = writableInstallTargets[0]
       if (target === undefined) throw new Error("No hay una carpeta aprobada con escritura para instalar")
-      setInstallPlan(await operationBridge.plan({
-        kind: "install-local",
-        source: sourceClaim(selection),
-        targetRootId: target.rootId,
-      }))
+      if (writableInstallTargets.length > 1) {
+        setPendingInstallSource(selection)
+        setPendingInstallTargetId(target.rootId)
+      } else {
+        setInstallPlan(await operationBridge.plan({
+          kind: "install-local",
+          source: sourceClaim(selection),
+          targetRootId: target.rootId,
+        }))
+      }
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : "No se pudo leer la fuente local"
       setOperationError(kind === "zip"
         ? `La fuente ZIP contiene una ruta no segura. ${message}`
         : message)
+    } finally {
+      setOperationBusy(false)
+    }
+  }
+
+  const planPendingInstall = async (): Promise<void> => {
+    if (pendingInstallSource === undefined || pendingInstallTargetId === undefined) return
+    setOperationBusy(true)
+    setOperationError(undefined)
+    try {
+      setInstallPlan(await operationBridge.plan({
+        kind: "install-local",
+        source: sourceClaim(pendingInstallSource),
+        targetRootId: pendingInstallTargetId,
+      }))
+      setPendingInstallSource(undefined)
+      setPendingInstallTargetId(undefined)
+    } catch (reason) {
+      setOperationError(reason instanceof Error ? reason.message : "No se pudo preparar la instalación")
     } finally {
       setOperationBusy(false)
     }
@@ -362,6 +395,15 @@ export function App({
   }, [onboardingBridge])
 
   useEffect(() => {
+    const stopInventory = eventBridge.onInventoryChanged((event) => {
+      setInventoryRevision((current) => current + 1)
+      const findings = event.findings ?? []
+      if (findings.length === 0) {
+        if (event.reason === "watcher" || event.reason === "root-approval") setScanNotice(undefined)
+        return
+      }
+      setScanNotice(findings.map(({ message }) => message).join(" · "))
+    })
     const stopProgress = eventBridge.onOperationProgress((event) => {
       setOperationStatus(event.message)
     })
@@ -369,6 +411,7 @@ export function App({
       setOperationStatus(event.message)
     })
     return () => {
+      stopInventory()
       stopProgress()
       stopCompleted()
     }
@@ -400,6 +443,20 @@ export function App({
     }
   }
 
+  const addProject = async () => {
+    setBusy(true)
+    setError(null)
+    try {
+      const state = await onboardingBridge.selectProject()
+      setOnboardingState(state)
+      setSelected(new Set(state.selectedCandidateIds))
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "No se pudo añadir el proyecto")
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const approve = async () => {
     setBusy(true)
     setError(null)
@@ -426,6 +483,7 @@ export function App({
       return next
     }),
     onAdd: () => { void addRoot() },
+    onAddProject: () => { void addProject() },
     onApprove: () => { void approve() },
   })
   const inventory = createElement(Inventory, {
@@ -457,11 +515,8 @@ export function App({
       : createElement("p", { className: "operation-status", role: "status" }, operationStatus),
     historyOpen
       ? createElement(
-          "div",
-          { className: "modal-backdrop" },
-          createElement(
-            "div",
-            { role: "dialog", "aria-modal": "true", "aria-labelledby": "history-dialog-title", className: "operation-dialog" },
+          AccessibleDialog,
+          { labelledBy: "history-dialog-title", onDismiss: () => setHistoryOpen(false) },
             createElement("h2", { id: "history-dialog-title" }, "Historial"),
             historyError === undefined ? null : createElement("p", { role: "alert", className: "form-error" }, historyError),
             history === undefined
@@ -491,17 +546,44 @@ export function App({
                     )),
                   ),
             createElement("button", { type: "button", className: "secondary-action", onClick: () => setHistoryOpen(false) }, "Cerrar"),
-          ),
         )
       : null,
+    pendingInstallSource === undefined
+      ? null
+      : createElement(
+          AccessibleDialog,
+          { labelledBy: "install-target-dialog-title", onDismiss: () => setPendingInstallSource(undefined) },
+            createElement("h2", { id: "install-target-dialog-title" }, "Elegir destino de instalación"),
+            createElement("label", { htmlFor: "install-target" }, "Carpeta aprobada"),
+            createElement(
+              "select",
+              {
+                id: "install-target",
+                value: pendingInstallTargetId,
+                disabled: operationBusy,
+                onChange: (event) => setPendingInstallTargetId((event.currentTarget as HTMLSelectElement).value),
+              },
+              ...writableInstallTargets.map((root) => createElement(
+                "option",
+                { key: root.rootId, value: root.rootId },
+                `${root.displayName} · ${root.displayPath}`,
+              )),
+            ),
+            createElement(
+              "div",
+              { className: "inspector-actions" },
+              createElement("button", { type: "button", className: "primary-action", disabled: operationBusy, onClick: () => { void planPendingInstall() } }, operationBusy ? "Preparando…" : "Continuar"),
+              createElement("button", { type: "button", className: "secondary-action", disabled: operationBusy, onClick: () => setPendingInstallSource(undefined) }, "Cancelar"),
+            ),
+        ),
     installPlan === undefined
       ? null
       : createElement(
-          "div",
-          { className: "modal-backdrop" },
-          createElement(
-            "div",
-            { role: "dialog", "aria-modal": "true", "aria-labelledby": "install-dialog-title", className: "operation-dialog" },
+          AccessibleDialog,
+          {
+            labelledBy: "install-dialog-title",
+            ...(operationBusy ? {} : { onDismiss: () => setInstallPlan(undefined) }),
+          },
             createElement("h2", { id: "install-dialog-title" }, "Confirmar instalación"),
             installPlan.destinationLabel === undefined
               ? null
@@ -523,7 +605,6 @@ export function App({
               createElement("button", { type: "button", className: "primary-action", disabled: operationBusy, onClick: () => { void confirmInstall() } }, operationBusy ? "Instalando…" : "Instalar skill"),
               createElement("button", { type: "button", className: "secondary-action", disabled: operationBusy, onClick: () => setInstallPlan(undefined) }, "Cancelar"),
             ),
-          ),
         ),
     mobileNavigationOpen
       ? createElement(
@@ -548,12 +629,16 @@ export function App({
       createElement(
         "main",
         { className: "main-content", id: "main-content", tabIndex: -1 },
+        scanNotice === undefined
+          ? null
+          : createElement("p", { className: "form-error", role: "alert" }, scanNotice),
         createElement(PageContent, { activeSurface, onboarding, inventory }),
       ),
       createElement(Inspector, {
         inventoryBridge,
         operationBridge,
         onStatus: setOperationStatus,
+        revision: inventoryRevision,
         ...(activeSurface === "inventory" && selectedInstallationId !== undefined
           ? { installationId: selectedInstallationId }
           : {}),

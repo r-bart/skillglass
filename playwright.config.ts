@@ -1,8 +1,8 @@
 import { defineConfig } from "@playwright/test"
 
 export default defineConfig({
-  testDir: "./tests/spec",
-  testMatch: "forge-mvp.e2e.spec.ts",
+  testDir: "./tests",
+  testMatch: "**/*.e2e.spec.ts",
   fullyParallel: false,
   workers: 1,
   timeout: 60_000,

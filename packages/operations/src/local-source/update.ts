@@ -8,7 +8,11 @@ import type { ApprovedRootPolicy, LocalSourceManifestV1, ManifestFileV1 } from "
 import { OperationInterruptedError, createSourceUpdatePlan, type ArtifactRef, type OperationEngine } from "../core/index.js"
 import { LocalSourceError } from "./errors.js"
 import { admitPortablePath, bytewisePathSort } from "./path-policy.js"
-import { LocalSourceProvenanceRepository } from "./provenance.js"
+import {
+  LocalSourceProvenanceRepository,
+  localSourceCommitMetadata,
+  parseLocalSourceCommitMetadata,
+} from "./provenance.js"
 import { inspectStrictTree, strictTreeMatchesManifest, type StrictTreeInspection } from "./strict-tree.js"
 import type {
   AdmittedLocalSource,
@@ -224,6 +228,29 @@ export class LocalSourceUpdateCoordinator {
       }
       const adapterExpiry = Date.parse(input.adapterPlan.operation.expiresAt)
       if (!Number.isFinite(adapterExpiry)) throw new LocalSourceError("SOURCE_INVALID", "Adapter expiry must be valid")
+      const committedProvenance: LocalImportProvenanceV1 = {
+        contract: "local-source-v1",
+        kind: "forge-import",
+        managedBy: "forge",
+        sourceKind: source.kind,
+        sourceLocator: source.sourceLocator,
+        sourceObservedAt: source.observedAt,
+        sourceIdentity: source.identity,
+        sourceTreeHash: source.manifest.treeHash,
+        ...(source.archiveSha256 === undefined ? {} : { archiveSha256: source.archiveSha256 }),
+        ...(source.payloadWrapper === undefined ? {} : { payloadWrapper: source.payloadWrapper }),
+        ignoredEntries: source.ignoredEntries,
+        sourceManifest: source.manifest,
+        targetRootId: observed.provenance.targetRootId,
+        installationId: observed.provenance.installationId,
+        destinationCanonicalPath: observed.provenance.destinationCanonicalPath,
+        createdByJournalId: observed.provenance.createdByJournalId,
+        installedHash: source.manifest.treeHash,
+        installedTreeHash: source.manifest.treeHash,
+        installedManifest: source.manifest,
+        previousInstalledTreeHash: observed.provenance.installedTreeHash,
+        updatedByJournalId: input.journalId,
+      }
       const plan = createSourceUpdatePlan({
         id: planId,
         createdAt: input.adapterPlan.operation.createdAt,
@@ -239,6 +266,11 @@ export class LocalSourceUpdateCoordinator {
           rootId: this.#recoveryRootId ?? destination.artifact.rootId,
           relativePath: `.forge-update-snapshot-${suffix}`,
         },
+        commitMetadata: localSourceCommitMetadata({
+          kind: "update-source",
+          provenanceId: input.provenanceId,
+          provenance: committedProvenance,
+        }),
       })
       const prepared: PreparedLocalSourceUpdate = {
         plan,
@@ -283,30 +315,12 @@ export class LocalSourceUpdateCoordinator {
       if (!strictTreeMatchesManifest(installed, refreshed.source.manifest)) {
         throw new LocalSourceError("STAGING_MISMATCH", "Committed update differs from the verified source")
       }
-      const provenance: LocalImportProvenanceV1 = {
-        contract: "local-source-v1",
-        kind: "forge-import",
-        managedBy: "forge",
-        sourceKind: refreshed.source.kind,
-        sourceLocator: refreshed.source.sourceLocator,
-        sourceObservedAt: refreshed.source.observedAt,
-        sourceIdentity: refreshed.source.identity,
-        sourceTreeHash: refreshed.source.manifest.treeHash,
-        ...(refreshed.source.archiveSha256 === undefined ? {} : { archiveSha256: refreshed.source.archiveSha256 }),
-        ...(refreshed.source.payloadWrapper === undefined ? {} : { payloadWrapper: refreshed.source.payloadWrapper }),
-        ignoredEntries: refreshed.source.ignoredEntries,
-        sourceManifest: refreshed.source.manifest,
-        targetRootId: prepared.previousProvenance.targetRootId,
-        installationId: prepared.previousProvenance.installationId,
-        destinationCanonicalPath: prepared.previousProvenance.destinationCanonicalPath,
-        createdByJournalId: prepared.previousProvenance.createdByJournalId,
-        installedHash: installed.manifest.treeHash,
-        installedTreeHash: installed.manifest.treeHash,
-        installedManifest: installed.manifest,
-        previousInstalledTreeHash: prepared.previousProvenance.installedTreeHash,
-        updatedByJournalId: prepared.journalId,
+      const completion = parseLocalSourceCommitMetadata(result)
+      if (completion?.kind !== "update-source" || completion.provenanceId !== prepared.provenanceId) {
+        throw new LocalSourceError("SOURCE_INVALID", "Committed source update has no durable provenance")
       }
-      this.#provenance.persist(prepared.provenanceId, provenance)
+      const provenance = completion.provenance
+      this.#provenance.persist(completion.provenanceId, provenance)
       await this.#materializer.removeExact(prepared.sourceArtifact, refreshed.source.manifest.treeHash)
       this.#pending.delete(prepared.plan.id)
       this.#observations.delete(prepared.observation.observationId)

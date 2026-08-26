@@ -1,17 +1,38 @@
 # Forge
 
-Forge is an open-source desktop application for discovering, inspecting, installing, and safely updating agent skills.
+Forge is a desktop application for discovering, inspecting, installing, and safely updating agent skills, intended for release as open source.
 
-The project is currently in its product-contract and implementation-planning phase.
+The project is under active development. It targets macOS, Windows, and Linux.
 
 ## Official downloads
 
-Official Forge binaries will be published **only as release assets in this source repository**.
+When available, official Forge binaries are published **only as assets on this repository's [Releases page](../../releases)**.
 
-Do not download Forge binaries from third-party websites, mirrors, app stores, or unrelated domains. A direct link to the repository's Releases section will be added when the first public release is available.
+Forge is not distributed through third-party websites, mirrors, app stores, package registries, standalone download portals, or an automatic updater. A binary obtained anywhere other than this repository's Releases page is not an official Forge binary.
+
+Each release includes `SHA256SUMS.txt` and `build-metadata.json`. Verify the checksum before running a downloaded artifact. Builds do not yet carry an OS-trusted publisher identity; macOS bundles use only an ad-hoc integrity signature and are not notarized. The operating system may therefore display an unverified-developer warning. Releases are assembled as drafts and require a maintainer to review and publish them manually.
 
 ## Safety boundaries
 
 - Forge reads installed skills and may install or update them only inside user-approved, user-writable roots.
-- Forge never activates or deactivates skills; users manage runtime state through their own harnesses.
+- Forge never activates, deactivates, or uninstalls skills; users manage those actions through their own harnesses.
 - Forge never requests administrator, root, or operating-system elevation.
+
+An installation rollback is available only for the exact unchanged tree created by a recorded Forge operation. It is not a general uninstall feature.
+
+## Development
+
+Forge requires Node.js 24.19.x and pnpm 11.5.x.
+
+```sh
+pnpm install --frozen-lockfile
+pnpm typecheck
+pnpm lint
+pnpm test
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) before proposing a change and [SECURITY.md](SECURITY.md) for vulnerability reporting and the official-binary policy.
+
+## License status
+
+Forge is intended to be released as open source, but the license has not yet been selected. Until a `LICENSE` file is added, the source is not offered under an open-source license. Choosing that license is a blocker for the first public release.

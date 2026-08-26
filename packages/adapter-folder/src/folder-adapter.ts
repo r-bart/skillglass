@@ -274,12 +274,15 @@ export class FolderAdapter implements SkillRuntimeAdapter {
   }
 
   resolveScope(input: ResolutionInput) {
+    const candidates = input.candidates.filter((installation) =>
+      targetMatchesInstallation(installation.scope, input.targetScope),
+    )
     return Promise.resolve([
       resolveEffectiveSkill({
         adapterId: this.id,
         targetScope: input.targetScope,
         key: input.key,
-        candidateInstallationIds: input.candidates.map(({ id }) => id),
+        candidateInstallationIds: candidates.map(({ id }) => id),
         semantics: "unsupported",
       }),
     ])

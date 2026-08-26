@@ -1,9 +1,10 @@
-import { mkdtemp, rm } from "node:fs/promises"
+import { mkdir, mkdtemp, rm } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
 
 import { FolderAdapter } from "@forge/adapter-folder"
-import { canonicalPath } from "@forge/domain"
+import type { DiscoveryContext, SkillRuntimeAdapter } from "@forge/adapter-api"
+import { canonicalPath, observed, type ProjectScope } from "@forge/domain"
 import { openForgeStore } from "@forge/storage"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
@@ -96,6 +97,42 @@ describe("approved root onboarding gate", () => {
     expect(scans).toBe(1)
   })
 
+  it("restores a disappeared approved root as missing without aborting startup", async () => {
+    const persistedRoot = path.join(temporaryRoot, "persisted-root")
+    await mkdir(persistedRoot)
+    const settings = new MemoryRootApprovalSettingsRepository()
+    const first = new RootService({
+      adapters: [new FolderAdapter({ roots: [{
+        candidateId: "candidate_persisted",
+        canonicalPath: canonicalPath(persistedRoot),
+        scope: { kind: "global" },
+        access: "read-write",
+        writableWithoutElevation: true,
+        defaultIncluded: true,
+      }] })],
+      discoveryContext: context(),
+      settings,
+      picker: { selectDirectory: () => Promise.resolve(null) },
+    })
+    await first.approveRoots(["candidate_persisted"])
+    await rm(persistedRoot, { recursive: true })
+    const scans: Array<readonly { access: string }[]> = []
+    const restored = new RootService({
+      adapters: [new FolderAdapter({ roots: [] })],
+      discoveryContext: context(),
+      settings,
+      picker: { selectDirectory: () => Promise.resolve(null) },
+      onApprovalPersisted: (roots) => { scans.push(roots); return Promise.resolve() },
+    })
+
+    await expect(restored.state()).resolves.toMatchObject({
+      status: "complete",
+      approvedRoots: [{ access: "missing", writableWithoutElevation: false }],
+    })
+    await expect(restored.scanPersistedApproval()).resolves.toBe(true)
+    expect(scans.at(-1)).toMatchObject([{ access: "missing" }])
+  })
+
   it("accepts only proposed opaque IDs", async () => {
     const service = new RootService({
       adapters: [folderAdapter(false)], discoveryContext: context(),
@@ -118,5 +155,54 @@ describe("approved root onboarding gate", () => {
     expect(selected?.candidateId).toMatch(/^candidate_[a-f0-9]{32}$/u)
     expect((await service.state()).selectedCandidateIds).toContain(selected?.candidateId)
     await expect(service.selectAdditionalRoot("codex")).rejects.toThrow("native directory selection")
+  })
+
+  it("refreshes project root proposals without scanning when the native project picker persists a project", async () => {
+    const projectRoot = path.join(temporaryRoot, "Acme")
+    const skillsRoot = path.join(projectRoot, ".agents", "skills")
+    await mkdir(skillsRoot, { recursive: true })
+    let projects: readonly ProjectScope[] = []
+    let scans = 0
+    const adapter = {
+      id: "codex",
+      displayName: "Codex",
+      discoverRoots: (discovery: DiscoveryContext) => Promise.resolve(discovery.projects.map((project) => ({
+        candidateId: "candidate_project",
+        adapterId: "codex",
+        canonicalPath: canonicalPath(skillsRoot),
+        kind: "project" as const,
+        projectPath: project.canonicalPath,
+        access: "read-write" as const,
+        writableWithoutElevation: true,
+        evidence: observed({ source: "test-project" }),
+        defaultIncluded: true,
+      }))),
+    } as unknown as SkillRuntimeAdapter
+    const service = new RootService({
+      adapters: [adapter],
+      discoveryContext: () => ({ ...context(), projects }),
+      settings: new MemoryRootApprovalSettingsRepository(),
+      picker: { selectDirectory: () => Promise.resolve(null) },
+      projectPicker: {
+        selectProject: () => {
+          projects = [{
+            id: "project_acme",
+            displayName: "Acme",
+            canonicalPath: canonicalPath(projectRoot),
+            adapterIds: ["codex"],
+          }]
+          return Promise.resolve(true)
+        },
+      },
+      onApprovalPersisted: () => { scans += 1; return Promise.resolve() },
+    })
+
+    expect((await service.state()).proposedRoots).toEqual([])
+    await expect(service.selectProject()).resolves.toMatchObject({
+      status: "required",
+      proposedRoots: [{ kind: "project", displayPath: skillsRoot }],
+      selectedCandidateIds: ["candidate_project"],
+    })
+    expect(scans).toBe(0)
   })
 })

@@ -32,14 +32,20 @@ function port(responses: ReadonlyMap<string, unknown>) {
 
 describe("validated preload bridge", () => {
   it("exposes onboarding through allowlisted channels and validates both directions", async () => {
-    const ipc = port(new Map([[IPC_INVOKE_CHANNELS.onboardingState, {
+    const state = {
       status: "required", proposedRoots: [candidate], selectedCandidateIds: [], approvedRoots: [],
-    }]]))
+    }
+    const ipc = port(new Map([
+      [IPC_INVOKE_CHANNELS.onboardingState, state],
+      [IPC_INVOKE_CHANNELS.onboardingSelectProject, state],
+    ]))
     const bridge = createForgeBridge(ipc.value)
     await expect(bridge.onboarding.state()).resolves.toMatchObject({ status: "required" })
     expect(ipc.invoke).toHaveBeenCalledWith(IPC_INVOKE_CHANNELS.onboardingState, {})
+    await expect(bridge.onboarding.selectProject()).resolves.toMatchObject({ status: "required" })
+    expect(ipc.invoke).toHaveBeenCalledWith(IPC_INVOKE_CHANNELS.onboardingSelectProject, {})
     expect(() => bridge.onboarding.approveRoots({ candidateIds: ["/arbitrary/path"] })).toThrow()
-    expect(ipc.invoke).toHaveBeenCalledTimes(1)
+    expect(ipc.invoke).toHaveBeenCalledTimes(2)
   })
 
   it("validates event payloads before delivering them", () => {

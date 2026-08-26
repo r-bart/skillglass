@@ -15,6 +15,7 @@ interface CommonPlanInput {
   readonly expiresAt?: string
   readonly adapterId: string
   readonly installationIds?: readonly string[]
+  readonly commitMetadata?: OperationPlan["commitMetadata"]
 }
 
 export interface CreateInstallPlanInput extends CommonPlanInput {
@@ -104,6 +105,7 @@ function base(
   | "adapterId"
   | "installationIds"
   | "undoStatus"
+  | "commitMetadata"
 > {
   validateCommon(input)
   return {
@@ -116,6 +118,7 @@ function base(
     ...(input.expiresAt === undefined ? {} : { expiresAt: input.expiresAt }),
     adapterId: input.adapterId,
     installationIds: input.installationIds ?? [],
+    ...(input.commitMetadata === undefined ? {} : { commitMetadata: input.commitMetadata }),
     undoStatus: "pending",
   }
 }
@@ -273,6 +276,9 @@ export function assertOperationPlan(plan: OperationPlan): void {
   validateRootRelative(plan.artifacts.destination, "destination")
   validateRootRelative(plan.artifacts.stage, "stage")
   validateStageSibling(plan.artifacts.destination, plan.artifacts.stage)
+  if (plan.commitMetadata !== undefined && plan.commitMetadata.contract.length === 0) {
+    throw new OperationValidationError("Commit metadata contract cannot be empty")
+  }
   if (plan.kind === "install" && plan.expectedBefore.exists) {
     throw new OperationValidationError("Install destination must be absent")
   }

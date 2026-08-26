@@ -29,11 +29,17 @@ export interface NativeRootPicker {
   selectDirectory(): Promise<string | null>
 }
 
+export interface NativeProjectPicker {
+  /** Returns true only when the persisted project registry changed. */
+  selectProject(): Promise<boolean>
+}
+
 export interface RootServiceOptions {
   readonly adapters: readonly SkillRuntimeAdapter[]
-  readonly discoveryContext: DiscoveryContext
+  readonly discoveryContext: DiscoveryContext | (() => DiscoveryContext)
   readonly settings: RootApprovalSettingsRepository
   readonly picker: NativeRootPicker
+  readonly projectPicker?: NativeProjectPicker
   readonly onApprovalPersisted?: (roots: readonly SourceRoot[]) => Promise<void>
   readonly now?: () => Date
 }
@@ -113,12 +119,50 @@ async function observedAccess(candidate: string, immutable: boolean): Promise<Re
   }
 }
 
+function filesystemErrorCode(error: unknown): string | undefined {
+  if (typeof error !== "object" || error === null || !("code" in error)) return undefined
+  return typeof error.code === "string" ? error.code : undefined
+}
+
+async function revalidateStoredCandidate(record: StoredRootCandidate): Promise<StoredRootCandidate> {
+  try {
+    const stats = await lstat(record.canonicalPath)
+    if (!stats.isDirectory()) {
+      return { ...record, access: "missing", writableWithoutElevation: false }
+    }
+  } catch (error) {
+    const code = filesystemErrorCode(error)
+    if (code === "ENOENT" || code === "ENOTDIR") {
+      return { ...record, access: "missing", writableWithoutElevation: false }
+    }
+    if (code === "EACCES" || code === "EPERM") {
+      return { ...record, access: "denied", writableWithoutElevation: false }
+    }
+    throw error
+  }
+  try {
+    await access(record.canonicalPath, fsConstants.R_OK)
+  } catch {
+    return { ...record, access: "denied", writableWithoutElevation: false }
+  }
+  if (record.kind === "managed" || record.kind === "system") {
+    return { ...record, access: "read-only", writableWithoutElevation: false }
+  }
+  try {
+    await access(record.canonicalPath, fsConstants.W_OK)
+    return { ...record, access: "read-write", writableWithoutElevation: true }
+  } catch {
+    return { ...record, access: "read-only", writableWithoutElevation: false }
+  }
+}
+
 export class RootService {
   readonly #adapters: readonly SkillRuntimeAdapter[]
   readonly #adapterNames: ReadonlyMap<string, string>
-  readonly #context: DiscoveryContext
+  readonly #context: () => DiscoveryContext
   readonly #settings: RootApprovalSettingsRepository
   readonly #picker: NativeRootPicker
+  readonly #projectPicker: NativeProjectPicker
   readonly #onApprovalPersisted: (roots: readonly SourceRoot[]) => Promise<void>
   readonly #now: () => Date
   #candidates = new Map<string, StoredRootCandidate>()
@@ -129,9 +173,12 @@ export class RootService {
   constructor(options: RootServiceOptions) {
     this.#adapters = options.adapters
     this.#adapterNames = new Map(options.adapters.map((adapter) => [adapter.id, adapter.displayName]))
-    this.#context = options.discoveryContext
+    this.#context = typeof options.discoveryContext === "function"
+      ? options.discoveryContext
+      : () => options.discoveryContext as DiscoveryContext
     this.#settings = options.settings
     this.#picker = options.picker
+    this.#projectPicker = options.projectPicker ?? { selectProject: () => Promise.resolve(false) }
     this.#onApprovalPersisted = options.onApprovalPersisted ?? (() => Promise.resolve())
     this.#now = options.now ?? (() => new Date())
   }
@@ -168,6 +215,13 @@ export class RootService {
     this.#candidates.set(record.candidateId, record)
     this.#selected.add(record.candidateId)
     return dto(record)
+  }
+
+  async selectProject(): Promise<OnboardingStateDto> {
+    await this.#refresh()
+    await this.#projectPicker.selectProject()
+    await this.#refresh()
+    return this.#state()
   }
 
   async approveRoots(candidateIds: readonly string[]): Promise<readonly ApprovedRootDto[]> {
@@ -218,19 +272,24 @@ export class RootService {
       this.#loaded = true
     }
 
+    for (const [candidateId, candidate] of this.#candidates) {
+      this.#candidates.set(candidateId, await revalidateStoredCandidate(candidate))
+    }
+
+    const context = this.#context()
     for (const adapter of this.#adapters) {
-      const proposed = await adapter.discoverRoots(this.#context)
-      for (const candidate of proposed) this.#candidates.set(candidate.candidateId, this.#record(adapter, candidate))
+      const proposed = await adapter.discoverRoots(context)
+      for (const candidate of proposed) this.#candidates.set(candidate.candidateId, this.#record(adapter, candidate, context))
     }
     for (const candidate of this.#candidates.values()) {
       if (!this.#persisted && candidate.defaultIncluded) this.#selected.add(candidate.candidateId)
     }
   }
 
-  #record(adapter: SkillRuntimeAdapter, candidate: RootCandidate): StoredRootCandidate {
+  #record(adapter: SkillRuntimeAdapter, candidate: RootCandidate, context: DiscoveryContext): StoredRootCandidate {
     const project = candidate.projectPath === undefined
       ? undefined
-      : this.#context.projects.find(({ canonicalPath: projectPath }) => projectPath === candidate.projectPath)
+      : context.projects.find(({ canonicalPath: projectPath }) => projectPath === candidate.projectPath)
     return {
       candidateId: candidate.candidateId,
       adapterId: candidate.adapterId,

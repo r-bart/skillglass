@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from "node:crypto"
+import path from "node:path"
 
 import type { SkillRuntimeAdapter } from "@forge/adapter-api"
 import {
@@ -23,6 +24,7 @@ import {
   OperationInterruptedError,
   SourceSelectionService,
   parseLocalImportProvenanceV1,
+  parseLocalSourceCommitMetadata,
   type LocalImportProvenanceV1,
   type LocalSourceUpdateObservation,
   type PreparedLocalInstall,
@@ -34,11 +36,12 @@ import type {
   SettingsRepository,
   UpdateObservationRepository,
 } from "@forge/storage"
-import type { ApprovedRootPolicy } from "@forge/scanner"
+import type { ApprovedRootPolicy, ExternalChangeInvalidation } from "@forge/scanner"
 
 import { PrivateSourceLeaseRepository } from "./artifact-leases.js"
 
 const UPDATE_UNDO_PREFIX = "operations.local-source-update-undo.v1."
+const LOCAL_COMMIT_APPLIED_PREFIX = "operations.local-source-commit-applied.v1."
 
 type PendingLocalOperation =
   | Readonly<{ kind: "install"; prepared: PreparedLocalInstall }>
@@ -95,6 +98,19 @@ function safeMessage(error: unknown): string {
   return error instanceof Error && error.message.length > 0 ? error.message : "La operación no se pudo completar"
 }
 
+function containsPath(parent: string, candidate: string): boolean {
+  const relative = path.relative(parent, candidate)
+  return relative === "" || (
+    relative !== ".." &&
+    !relative.startsWith(`..${path.sep}`) &&
+    !path.isAbsolute(relative)
+  )
+}
+
+function pathsOverlap(left: string, right: string): boolean {
+  return containsPath(left, right) || containsPath(right, left)
+}
+
 function parseUndo(value: unknown): PersistedUpdateUndo | undefined {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined
   const candidate = value as Record<string, unknown>
@@ -124,6 +140,7 @@ export class DesktopOperationService {
   readonly #onCompleted: (result: OperationResultDto) => void
   readonly #pending = new Map<string, PendingLocalOperation>()
   readonly #observations = new Map<string, LocalSourceUpdateObservation>()
+  readonly #invalidatedPlans = new Map<string, string>()
 
   constructor(options: DesktopOperationServiceOptions) {
     this.#selections = options.selections
@@ -185,6 +202,20 @@ export class DesktopOperationService {
   }
 
   async confirm(input: ConfirmOperationInput): Promise<OperationResultDto> {
+    const invalidation = this.#invalidatedPlans.get(input.planId)
+    if (invalidation !== undefined) {
+      const plan = await this.#repository.get(input.planId)
+      this.#invalidatedPlans.delete(input.planId)
+      const result = this.#result(
+        input.planId,
+        "stale",
+        [...(plan?.installationIds ?? [])],
+        invalidation,
+        false,
+      )
+      this.#onCompleted(result)
+      return result
+    }
     const pending = this.#pending.get(input.planId)
     if (pending === undefined) {
       const result = await this.#contentUpdates.confirm(input.planId)
@@ -219,6 +250,67 @@ export class DesktopOperationService {
 
   history(): Promise<OperationHistoryDto> {
     return Promise.resolve(this.#contentUpdates.history())
+  }
+
+  invalidatePlansForExternalChange(invalidation: ExternalChangeInvalidation): readonly string[] {
+    const root = this.#approvedRoots().find(({ id }) => id === invalidation.rootId)
+    if (root === undefined) return []
+    const changed = invalidation.paths.map((candidate) => path.resolve(candidate))
+    const invalidated: string[] = []
+    for (const plan of this.#repository.listPlans()) {
+      if (plan.state !== "planned") continue
+      const overlaps = plan.affectedPaths
+        .filter(({ rootId }) => rootId === root.id)
+        .map(({ relativePath }) => path.resolve(root.canonicalPath, relativePath))
+        .some((affected) => changed.some((candidate) => pathsOverlap(affected, candidate)))
+      if (!overlaps) continue
+      this.#invalidatedPlans.set(plan.id, "Los archivos cambiaron fuera de Forge; revisa y crea un nuevo plan")
+      invalidated.push(plan.id)
+    }
+    return invalidated
+  }
+
+  /** Replays idempotent projection effects after the persisted roots are rescanned. */
+  async recoverCommittedLocalState(): Promise<void> {
+    const plans = this.#repository.listPlans()
+      .filter((plan) => plan.state === "committed" && plan.undoStatus === "available")
+      .filter((plan) => this.#settings.get(`${LOCAL_COMMIT_APPLIED_PREFIX}${plan.id}`) === undefined)
+      .sort((left, right) => left.createdAt.localeCompare(right.createdAt) || left.id.localeCompare(right.id))
+    const recoveredInstallations = new Set<string>()
+    for (const plan of plans) {
+      const completion = parseLocalSourceCommitMetadata(plan)
+      if (completion === undefined) continue
+      if (completion.kind === "install") {
+        const installation = this.#projections.getInstallation(completion.provenance.installationId) ??
+          this.#projections.listInstallations().find((candidate) =>
+            candidate.adapterId === plan.adapterId &&
+            candidate.canonicalPath === completion.provenance.destinationCanonicalPath)
+        if (installation === undefined) {
+          throw new OperationConflictError(`Committed installation ${plan.id} is missing after recovery scan`)
+        }
+        const provenance: LocalImportProvenanceV1 = {
+          ...completion.provenance,
+          installationId: installation.id,
+        }
+        this.#provenance.persist(installation.provenanceId, provenance)
+        this.#persistRecoveredBase(provenance)
+        recoveredInstallations.add(installation.id)
+      } else {
+        const installation = this.#projections.getInstallation(completion.provenance.installationId)
+        if (installation === undefined || installation.provenanceId !== completion.provenanceId) {
+          throw new OperationConflictError(`Committed source update ${plan.id} no longer matches its installation`)
+        }
+        this.#provenance.persist(completion.provenanceId, completion.provenance)
+        this.#persistRecoveredBase(completion.provenance)
+        recoveredInstallations.add(completion.provenance.installationId)
+      }
+      this.#leases.delete(plan.id)
+      this.#markLocalCommitApplied(plan.id)
+    }
+    if (recoveredInstallations.size > 0) {
+      await this.refreshUpdates()
+      this.#onInventoryChanged([...recoveredInstallations])
+    }
   }
 
   async refreshUpdates(): Promise<AckDto> {
@@ -340,6 +432,7 @@ export class DesktopOperationService {
         installedTreeHash: provenance.installedTreeHash,
         sourceTreeHash: provenance.sourceTreeHash,
       })
+      this.#markLocalCommitApplied(executed.plan.id)
       this.#pending.delete(prepared.plan.id)
       this.#onInventoryChanged([installed.id])
       return this.#result(executed.plan.id, "committed", [installed.id], "Skill instalada", true)
@@ -365,6 +458,7 @@ export class DesktopOperationService {
         installedTreeHash: executed.provenance.installedTreeHash,
         sourceTreeHash: executed.provenance.sourceTreeHash,
       })
+      this.#markLocalCommitApplied(executed.plan.id)
       this.#pending.delete(prepared.plan.id)
       this.#onInventoryChanged([executed.provenance.installationId])
       return this.#result(executed.plan.id, "committed", [executed.provenance.installationId], "Skill actualizada desde su fuente local", true)
@@ -386,6 +480,25 @@ export class DesktopOperationService {
       ...(observation.installedTreeHash === undefined ? {} : { installedTreeHash: observation.installedTreeHash }),
       ...(observation.sourceTreeHash === undefined ? {} : { sourceTreeHash: observation.sourceTreeHash }),
     })
+  }
+
+  #persistRecoveredBase(provenance: LocalImportProvenanceV1): void {
+    this.#updateObservations.put({
+      installationId: provenance.installationId,
+      state: "current",
+      observedAt: this.#now().toISOString(),
+      baseTreeHash: provenance.installedTreeHash,
+      installedTreeHash: provenance.installedTreeHash,
+      sourceTreeHash: provenance.sourceTreeHash,
+    })
+  }
+
+  #markLocalCommitApplied(planId: string): void {
+    this.#settings.set(
+      `${LOCAL_COMMIT_APPLIED_PREFIX}${planId}`,
+      { version: 1 },
+      this.#now().toISOString(),
+    )
   }
 
   #requireRoot(rootId: string): SourceRoot {

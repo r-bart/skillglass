@@ -17,9 +17,10 @@ import { InventoryService } from "./service.js"
 type Handler = (event: IpcMainInvokeEvent, input: unknown) => Promise<unknown>
 
 function event(url: string): IpcMainInvokeEvent {
+  const frame = { url }
   return {
-    senderFrame: { url },
-    sender: { getURL: () => url },
+    senderFrame: frame,
+    sender: { mainFrame: frame, getURL: () => url },
   } as unknown as IpcMainInvokeEvent
 }
 
@@ -96,6 +97,8 @@ function projectionRepository(): ProjectionRepository {
     listRoots: () => [],
     listInstallations: () => [installation],
     getInstallation: (id) => id === installation.id ? installation : undefined,
+    listBindings: () => [],
+    listEffectiveSkills: () => [],
   }
 }
 

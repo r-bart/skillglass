@@ -34,6 +34,7 @@ interface ForgeBusinessFixture {
   readonly home: string
   readonly userData: string
   readonly projectRoot: string
+  readonly neutralCwd: string
   readonly projectSkillRoot: string
   readonly globalRoot: string
   readonly globalSkillRoot: string
@@ -50,6 +51,7 @@ interface ForgeBusinessFixture {
   readonly elevationShimDirectory: string
   readScanAudit(): Promise<string[]>
   readGlobalSkill(): Promise<string>
+  changeGlobalSkill(description: string, body: string): Promise<void>
   installDestinationExists(): Promise<boolean>
   changeInstallSource(text: string): Promise<void>
   changeInstalledSkill(text: string): Promise<void>
@@ -62,6 +64,7 @@ interface ForgeBusinessFixture {
 
 export interface LaunchForgeOptions {
   readonly onboarded?: boolean
+  readonly workingDirectory?: string
 }
 
 export interface ForgeTestApplication {
@@ -70,6 +73,7 @@ export interface ForgeTestApplication {
   restart(): Promise<void>
   installFromDirectory(source: string): Promise<void>
   installFromZip(source: string): Promise<void>
+  selectProject(project: string): Promise<void>
 }
 
 function skillSource(name: string, description: string, body: string): string {
@@ -154,6 +158,23 @@ async function eventuallyAbsent(candidate: string, timeoutMs = 2_000): Promise<b
   return true
 }
 
+async function waitForFileContent(candidate: string, expected: string, timeoutMs = 10_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs
+  let observed: string | undefined
+  while (Date.now() < deadline) {
+    try {
+      observed = await readFile(candidate, "utf8")
+      if (observed === expected) return
+    } catch {
+      observed = undefined
+    }
+    await new Promise((resolve) => setTimeout(resolve, 25))
+  }
+  throw new Error(
+    `Timed out waiting for committed installation at ${candidate}; observed ${observed === undefined ? "no file" : "different content"}`,
+  )
+}
+
 async function readAuditLines(file: string): Promise<string[]> {
   const raw = await readFile(file, "utf8")
   return raw.split(/\r?\n/u).map((line) => line.trim()).filter(Boolean)
@@ -182,6 +203,7 @@ export async function createForgeBusinessFixture(): Promise<ForgeBusinessFixture
   const home = path.join(root, "home")
   const userData = path.join(root, "user-data")
   const projectRoot = path.join(root, "Acme Web")
+  const neutralCwd = path.join(root, "neutral-cwd")
   const globalRoot = path.join(home, ".agents", "skills")
   const globalSkillRoot = path.join(globalRoot, "global-review")
   const projectSkillRoot = path.join(projectRoot, ".agents", "skills", "project-release")
@@ -197,10 +219,16 @@ export async function createForgeBusinessFixture(): Promise<ForgeBusinessFixture
   const elevationAuditPath = path.join(root, "elevation-audit.log")
   const elevationShimDirectory = path.join(root, "elevation-shims")
   const originalHarnessConfig = "[features]\nskills = true\n"
+  const initialInstallContent = skillSource(
+    "local-installable",
+    "Instalable local",
+    "Versión de origen 1",
+  )
 
   await Promise.all([
     mkdir(userData, { recursive: true }),
     mkdir(path.join(projectRoot, ".git"), { recursive: true }),
+    mkdir(neutralCwd, { recursive: true }),
     mkdir(path.dirname(harnessConfig), { recursive: true }),
     mkdir(path.dirname(traversalZipSource), { recursive: true }),
   ])
@@ -222,7 +250,7 @@ export async function createForgeBusinessFixture(): Promise<ForgeBusinessFixture
   )
   await createSkill(
     installDirectorySource,
-    skillSource("local-installable", "Instalable local", "Versión de origen 1"),
+    initialInstallContent,
   )
   await Promise.all([
     writeFile(harnessConfig, originalHarnessConfig, "utf8"),
@@ -246,6 +274,7 @@ export async function createForgeBusinessFixture(): Promise<ForgeBusinessFixture
     home,
     userData,
     projectRoot,
+    neutralCwd,
     projectSkillRoot,
     globalRoot,
     globalSkillRoot,
@@ -265,11 +294,17 @@ export async function createForgeBusinessFixture(): Promise<ForgeBusinessFixture
       return batches.flatMap((line) => JSON.parse(line) as string[])
     },
     readGlobalSkill: () => readFile(globalSkillEntry, "utf8"),
+    changeGlobalSkill: (description, body) => writeFile(
+      globalSkillEntry,
+      skillSource("global-review", description, body),
+      "utf8",
+    ),
     // An undo is requested through asynchronous Electron IPC. Acceptance checks
     // ask whether the destination remains, so tolerate only that bounded handoff;
     // a destination that is genuinely left behind still returns true.
     installDestinationExists: () => eventuallyAbsent(installDestination),
     async changeInstallSource(text) {
+      await waitForFileContent(path.join(installDestination, "SKILL.md"), initialInstallContent)
       await writeFile(
         path.join(installDirectorySource, "SKILL.md"),
         skillSource("local-installable", "Instalable local", text),
@@ -397,11 +432,13 @@ class RunningForge implements ForgeTestApplication {
   #application: ElectronApplication
   #page: Page
   #closed = false
+  readonly #workingDirectory: string
 
-  constructor(fixture: ForgeBusinessFixture, application: ElectronApplication, page: Page) {
+  constructor(fixture: ForgeBusinessFixture, application: ElectronApplication, page: Page, workingDirectory: string) {
     this.#fixture = fixture
     this.#application = application
     this.#page = page
+    this.#workingDirectory = workingDirectory
   }
 
   get page(): Page {
@@ -418,7 +455,7 @@ class RunningForge implements ForgeTestApplication {
   async restart(): Promise<void> {
     if (this.#closed) throw new Error("Cannot restart a closed Forge test application")
     await this.#application.close()
-    const launched = await launchElectron(this.#fixture)
+    const launched = await launchElectron(this.#fixture, this.#workingDirectory)
     this.#application = launched.application
     this.#page = launched.page
     await this.#page.getByRole("heading", { name: "Inventario" }).waitFor()
@@ -427,15 +464,36 @@ class RunningForge implements ForgeTestApplication {
   async installFromDirectory(source: string): Promise<void> {
     await injectNativeSelection(this.#application, source)
     await triggerLocalSourcePicker(this.#page, "directory")
+    await this.#chooseGlobalInstallTarget()
   }
 
   async installFromZip(source: string): Promise<void> {
     await injectNativeSelection(this.#application, source)
     await triggerLocalSourcePicker(this.#page, "zip")
+    await this.#chooseGlobalInstallTarget()
+  }
+
+  async selectProject(project: string): Promise<void> {
+    await injectNativeSelection(this.#application, project)
+    await this.#page.getByRole("button", { name: "Añadir proyecto Codex…" }).click()
+  }
+
+  async #chooseGlobalInstallTarget(): Promise<void> {
+    const dialog = this.#page.getByRole("dialog", { name: "Elegir destino de instalación" })
+    const confirmation = this.#page.getByRole("dialog", { name: "Confirmar instalación" })
+    const rejected = this.#page.locator(".operation-error")
+    await dialog.or(confirmation).or(rejected).waitFor({ state: "visible" })
+    if (!await dialog.isVisible()) return
+    const select = dialog.getByLabel("Carpeta aprobada")
+    const option = select.locator("option").filter({ hasText: this.#fixture.globalRoot }).first()
+    const value = await option.getAttribute("value")
+    if (value === null) throw new Error("The approved global install target is missing")
+    await select.selectOption(value)
+    await dialog.getByRole("button", { name: "Continuar" }).click()
   }
 }
 
-async function launchElectron(fixture: ForgeBusinessFixture): Promise<Readonly<{
+async function launchElectron(fixture: ForgeBusinessFixture, workingDirectory: string): Promise<Readonly<{
   application: ElectronApplication
   page: Page
 }>> {
@@ -459,7 +517,7 @@ async function launchElectron(fixture: ForgeBusinessFixture): Promise<Readonly<{
   }
   const application = await electron.launch({
     ...(executablePath === undefined ? {} : { executablePath }),
-    cwd: fixture.projectRoot,
+    cwd: workingDirectory,
     env: environment,
     args: [
       ...(executablePath === undefined ? [e2eMainEntrypoint] : []),
@@ -475,6 +533,7 @@ export async function launchForge(
   fixture: ForgeBusinessFixture,
   options: LaunchForgeOptions = {},
 ): Promise<ForgeTestApplication> {
+  const workingDirectory = options.workingDirectory ?? fixture.projectRoot
   const projectSkills = path.join(fixture.projectRoot, ".agents", "skills")
   const hiddenProjectSkills = `${projectSkills}.e2e-hidden`
   const hiddenManagedSkills = `${fixture.managedSkillsRoot}.e2e-hidden`
@@ -484,7 +543,7 @@ export async function launchForge(
   }
   let launched: Awaited<ReturnType<typeof launchElectron>>
   try {
-    launched = await launchElectron(fixture)
+    launched = await launchElectron(fixture, workingDirectory)
     await launched.page.getByRole("heading", { name: "Carpetas de skills" }).waitFor()
   } finally {
     if (options.onboarded !== true) {
@@ -492,7 +551,7 @@ export async function launchForge(
       await rename(hiddenManagedSkills, fixture.managedSkillsRoot)
     }
   }
-  const app = new RunningForge(fixture, launched.application, launched.page)
+  const app = new RunningForge(fixture, launched.application, launched.page, workingDirectory)
 
   if (options.onboarded === true) {
     const submit = launched.page.getByRole("button", { name: "Escanear carpetas aprobadas" })

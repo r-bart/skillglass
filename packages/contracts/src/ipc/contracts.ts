@@ -44,6 +44,10 @@ export const IPC_INVOKE_CONTRACTS = {
     input: SelectAdditionalRootInputSchema,
     output: NullableRootCandidateSchema,
   },
+  [IPC_INVOKE_CHANNELS.onboardingSelectProject]: {
+    input: EmptyInputSchema,
+    output: OnboardingStateDtoSchema,
+  },
   [IPC_INVOKE_CHANNELS.onboardingApproveRoots]: {
     input: ApproveRootsInputSchema,
     output: z.array(ApprovedRootDtoSchema),

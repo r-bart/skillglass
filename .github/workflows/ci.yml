@@ -8,22 +8,77 @@ permissions:
   contents: read
 
 jobs:
-  quality:
+  native:
+    name: Native / ${{ matrix.os }}
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
         os: [macos-latest, windows-latest, ubuntu-latest]
-    runs-on: \${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm 11.5.1
+        uses: pnpm/action-setup@v4
         with:
           version: 11.5.1
-      - uses: actions/setup-node@v4
+
+      - name: Install Node.js 24.19.0
+        uses: actions/setup-node@v4
         with:
           node-version: 24.19.0
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm typecheck
-      - run: pnpm lint
-      - run: pnpm test
+
+      - name: Install Linux desktop and maker dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes fakeroot rpm xvfb
+
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck application and E2E helpers
+        run: |
+          pnpm typecheck
+          pnpm exec tsc --noEmit -p tests/e2e/tsconfig.json
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Unit, adapter, and filesystem integration tests
+        run: pnpm test
+
+      - name: Package native application
+        run: pnpm package
+
+      - name: Electron E2E and packaged SQLite reopen smoke
+        if: runner.os != 'Linux'
+        env:
+          FORGE_E2E_SKIP_PACKAGE: "1"
+        run: pnpm test:e2e
+
+      - name: Electron E2E and packaged SQLite reopen smoke (Xvfb)
+        if: runner.os == 'Linux'
+        env:
+          FORGE_E2E_SKIP_PACKAGE: "1"
+        run: xvfb-run --auto-servernum --server-args="-screen 0 1280x960x24" pnpm test:e2e
+
+      - name: Make native distributables
+        run: pnpm make
+
+      - name: Verify native maker artifacts
+        run: node --experimental-strip-types tests/e2e/support/verify-make-artifacts.ts
+
+      - name: Preserve E2E diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-diagnostics-${{ matrix.os }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7

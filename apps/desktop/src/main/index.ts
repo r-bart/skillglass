@@ -5,7 +5,9 @@ import { FORGE_SCHEME, registerForgeProtocol } from "./protocol.js"
 import { createMainWindow } from "./window.js"
 import { createOnboardingComposition, type OnboardingComposition } from "./onboarding/composition.js"
 import { applyE2eProcessPathOverrides, useE2eBuiltAssets } from "./e2e-test-seam.js"
+import { applyUserDataCommandLineOverride } from "./user-data-path.js"
 
+applyUserDataCommandLineOverride(app)
 applyE2eProcessPathOverrides(app)
 const usesBuiltAssets = app.isPackaged || useE2eBuiltAssets()
 
@@ -47,6 +49,9 @@ app.whenReady().then(async () => {
       })
     }
   })
+}).catch((reason: unknown) => {
+  console.error("Forge failed during startup", reason)
+  app.exit(1)
 })
 
 app.on("before-quit", () => {

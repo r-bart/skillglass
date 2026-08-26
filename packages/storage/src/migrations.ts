@@ -149,6 +149,26 @@ export const MIGRATIONS: readonly Migration[] = [
         ON recovery_records(state, updated_at);
     `,
   },
+  {
+    version: 4,
+    name: "adapter_scope_projections",
+    sql: `
+      CREATE TABLE scope_bindings (
+        installation_id TEXT NOT NULL REFERENCES installations(id) ON DELETE CASCADE,
+        target_scope_json TEXT NOT NULL CHECK (json_valid(target_scope_json)),
+        value_json TEXT NOT NULL CHECK (json_valid(value_json)),
+        PRIMARY KEY (installation_id, target_scope_json)
+      ) STRICT;
+
+      CREATE TABLE effective_skills (
+        adapter_id TEXT NOT NULL,
+        target_scope_json TEXT NOT NULL CHECK (json_valid(target_scope_json)),
+        skill_key TEXT NOT NULL,
+        value_json TEXT NOT NULL CHECK (json_valid(value_json)),
+        PRIMARY KEY (adapter_id, target_scope_json, skill_key)
+      ) STRICT;
+    `,
+  },
 ]
 
 export function migrate(database: DatabaseSync): void {

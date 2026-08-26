@@ -202,6 +202,8 @@ describe("openForgeStore", () => {
         "provenance",
         "recovery_records",
         "roots",
+        "scope_bindings",
+        "effective_skills",
         "schema_migrations",
         "settings",
         "snapshots",
@@ -209,7 +211,7 @@ describe("openForgeStore", () => {
     )
     expect(
       database.prepare("SELECT COUNT(*) AS count FROM schema_migrations").get(),
-    ).toEqual({ count: 3 })
+    ).toEqual({ count: 4 })
     database.exec("PRAGMA foreign_keys = ON")
     expect(() =>
       database

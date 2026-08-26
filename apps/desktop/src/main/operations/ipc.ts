@@ -1,4 +1,4 @@
-import type { IpcMain, IpcMainInvokeEvent } from "electron"
+import type { IpcMain } from "electron"
 
 import {
   IPC_INVOKE_CHANNELS,
@@ -15,15 +15,12 @@ import {
 } from "@forge/contracts"
 
 import type { DesktopOperationService } from "./service.js"
+import { isTrustedIpcSender } from "../security.js"
 
 export interface RegisterOperationIpcOptions {
   readonly ipcMain: Pick<IpcMain, "handle" | "removeHandler">
   readonly service: DesktopOperationService
   readonly isTrustedSender: (url: string) => boolean
-}
-
-function senderUrl(event: IpcMainInvokeEvent): string {
-  return event.senderFrame?.url ?? event.sender.getURL()
 }
 
 export function registerOperationIpc(options: RegisterOperationIpcOptions): () => void {
@@ -33,7 +30,7 @@ export function registerOperationIpc(options: RegisterOperationIpcOptions): () =
   ): void => {
     const contract = IPC_INVOKE_CONTRACTS[channel]
     options.ipcMain.handle(channel, async (event, rawInput: unknown) => {
-      if (!options.isTrustedSender(senderUrl(event))) throw new Error("Untrusted renderer IPC sender")
+      if (!isTrustedIpcSender(event, options.isTrustedSender)) throw new Error("Untrusted renderer IPC sender")
       const input = contract.input.parse(rawInput) as TInput
       return contract.output.parse(await handler(input))
     })

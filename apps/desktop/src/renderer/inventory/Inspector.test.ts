@@ -69,6 +69,26 @@ function detail(
       source: { kind: "adapter", adapterId: "codex" },
     }] : [],
     requirements: [],
+    scopeBinding: {
+      installationId: `installation_${name.replaceAll("-", "_")}`,
+      targetScope: "global",
+      relationship: "owned",
+      runtimeState: "unknown",
+      evidence: { kind: "unknown", source: "codex-runtime-state" },
+    },
+    precedence: {
+      adapterId: "codex",
+      targetScope: "global",
+      key: name,
+      winnerInstallationId: `installation_${name.replaceAll("-", "_")}`,
+      candidateInstallationIds: [`installation_${name.replaceAll("-", "_")}`],
+      reason: {
+        state: "known",
+        value: "Only candidate in the effective scope",
+        evidence: { kind: "derived", source: "candidate-set" },
+      },
+      status: "resolved",
+    },
     provenance: {
       id: `provenance_${name.replaceAll("-", "_")}`,
       kind: readOnly ? "system" : "unknown",
@@ -183,6 +203,11 @@ describe("Inspector", () => {
     expect([...container.querySelectorAll("*")]
       .filter(({ textContent, children }) => textContent === "Codex" && children.length === 0))
       .toHaveLength(1)
+    expect(container.textContent).toContain("Only candidate in the effective scope")
+    expect(container.textContent).toContain("candidate-set")
+    expect(container.textContent).toContain("Dependencias no observadas")
+    expect(container.textContent).not.toContain("Evidencia de precedencia desconocida")
+    expect(container.textContent).not.toContain("Ningún requisito declarado")
     expect([...container.querySelectorAll("*")]
       .filter(({ textContent, children }) => textContent === "Observado" && children.length === 0))
       .toHaveLength(1)

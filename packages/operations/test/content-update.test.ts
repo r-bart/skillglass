@@ -12,6 +12,7 @@ import {
   OperationEngine,
   ProjectionContentFileSystem,
   StorageOperationRepository,
+  type OperationPlan,
 } from "../src/index.js"
 
 const NOW = "2026-08-26T10:00:00.000Z"
@@ -82,13 +83,14 @@ async function fixture() {
   return { databasePath, entryPath, original, store }
 }
 
-function coordinator(store: ForgeStore) {
+function coordinator(store: ForgeStore, afterPersist?: (plan: OperationPlan) => Promise<void> | void) {
   const repository = new StorageOperationRepository(store.operations)
   const fileSystem = new ProjectionContentFileSystem(store.projections)
   const engine = new OperationEngine({
     repository,
     fileSystem,
     clock: { now: () => new Date(NOW) },
+    ...(afterPersist === undefined ? {} : { afterPersist }),
   })
   const service = new ContentUpdateCoordinator({
     projections: store.projections,
@@ -124,6 +126,29 @@ describe("direct content update", () => {
     const result = await service.confirm(plan.planId)
     expect(result.status).toBe("conflict")
     expect(await readFile(entryPath, "utf8")).toBe("external change")
+    store.close()
+  })
+
+  it("rechecks the entry after durable applying and preserves a concurrent edit", async () => {
+    const { store, entryPath, original } = await fixture()
+    const external = "external edit during applying"
+    const { engine, service } = coordinator(store, async (persisted) => {
+      if (persisted.state === "applying") await writeFile(entryPath, external, "utf8")
+    })
+    await engine.recoverStartup()
+    const plan = await service.plan({
+      kind: "update-entry-content",
+      installationId: "installation_review",
+      expectedSnapshotId: "snapshot_original",
+      content: `${original}\nPlanned content.`,
+    })
+
+    await expect(service.confirm(plan.planId)).resolves.toMatchObject({ status: "conflict" })
+    expect(await readFile(entryPath, "utf8")).toBe(external)
+    expect(await new StorageOperationRepository(store.operations).get(plan.planId)).toMatchObject({
+      state: "rolled-back",
+      applyStarted: true,
+    })
     store.close()
   })
 
