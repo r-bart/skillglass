@@ -2,9 +2,9 @@
 
 **Updated**: 2026-08-26
 **Branch**: `codex/forge-mvp`
-**Active Feature**: Forge MVP implementation and release readiness
-**Workflow Position**: Implementation plus macOS/Linux acceptance complete; native Windows release evidence explicitly deferred
-**Active Plan**: `thoughts/plans/2026-08-26_forge-mvp.md` (In Progress)
+**Active Feature**: Forge handoff style fidelity
+**Workflow Position**: Executing the approved visual-fidelity plan; MVP behavior and release evidence remain protected
+**Active Plan**: `thoughts/plans/2026-08-26_forge-handoff-style-fidelity.md` (In Progress)
 
 ## Key Decisions
 
