@@ -216,6 +216,11 @@ describe("Inspector", () => {
       .filter(({ textContent, children }) => textContent === "Sin datos" && children.length === 0))
       .toHaveLength(1)
     expect(buttonNamed("Editar")).toBeInstanceOf(HTMLButtonElement)
+    expect(container.querySelector(".inspector-detail__header .skill-tile")).not.toBeNull()
+    expect(container.querySelector(".inspector-detail__description")?.textContent).toBe("Review global")
+    expect(container.querySelector(".inspector-detail__scroll")).not.toBeNull()
+    expect(container.querySelector(".inspector-footer")?.contains(buttonNamed("Abrir archivo") ?? null)).toBe(true)
+    expect(container.querySelector(".inspector-footer")?.contains(buttonNamed("Editar") ?? null)).toBe(true)
 
     await act(async () => buttonNamed("Abrir archivo")?.click())
     expect(openEntry).toHaveBeenCalledWith({
@@ -237,6 +242,38 @@ describe("Inspector", () => {
       .toHaveLength(1)
     expect(buttonNamed("Abrir archivo")).toBeInstanceOf(HTMLButtonElement)
     expect(buttonNamed("Editar")).toBeUndefined()
+  })
+
+  it("keeps long Windows paths, file names, snapshot ids, and hashes inside the inspector data regions", async () => {
+    const base = detail()
+    const locationLabel = "C:\\Users\\roberto\\Documents\\a-very-long-project-name-that-must-not-widen-the-inspector\\.agents\\skills\\global-review"
+    const entryFile = "nested/another-very-long-directory-name/SKILL.md"
+    const fileHash = "b".repeat(64)
+    const value: InstallationDetailDto = {
+      ...base,
+      locationLabel,
+      entryFile,
+      snapshotId: "snapshot_with_a_long_exact_observed_identifier_0123456789",
+      contentHash: fileHash,
+      files: [{
+        relativePath: "nested/another-very-long-directory-name/SKILL.md",
+        byteLength: 4096,
+        sha256: fileHash,
+        kind: "entry",
+      }],
+    }
+
+    await act(async () => root.render(createElement(Inspector, {
+      installationId: value.installation.installationId,
+      inventoryBridge: bridge(value),
+    })))
+
+    const exactEntryPath = `${locationLabel}\\nested\\another-very-long-directory-name\\SKILL.md`
+    expect(container.querySelector(".inspector-path")?.textContent).toBe(exactEntryPath)
+    expect(container.textContent).toContain(locationLabel)
+    expect(container.textContent).toContain(value.snapshotId)
+    expect(container.textContent).toContain(fileHash)
+    expect(container.querySelector(".file-hash")?.textContent).toBe(fileHash)
   })
 
   it("renders Markdown as inert React text and exposes a read-only source view", async () => {
@@ -275,6 +312,8 @@ describe("Inspector", () => {
     const editorElement = container.querySelector<HTMLElement>(".cm-editor")
     const editor = editorElement === null ? null : EditorView.findFromDOM(editorElement)
     if (editor === null) throw new Error("Editor was not rendered")
+    expect(container.querySelector(".inspector-footer")?.contains(buttonNamed("Revisar cambios") ?? null)).toBe(true)
+    expect(container.querySelector(".inspector-footer")?.contains(buttonNamed("Cancelar") ?? null)).toBe(true)
     const changed = `${value.rawEntryContent}\nNueva regla verificable.`
     await act(async () => {
       editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: changed } })

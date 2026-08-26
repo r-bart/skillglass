@@ -19,6 +19,13 @@ import { AccessibleDialog } from "../AccessibleDialog.js"
 import { CodeEditor } from "../CodeEditor.js"
 import { OperationPlanDetails } from "../OperationPlanDetails.js"
 import { TextDiff } from "../TextDiff.js"
+import {
+  DarkAction,
+  MetalAction,
+  QuietAction,
+  SkillTile,
+  StatusPill,
+} from "../VisualPrimitives.js"
 
 type Finding = InstallationDetailDto["findings"][number]
 type SourceView = "preview" | "source"
@@ -141,6 +148,15 @@ function findingTitle(finding: Finding): string {
   return finding.code.startsWith("FRONTMATTER_")
     ? "No se pudo leer el frontmatter"
     : finding.message
+}
+
+function evidenceTone(evidence: Evidence): "ok" | "attention" | "idle" {
+  switch (evidence.kind) {
+    case "observed": return "ok"
+    case "derived":
+    case "inferred": return "attention"
+    case "unknown": return "idle"
+  }
 }
 
 function markdownBody(source: string): string {
@@ -353,158 +369,127 @@ function Inspection({
     "div",
     { className: "inspector-detail" },
     createElement(
-      "div",
-      { className: "inspector-title-row" },
+      "header",
+      { className: "inspector-detail__header" },
+      createElement(SkillTile, {
+        adapterId: detail.installation.adapterId,
+        className: "inspector-identity-tile",
+        skillKey: detail.installation.key,
+      }),
       createElement(
         "div",
-        null,
+        { className: "inspector-detail__identity" },
         createElement("p", { className: "inspector-skill-name" }, name),
-        createElement("p", { className: "inspector-description" }, description),
+        createElement(
+          "p",
+          { className: "inspector-skill-context" },
+          `${adapterLabel(detail.installation.adapterId)} · ${scopeLabel(detail.installation.scope)}`,
+        ),
       ),
       createElement(
-        "span",
-        { className: `evidence-badge evidence-${detail.installation.name.evidence.kind}` },
+        StatusPill,
+        {
+          ariaLabel: `Evidencia del nombre: ${evidenceLabel(detail.installation.name.evidence)}`,
+          className: "inspector-evidence-pill",
+          tone: evidenceTone(detail.installation.name.evidence),
+        },
         evidenceLabel(detail.installation.name.evidence),
       ),
     ),
     createElement(
       "div",
-      { className: "inspector-actions" },
-      createElement(
-        "button",
-        {
-          type: "button",
-          className: "secondary-action",
-          onClick: () => { void openEntry() },
-        },
-        "Abrir archivo",
-      ),
-      detail.capabilities.canEditEntry
-        ? createElement("button", {
-            type: "button",
-            className: "primary-action",
-            onClick: () => {
-              setContent(detail.rawEntryContent)
-              setEditing(true)
-              setPlan(undefined)
-            },
-          }, "Editar")
-        : null,
-      detail.capabilities.canUpdateFromSource && (
-        detail.installation.status.update === "available" ||
-        detail.installation.status.update === "diverged"
-      )
-        ? createElement("button", {
-            type: "button",
-            className: "primary-action",
-            disabled: operationBusy,
-            onClick: () => { void prepareSourceUpdate() },
-          }, "Actualizar")
-        : null,
+      { className: "inspector-detail__description" },
+      createElement("p", { className: "inspector-description" }, description),
     ),
-    editing
-      ? createElement(
-          "section",
-          { className: "entry-editor", "aria-labelledby": "entry-editor-heading" },
-          createElement("h3", { id: "entry-editor-heading" }, "Editar contenido"),
-          createElement("p", { className: "editor-label", id: "editor-content-label" }, "Contenido"),
-          createElement(CodeEditor, { ariaLabel: "Contenido", value: content, onChange: setContent }),
-          createElement(
-            "div",
-            { className: "inspector-actions" },
-            createElement("button", {
-              ref: reviewButtonRef,
-              type: "button",
-              className: "primary-action",
-              disabled: operationBusy || content === detail.rawEntryContent,
-              onClick: () => { void review() },
-            }, operationBusy ? "Preparando…" : "Revisar cambios"),
-            createElement("button", {
-              type: "button",
-              className: "secondary-action",
-              disabled: operationBusy,
-              onClick: () => { setEditing(false); setPlan(undefined) },
-            }, "Cancelar"),
-          ),
-        )
-      : null,
-    plan === undefined
-      ? null
-      : createElement(
-          AccessibleDialog,
-          {
-            labelledBy: "update-dialog-title",
-            returnFocus: reviewButtonRef.current,
-            ...(operationBusy ? {} : { onDismiss: () => setPlan(undefined) }),
-          },
-            createElement("h3", { id: "update-dialog-title" }, "Confirmar actualización"),
-            createElement(OperationPlanDetails, { plan }),
-            createElement("p", { className: "inspector-path" }, path),
-            createElement("h4", null, "Diferencia de contenido"),
-            createElement(TextDiff, { before: detail.rawEntryContent, after: content }),
-            createElement(
-              "div",
-              { className: "inspector-actions" },
-              createElement("button", {
-                type: "button",
-                className: "primary-action",
-                disabled: operationBusy,
-                onClick: () => { void confirm() },
-              }, operationBusy ? "Actualizando…" : "Actualizar skill"),
-              createElement("button", {
-                type: "button",
-                className: "secondary-action",
-                disabled: operationBusy,
-                onClick: () => setPlan(undefined),
-              }, "Volver"),
-            ),
-        ),
-    sourceConflict === undefined
-      ? null
-      : createElement(
-          AccessibleDialog,
-          { labelledBy: "source-conflict-title", onDismiss: () => setSourceConflict(undefined) },
-            createElement("h3", { id: "source-conflict-title" }, "Conflicto de actualización"),
-            createElement("p", null, sourceConflict),
-            createElement("button", { type: "button", className: "secondary-action", onClick: () => setSourceConflict(undefined) }, "Cerrar"),
-        ),
-    sourcePlan === undefined
-      ? null
-      : createElement(
-          AccessibleDialog,
-          {
-            labelledBy: "source-update-title",
-            ...(operationBusy ? {} : { onDismiss: () => setSourcePlan(undefined) }),
-          },
-            createElement("h3", { id: "source-update-title" }, "Confirmar actualización de origen"),
-            createElement(OperationPlanDetails, { plan: sourcePlan }),
-            createElement(
-              "div",
-              { className: "inspector-actions" },
-              createElement("button", { type: "button", className: "primary-action", disabled: operationBusy, onClick: () => { void confirmSourceUpdate() } }, operationBusy ? "Actualizando…" : "Actualizar skill"),
-              createElement("button", { type: "button", className: "secondary-action", disabled: operationBusy, onClick: () => setSourcePlan(undefined) }, "Cancelar"),
-            ),
-        ),
-    actionError === undefined
-      ? null
-      : createElement("p", { className: "form-error", role: "alert" }, actionError),
     createElement(
-      "section",
-      { className: "inspector-section", "aria-labelledby": "location-heading" },
-      createElement("h3", { id: "location-heading" }, "Ubicación"),
-      createElement("p", { className: "inspector-path" }, path),
+      "div",
+      { className: "inspector-detail__scroll" },
+      editing
+        ? createElement(
+            "section",
+            { className: "entry-editor", "aria-labelledby": "entry-editor-heading" },
+            createElement("h3", { id: "entry-editor-heading" }, "Editar contenido"),
+            createElement("p", { className: "editor-label", id: "editor-content-label" }, "Contenido"),
+            createElement(CodeEditor, { ariaLabel: "Contenido", value: content, onChange: setContent }),
+          )
+        : null,
+      plan === undefined
+        ? null
+        : createElement(
+            AccessibleDialog,
+            {
+              labelledBy: "update-dialog-title",
+              returnFocus: reviewButtonRef.current,
+              ...(operationBusy ? {} : { onDismiss: () => setPlan(undefined) }),
+            },
+              createElement("h3", { id: "update-dialog-title" }, "Confirmar actualización"),
+              createElement(OperationPlanDetails, { plan }),
+              createElement("p", { className: "inspector-path" }, path),
+              createElement("h4", null, "Diferencia de contenido"),
+              createElement(TextDiff, { before: detail.rawEntryContent, after: content }),
+              createElement(
+                "div",
+                { className: "inspector-actions" },
+                createElement("button", {
+                  type: "button",
+                  className: "primary-action",
+                  disabled: operationBusy,
+                  onClick: () => { void confirm() },
+                }, operationBusy ? "Actualizando…" : "Actualizar skill"),
+                createElement("button", {
+                  type: "button",
+                  className: "secondary-action",
+                  disabled: operationBusy,
+                  onClick: () => setPlan(undefined),
+                }, "Volver"),
+              ),
+          ),
+      sourceConflict === undefined
+        ? null
+        : createElement(
+            AccessibleDialog,
+            { labelledBy: "source-conflict-title", onDismiss: () => setSourceConflict(undefined) },
+              createElement("h3", { id: "source-conflict-title" }, "Conflicto de actualización"),
+              createElement("p", null, sourceConflict),
+              createElement("button", { type: "button", className: "secondary-action", onClick: () => setSourceConflict(undefined) }, "Cerrar"),
+          ),
+      sourcePlan === undefined
+        ? null
+        : createElement(
+            AccessibleDialog,
+            {
+              labelledBy: "source-update-title",
+              ...(operationBusy ? {} : { onDismiss: () => setSourcePlan(undefined) }),
+            },
+              createElement("h3", { id: "source-update-title" }, "Confirmar actualización de origen"),
+              createElement(OperationPlanDetails, { plan: sourcePlan }),
+              createElement(
+                "div",
+                { className: "inspector-actions" },
+                createElement("button", { type: "button", className: "primary-action", disabled: operationBusy, onClick: () => { void confirmSourceUpdate() } }, operationBusy ? "Actualizando…" : "Actualizar skill"),
+                createElement("button", { type: "button", className: "secondary-action", disabled: operationBusy, onClick: () => setSourcePlan(undefined) }, "Cancelar"),
+              ),
+          ),
+      actionError === undefined
+        ? null
+        : createElement("p", { className: "form-error", role: "alert" }, actionError),
       createElement(
-        "dl",
-        { className: "inspector-metadata" },
-        createElement("div", null, createElement("dt", null, "Runtime"), createElement("dd", null, adapterLabel(detail.installation.adapterId))),
-        createElement("div", null, createElement("dt", null, "Ámbito"), createElement("dd", null, scopeLabel(detail.installation.scope))),
-        createElement("div", null, createElement("dt", null, "Carpeta canónica"), createElement("dd", null, detail.locationLabel)),
-        createElement("div", null, createElement("dt", null, "Archivo de entrada"), createElement("dd", null, detail.entryFile)),
-        createElement("div", null, createElement("dt", null, "Snapshot"), createElement("dd", null, detail.snapshotId)),
-        createElement("div", null, createElement("dt", null, "Hash observado"), createElement("dd", null, detail.contentHash)),
-        createElement("div", null, createElement("dt", null, "Versión declarada"), createElement("dd", null, detail.installation.declaredVersion.state === "known" ? detail.installation.declaredVersion.value : "No declarada")),
+        "section",
+        { className: "inspector-section", "aria-labelledby": "location-heading" },
+        createElement("h3", { id: "location-heading" }, "Ubicación"),
+        createElement("p", { className: "inspector-path" }, path),
+        createElement(
+          "dl",
+          { className: "inspector-metadata" },
+          createElement("div", null, createElement("dt", null, "Runtime"), createElement("dd", null, adapterLabel(detail.installation.adapterId))),
+          createElement("div", null, createElement("dt", null, "Ámbito"), createElement("dd", null, scopeLabel(detail.installation.scope))),
+          createElement("div", null, createElement("dt", null, "Carpeta canónica"), createElement("dd", null, detail.locationLabel)),
+          createElement("div", null, createElement("dt", null, "Archivo de entrada"), createElement("dd", null, detail.entryFile)),
+          createElement("div", null, createElement("dt", null, "Snapshot"), createElement("dd", null, detail.snapshotId)),
+          createElement("div", null, createElement("dt", null, "Hash observado"), createElement("dd", null, detail.contentHash)),
+          createElement("div", null, createElement("dt", null, "Versión declarada"), createElement("dd", null, detail.installation.declaredVersion.state === "known" ? detail.installation.declaredVersion.value : "No declarada")),
+        ),
       ),
-    ),
     createElement(
       "section",
       { className: "inspector-section", "aria-labelledby": "status-heading" },
@@ -624,6 +609,43 @@ function Inspection({
             createElement("code", null, detail.rawEntryContent),
           ),
     ),
+    ),
+    createElement(
+      "footer",
+      { className: "inspector-footer" },
+      editing
+        ? createElement("button", {
+            ref: reviewButtonRef,
+            className: "primary-action",
+            type: "button",
+            disabled: operationBusy || content === detail.rawEntryContent,
+            onClick: () => { void review() },
+          }, operationBusy ? "Preparando…" : "Revisar cambios")
+        : createElement(DarkAction, { onClick: () => { void openEntry() } }, "Abrir archivo"),
+      editing
+        ? createElement(QuietAction, {
+            disabled: operationBusy,
+            onClick: () => { setEditing(false); setPlan(undefined) },
+          }, "Cancelar")
+        : detail.capabilities.canEditEntry
+          ? createElement(QuietAction, {
+              onClick: () => {
+                setContent(detail.rawEntryContent)
+                setEditing(true)
+                setPlan(undefined)
+              },
+            }, "Editar")
+          : null,
+      !editing && detail.capabilities.canUpdateFromSource && (
+        detail.installation.status.update === "available" ||
+        detail.installation.status.update === "diverged"
+      )
+        ? createElement(MetalAction, {
+            disabled: operationBusy,
+            onClick: () => { void prepareSourceUpdate() },
+          }, "Actualizar")
+        : null,
+    ),
   )
 }
 
@@ -681,13 +703,11 @@ export function Inspector({ installationId, inventoryBridge, operationBridge, on
 
   return createElement(
     "aside",
-    { className: "inspector", "aria-labelledby": "inspector-title" },
-    createElement(
-      "div",
-      { className: "inspector-heading" },
-      createElement("p", { className: "eyebrow" }, "Detalle"),
-      createElement("h2", { id: "inspector-title" }, "Inspector"),
-    ),
+    {
+      className: `inspector ${installationId === undefined ? "inspector--empty" : "inspector--selected"}`,
+      "aria-labelledby": "inspector-title",
+    },
+    createElement("h2", { className: "visually-hidden", id: "inspector-title" }, "Inspector"),
     content,
   )
 }

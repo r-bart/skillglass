@@ -576,15 +576,16 @@ html[data-platform="macos"] .app-topbar {
 }
 
 .inspector {
+  display: flex;
   width: var(--inspector-width);
   min-width: 0;
   min-height: 0;
-  padding: 1.125rem;
-  overflow: auto;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
   overscroll-behavior: contain;
   border-left: var(--hairline) solid var(--border-chrome);
   background: var(--sidebar-background);
-  scrollbar-gutter: stable;
 }
 
 .mobile-navigation {
