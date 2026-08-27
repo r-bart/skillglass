@@ -37,6 +37,16 @@ pnpm lint
 pnpm test
 ```
 
+Run the desktop application or the Astro landing page from the repository root:
+
+```sh
+pnpm dev:desktop
+pnpm dev:landing
+```
+
+Validate and produce the static landing-page build with `pnpm check:landing` and
+`pnpm build:landing`.
+
 See [CONTRIBUTING.md](CONTRIBUTING.md) before proposing a change and [SECURITY.md](SECURITY.md) for vulnerability reporting and the official-binary policy.
 
 ## License

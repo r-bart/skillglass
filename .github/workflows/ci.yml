@@ -8,6 +8,34 @@ permissions:
   contents: read
 
 jobs:
+  web:
+    name: Astro landing
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm 11.5.1
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.5.1
+
+      - name: Install Node.js 24.19.0
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+          cache: pnpm
+
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check Astro types and content
+        run: pnpm check:landing
+
+      - name: Build static landing
+        run: pnpm build:landing
+
   native:
     name: Native / ${{ matrix.os }}
     timeout-minutes: 60

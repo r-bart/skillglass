@@ -1,6 +1,7 @@
 node_modules/
 .pnpm-store/
 .vite/
+.astro/
 dist/
 out/
 coverage/
