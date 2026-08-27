@@ -434,6 +434,33 @@
   }
 }
 
+/* A 1024×720 desktop at 200% zoom exposes roughly 512×360 CSS pixels.
+ * Preserve the skill identity while yielding real height to the document. */
+@media (max-width: 959px) and (max-height: 480px) {
+  .skill-preview {
+    padding: 8px 14px 0;
+  }
+
+  .skill-preview__header {
+    gap: 0;
+    padding-bottom: 8px;
+  }
+
+  .skill-preview__header > .section-label,
+  .skill-preview__header > p:last-child {
+    display: none;
+  }
+
+  .skill-preview__header > h2 {
+    font-size: 18px;
+    line-height: 1.2;
+  }
+
+  .skill-preview__content {
+    padding: 8px 0 12px;
+  }
+}
+
 @media (max-width: 800px) {
   .create-setup {
     grid-template-columns: minmax(0, 1fr);
