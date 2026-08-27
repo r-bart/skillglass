@@ -81,18 +81,34 @@ function waitForExit(child: ChildProcess, timeoutMilliseconds: number): Promise<
   })
 }
 
-async function stopPackaged(process: PackagedProcess): Promise<void> {
-  if (hasExited(process.child)) {
-    throw new Error(`Packaged Forge exited unexpectedly:\n${Buffer.concat(process.stderr).toString("utf8")}`)
+async function stopPackaged(packaged: PackagedProcess): Promise<void> {
+  if (hasExited(packaged.child)) {
+    throw new Error(`Packaged Forge exited unexpectedly:\n${Buffer.concat(packaged.stderr).toString("utf8")}`)
   }
-  process.child.kill("SIGTERM")
-  if (await waitForExit(process.child, 10_000)) return
+  if (process.platform === "win32") {
+    const pid = packaged.child.pid
+    if (pid === undefined) throw new Error("Packaged Forge has no process ID")
+    const killer = spawn("taskkill", ["/pid", String(pid), "/T", "/F"], {
+      stdio: "ignore",
+      windowsHide: true,
+    })
+    if (!await waitForExit(killer, 10_000) || killer.exitCode !== 0) {
+      throw new Error(`Packaged Forge process tree could not be terminated:\n${Buffer.concat(packaged.stderr).toString("utf8")}`)
+    }
+    if (!await waitForExit(packaged.child, 5_000)) {
+      throw new Error(`Packaged Forge did not exit after terminating its process tree:\n${Buffer.concat(packaged.stderr).toString("utf8")}`)
+    }
+    return
+  }
+
+  packaged.child.kill("SIGTERM")
+  if (await waitForExit(packaged.child, 10_000)) return
 
   // A desktop bundle is not required to behave like a POSIX daemon. Escalate so
   // the smoke test also proves SQLite survives an interrupted packaged process.
-  process.child.kill("SIGKILL")
-  if (!await waitForExit(process.child, 5_000)) {
-    throw new Error(`Packaged Forge could not be terminated:\n${Buffer.concat(process.stderr).toString("utf8")}`)
+  packaged.child.kill("SIGKILL")
+  if (!await waitForExit(packaged.child, 5_000)) {
+    throw new Error(`Packaged Forge could not be terminated:\n${Buffer.concat(packaged.stderr).toString("utf8")}`)
   }
 }
 
@@ -133,6 +149,6 @@ test("native packaged app launches twice and reopens its SQLite store", async ()
     })
     reopened.close()
   } finally {
-    await rm(fixture, { recursive: true, force: true })
+    await rm(fixture, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
   }
 })

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto"
 import { lstat, mkdir, open, rename, rmdir, unlink } from "node:fs/promises"
 import path from "node:path"
+import { setTimeout as delay } from "node:timers/promises"
 
 import { createLocalSourceManifest, type ApprovedRootPolicy } from "@forge/scanner"
 
@@ -15,6 +16,25 @@ function filesystemCode(error: unknown): string | undefined {
   return typeof error === "object" && error !== null && "code" in error && typeof error.code === "string"
     ? error.code
     : undefined
+}
+
+const TRANSIENT_RENAME_CODES = new Set(["EACCES", "EBUSY", "EPERM"])
+
+async function renameWithTransientRetry(sourcePath: string, destinationPath: string): Promise<void> {
+  const maximumAttempts = 8
+  for (let attempt = 1; attempt <= maximumAttempts; attempt += 1) {
+    try {
+      await rename(sourcePath, destinationPath)
+      return
+    } catch (error) {
+      if (!TRANSIENT_RENAME_CODES.has(filesystemCode(error) ?? "") || attempt === maximumAttempts) {
+        throw error
+      }
+      // Windows can briefly retain a directory handle after validation or a
+      // watcher event. Retrying the same sibling rename preserves atomicity.
+      await delay(attempt * 25)
+    }
+  }
 }
 
 function assertTree(reference: ArtifactRef): void {
@@ -160,7 +180,7 @@ export class ApprovedRootLocalInstallFileSystem implements FileSystemPort {
       if (mode === "update") {
         throw new LocalSourceError("UPDATE_CONFLICT", "Update destination disappeared before replacement")
       }
-      await rename(sourcePath, destinationPath)
+      await renameWithTransientRetry(sourcePath, destinationPath)
       return
     }
     if (mode === "create") {
@@ -183,12 +203,12 @@ export class ApprovedRootLocalInstallFileSystem implements FileSystemPort {
       if (filesystemCode(error) !== "ENOENT") throw error
     }
 
-    await rename(destinationPath, displacedPath)
+    await renameWithTransientRetry(destinationPath, displacedPath)
     try {
-      await rename(sourcePath, destinationPath)
+      await renameWithTransientRetry(sourcePath, destinationPath)
     } catch (error) {
       try {
-        await rename(displacedPath, destinationPath)
+        await renameWithTransientRetry(displacedPath, destinationPath)
       } catch (restoreError) {
         throw new LocalSourceError("UPDATE_CONFLICT", "Replacement failed and the previous tree could not be restored", { cause: restoreError })
       }

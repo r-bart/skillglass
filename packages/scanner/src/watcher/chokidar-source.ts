@@ -14,6 +14,8 @@ const SUPPORTED_EVENTS = new Set<WatchEventKind>([
   "unlinkDir",
 ])
 
+const FORGE_INTERNAL_ARTIFACT = /(^|[\\/])(?:\.forge-(?:source|stage|displaced)-|[^\\/]*\.forge-stage-)/u
+
 function isSupportedEvent(kind: string): kind is WatchEventKind {
   return SUPPORTED_EVENTS.has(kind as WatchEventKind)
 }
@@ -21,6 +23,7 @@ function isSupportedEvent(kind: string): kind is WatchEventKind {
 export const createChokidarWatchSource: WatchSourceFactory = (paths) => {
   const watcher = watch([...paths], {
     atomic: true,
+    ignored: FORGE_INTERNAL_ARTIFACT,
     ignoreInitial: true,
     persistent: true,
   })

@@ -20,6 +20,8 @@ const NARROW = { width: 760, height: 520 } as const
 const ZOOM_200_CSS = { width: 710, height: 446 } as const
 const TOPBAR_HEIGHT = 46
 const LONG_UNBROKEN_CONTENT = "workspaceinlinevisualacceptance".repeat(10)
+const visualBaselineEnvironment = process.platform === "darwin" &&
+  process.env.FORGE_VISUAL_BASELINES === "1"
 
 const workspaceViewports = [
   { label: "reference-1420x892", viewport: REFERENCE },
@@ -543,7 +545,7 @@ test.describe("Forge geometric fidelity", () => {
 })
 
 test.describe("Skill workspace visual acceptance", () => {
-  test.skip(process.platform !== "darwin", "Approved pixel baselines are maintained on macOS")
+  test.skip(!visualBaselineEnvironment, "Pixel baselines require an explicitly approved macOS environment")
 
   for (const { label, viewport } of workspaceViewports) {
     test(`keeps Preview, Code, and Changes deterministic at ${label}`, async () => {
@@ -590,7 +592,7 @@ test.describe("Skill workspace visual acceptance", () => {
 })
 
 test.describe("Forge visual regression", () => {
-  test.skip(process.platform !== "darwin", "Approved pixel baselines are maintained on macOS")
+  test.skip(!visualBaselineEnvironment, "Pixel baselines require an explicitly approved macOS environment")
 
   for (const scenarioName of visualScenarios) {
     test(`${scenarioName} matches its approved ${platformSnapshotSuffix} baseline`, async () => {

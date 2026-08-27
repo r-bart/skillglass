@@ -239,6 +239,7 @@ describe("Inspector", () => {
     expect([...container.querySelectorAll("*")]
       .filter(({ textContent, children }) => textContent === "Solo lectura · origen observado" && children.length === 0))
       .toHaveLength(1)
+    expect(container.querySelector(".inspector-evidence-pill")?.textContent).toBe("Solo lectura")
     expect(buttonNamed("Abrir archivo")).toBeInstanceOf(HTMLButtonElement)
     expect(buttonNamed("Editar")).toBeUndefined()
     expect(container.querySelector(".inspector-read-only-note")?.textContent).toBe("Solo inspección")

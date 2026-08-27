@@ -1390,20 +1390,24 @@ button.status-pill {
 }
 
 .skill-preview__content {
+  display: flex;
   min-width: 0;
   min-height: 0;
   flex: 1;
   padding: 28px 0 44px;
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow: hidden;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
 }
 
 .skill-preview__content .safe-markdown {
   display: grid;
+  width: 100%;
   min-width: 0;
+  min-height: 0;
   gap: 14px;
+  overflow-x: hidden;
+  overflow-y: auto;
   color: rgba(244, 244, 246, 0.7);
   font-size: 14px;
   line-height: 1.75;

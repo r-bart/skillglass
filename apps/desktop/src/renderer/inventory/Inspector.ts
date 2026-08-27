@@ -297,11 +297,17 @@ function Inspection({
       createElement(
         StatusPill,
         {
-          ariaLabel: `Evidencia del nombre: ${evidenceLabel(detail.installation.name.evidence)}`,
+          ariaLabel: detail.installation.status.source === "read-only"
+            ? "Origen: Solo lectura"
+            : `Evidencia del nombre: ${evidenceLabel(detail.installation.name.evidence)}`,
           className: "inspector-evidence-pill",
-          tone: evidenceTone(detail.installation.name.evidence),
+          tone: detail.installation.status.source === "read-only"
+            ? "idle"
+            : evidenceTone(detail.installation.name.evidence),
         },
-        evidenceLabel(detail.installation.name.evidence),
+        detail.installation.status.source === "read-only"
+          ? "Solo lectura"
+          : evidenceLabel(detail.installation.name.evidence),
       ),
     ),
     createElement(
