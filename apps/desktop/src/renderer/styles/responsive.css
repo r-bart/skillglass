@@ -434,30 +434,20 @@
   }
 }
 
-/* A 1024×720 desktop at 200% zoom exposes roughly 512×360 CSS pixels.
- * Preserve the skill identity while yielding real height to the document. */
+/* A compact desktop at 200% zoom can expose less than 360 CSS pixels in
+ * height. The workspace bar already names the skill, so prioritize its
+ * document over a redundant preview heading. */
 @media (max-width: 959px) and (max-height: 480px) {
   .skill-preview {
-    padding: 8px 14px 0;
+    padding: 0 14px;
   }
 
   .skill-preview__header {
-    gap: 0;
-    padding-bottom: 8px;
-  }
-
-  .skill-preview__header > .section-label,
-  .skill-preview__header > p:last-child {
     display: none;
   }
 
-  .skill-preview__header > h2 {
-    font-size: 18px;
-    line-height: 1.2;
-  }
-
   .skill-preview__content {
-    padding: 8px 0 12px;
+    padding: 4px 0;
   }
 }
 

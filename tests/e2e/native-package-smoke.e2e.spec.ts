@@ -53,9 +53,16 @@ async function waitForDatabase(process: PackagedProcess, databasePath: string): 
     }
     try {
       await access(databasePath)
-      return
+      const database = new DatabaseSync(databasePath, { readOnly: true })
+      try {
+        const latest = database.prepare("SELECT MAX(version) AS version FROM schema_migrations").get()
+        if (latest !== undefined && "version" in latest && latest.version === 4) return
+      } finally {
+        database.close()
+      }
     } catch {
-      // Startup is asynchronous; keep polling the one required userData path.
+      // Startup and migrations are asynchronous; keep polling the one
+      // required userData path until the full schema is readable.
     }
     await new Promise((resolve) => setTimeout(resolve, 100))
   }
@@ -125,17 +132,20 @@ test("native packaged app launches twice and reopens its SQLite store", async ()
     await stopPackaged(firstLaunch)
 
     const first = new DatabaseSync(databasePath)
-    expect(first.prepare("PRAGMA integrity_check").get()).toEqual({ integrity_check: "ok" })
-    expect(first.prepare("SELECT version FROM schema_migrations ORDER BY version").all()).toEqual([
-      { version: 1 },
-      { version: 2 },
-      { version: 3 },
-      { version: 4 },
-    ])
-    first.prepare(`
-      INSERT INTO settings(key, value_json, updated_at) VALUES (?, ?, ?)
-    `).run("package-smoke.marker", JSON.stringify("first-launch"), new Date().toISOString())
-    first.close()
+    try {
+      expect(first.prepare("PRAGMA integrity_check").get()).toEqual({ integrity_check: "ok" })
+      expect(first.prepare("SELECT version FROM schema_migrations ORDER BY version").all()).toEqual([
+        { version: 1 },
+        { version: 2 },
+        { version: 3 },
+        { version: 4 },
+      ])
+      first.prepare(`
+        INSERT INTO settings(key, value_json, updated_at) VALUES (?, ?, ?)
+      `).run("package-smoke.marker", JSON.stringify("first-launch"), new Date().toISOString())
+    } finally {
+      first.close()
+    }
 
     const secondLaunch = startPackaged(executable, home, chromiumData)
     await waitForDatabase(secondLaunch, databasePath)
@@ -143,11 +153,14 @@ test("native packaged app launches twice and reopens its SQLite store", async ()
     expect(secondLaunch.child.exitCode).toBeNull()
     await stopPackaged(secondLaunch)
     const reopened = new DatabaseSync(databasePath)
-    expect(reopened.prepare("PRAGMA integrity_check").get()).toEqual({ integrity_check: "ok" })
-    expect(reopened.prepare("SELECT value_json FROM settings WHERE key = ?").get("package-smoke.marker")).toEqual({
-      value_json: JSON.stringify("first-launch"),
-    })
-    reopened.close()
+    try {
+      expect(reopened.prepare("PRAGMA integrity_check").get()).toEqual({ integrity_check: "ok" })
+      expect(reopened.prepare("SELECT value_json FROM settings WHERE key = ?").get("package-smoke.marker")).toEqual({
+        value_json: JSON.stringify("first-launch"),
+      })
+    } finally {
+      reopened.close()
+    }
   } finally {
     await rm(fixture, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
   }
