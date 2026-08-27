@@ -320,7 +320,9 @@ function InventoryTable({
                 ariaLabel: `Origen: ${sourceLabels[item.status.source]}`,
                 className: "inventory-evidence-pill inventory-evidence-pill--source",
                 tone: statusTone("source", item.status.source),
-              }, sourceLabels[item.status.source]),
+              }, item.status.source === "read-only"
+                ? "Solo lectura · origen observado"
+                : sourceLabels[item.status.source]),
               createElement(StatusPill, {
                 ariaLabel: `Actualización: ${updateLabels[item.status.update]}`,
                 className: "inventory-evidence-pill inventory-evidence-pill--update",
