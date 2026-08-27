@@ -178,7 +178,18 @@ describe("local-source-v1 directory admission", () => {
     expect(source.manifest.treeHash).toBe(expected.treeHash)
     expect(source.manifest.files.map(({ path: relativePath }) => relativePath)).toEqual(["SKILL.md", "references/guide.md"])
 
-    const metadata = await inspectDirectorySource(path.join(fixtureRoot, "directories/metadata-skill"), NOW)
+    const metadataDirectory = await temporaryDirectory()
+    await writeFile(
+      path.join(metadataDirectory, "SKILL.md"),
+      await readFile(path.join(fixtureRoot, "directories/metadata-skill/SKILL.md")),
+    )
+    await mkdir(path.join(metadataDirectory, ".git"))
+    await Promise.all([
+      writeFile(path.join(metadataDirectory, ".DS_Store"), "ignored macOS metadata"),
+      writeFile(path.join(metadataDirectory, "Thumbs.db"), "ignored Windows metadata"),
+      writeFile(path.join(metadataDirectory, ".git/config"), "ignored repository metadata"),
+    ])
+    const metadata = await inspectDirectorySource(metadataDirectory, NOW)
     expect(metadata.ignoredEntries).toEqual({ count: 3, categories: ["os-metadata", "vcs"] })
     expect(metadata.manifest.files.map(({ path: relativePath }) => relativePath)).toEqual(["SKILL.md"])
   })

@@ -28,7 +28,16 @@ describe("directory/resource validation", () => {
   })
 
   it("ignores only contractual metadata while retaining ordinary resources", async () => {
-    const result = await enumerateSkillResources(path.join(fixtures, "metadata-skill"))
+    const directory = await mkdtemp(path.join(tmpdir(), "forge-metadata-"))
+    temporary.push(directory)
+    await mkdir(path.join(directory, ".git"))
+    await Promise.all([
+      writeFile(path.join(directory, "SKILL.md"), "---\nname: metadata\ndescription: metadata fixture\n---\n"),
+      writeFile(path.join(directory, ".DS_Store"), "ignored macOS metadata"),
+      writeFile(path.join(directory, "Thumbs.db"), "ignored Windows metadata"),
+      writeFile(path.join(directory, ".git/config"), "ignored repository metadata"),
+    ])
+    const result = await enumerateSkillResources(directory)
     expect(result.files.map(({ path }) => path)).toEqual(["SKILL.md"])
     expect(result.ignoredEntries).toEqual(expect.arrayContaining([".DS_Store", ".git", "Thumbs.db"]))
   })
