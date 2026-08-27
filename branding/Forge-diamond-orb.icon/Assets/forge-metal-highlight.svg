@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="rim" x1="300" y1="300" x2="724" y2="724" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.96"/>
+      <stop offset="0.24" stop-color="#f5f5f7" stop-opacity="0.82"/>
+      <stop offset="0.48" stop-color="#c7c8ce" stop-opacity="0.58"/>
+      <stop offset="0.72" stop-color="#666770" stop-opacity="0.42"/>
+      <stop offset="1" stop-color="#2a2b32" stop-opacity="0.28"/>
+    </linearGradient>
+    <linearGradient id="spark" x1="277" y1="277" x2="650" y2="650" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.9"/>
+      <stop offset="0.38" stop-color="#ffffff" stop-opacity="0.32"/>
+      <stop offset="0.68" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect x="277" y="277" width="470" height="470" rx="88" fill="none" stroke="url(#rim)" stroke-width="9" transform="rotate(45 512 512)"/>
+  <rect x="284" y="284" width="456" height="456" rx="82" fill="none" stroke="url(#spark)" stroke-width="3" transform="rotate(45 512 512)"/>
+</svg>

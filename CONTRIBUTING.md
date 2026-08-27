@@ -1,6 +1,6 @@
-# Contributing to Forge
+# Contributing to Skill Forge
 
-Forge is under active development and accepts contributions under the repository's [Apache License 2.0](LICENSE). Unless explicitly stated otherwise, intentionally submitted contributions are licensed under those same terms.
+Skill Forge is under active development and accepts contributions under the repository's [Apache License 2.0](LICENSE). Unless explicitly stated otherwise, intentionally submitted contributions are licensed under those same terms.
 
 Bug reports and design or implementation proposals are welcome. Do not include vulnerability details in a public issue; follow [SECURITY.md](SECURITY.md) instead.
 

@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <radialGradient id="halo" cx="42%" cy="38%" r="62%">
+      <stop offset="0" stop-color="#b8f3ff" stop-opacity="0.78"/>
+      <stop offset="0.42" stop-color="#58c8ff" stop-opacity="0.46"/>
+      <stop offset="1" stop-color="#526cff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="core" cx="34%" cy="28%" r="72%">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.98"/>
+      <stop offset="0.18" stop-color="#d8fbff" stop-opacity="0.96"/>
+      <stop offset="0.52" stop-color="#67d3ff" stop-opacity="0.95"/>
+      <stop offset="0.82" stop-color="#4978ff" stop-opacity="0.94"/>
+      <stop offset="1" stop-color="#6c45d9" stop-opacity="0.88"/>
+    </radialGradient>
+    <linearGradient id="rim" x1="526" y1="516" x2="604" y2="594" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.78"/>
+      <stop offset="0.52" stop-color="#aeeeff" stop-opacity="0.32"/>
+      <stop offset="1" stop-color="#2546a8" stop-opacity="0.62"/>
+    </linearGradient>
+    <filter id="soft-glow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="24"/>
+    </filter>
+  </defs>
+  <circle cx="565" cy="557" r="78" fill="url(#halo)" filter="url(#soft-glow)"/>
+  <circle cx="565" cy="557" r="46" fill="url(#core)"/>
+  <circle cx="565" cy="557" r="44" fill="none" stroke="url(#rim)" stroke-width="3"/>
+  <ellipse cx="551" cy="541" rx="15" ry="9" fill="#ffffff" opacity="0.44" transform="rotate(-28 551 541)"/>
+</svg>

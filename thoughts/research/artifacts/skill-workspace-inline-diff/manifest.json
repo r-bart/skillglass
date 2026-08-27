@@ -1,0 +1,107 @@
+{
+  "prototypeUrl": "http://127.0.0.1:4173/prototypes/editor-surface/?v=2",
+  "variant": 2,
+  "browser": "chromium",
+  "browserExecutable": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+  "browserVersion": "151.0.7922.174",
+  "deviceScaleFactor": 1,
+  "colorScheme": "dark",
+  "reducedMotion": "reduce",
+  "locale": "es-ES",
+  "mutation": {
+    "replace": {
+      "before": "Create paid-social advertising concepts that are specific enough to produce,",
+      "after": "Create memorable paid-social concepts that are specific enough to ship,"
+    },
+    "append": "\\n\\n## Review note\\n\\n- Keep the claim concrete",
+    "expectedSummary": "5 añadidas · 1 eliminadas"
+  },
+  "immutableSpec": {
+    "file": "tests/spec/forge-mvp.e2e.spec.ts",
+    "sha256": "3528ff79a1e75b3ca5cfe012e7997d6d5dd04337c1258ac2e393cd6586cbaf6c"
+  },
+  "sources": [
+    {
+      "file": "prototypes/editor-surface/index.html",
+      "sha256": "d3422992b97034cf2aeacf22701c4098bf23a462f74d7496549c5eac8e5989ad"
+    },
+    {
+      "file": "prototypes/editor-surface/prototype.css",
+      "sha256": "2bfeb054b94d0e60cdc6b0f79454383fddec50e57756175c8415a6fc82460dba"
+    },
+    {
+      "file": "prototypes/editor-surface/prototype.js",
+      "sha256": "94c9af275be873d245a40009605c4fc8f6400f1ed3f6e0a2bd1268168440cb58"
+    },
+    {
+      "file": "prototypes/editor-surface/variant-workspace.js",
+      "sha256": "f6ab7aa790d9170d3f5eaf2f2e108b0d03e33715c9b4e47a7307fbe656b75d46"
+    },
+    {
+      "file": "prototypes/editor-surface/data.js",
+      "sha256": "e61ce6ac422f43a932a196c875e79efbd59a4db3c4e09e1aea6d9dc6df1c377a"
+    }
+  ],
+  "captures": [
+    {
+      "file": "desktop-1420x892-code.png",
+      "state": "code",
+      "viewport": {
+        "width": 1420,
+        "height": 892
+      },
+      "byteLength": 137062,
+      "sha256": "5f3c349b3313d7a78493c105fdf831704e07affdc552b5b8c63a50cb837fc26d"
+    },
+    {
+      "file": "desktop-1420x892-preview.png",
+      "state": "preview",
+      "viewport": {
+        "width": 1420,
+        "height": 892
+      },
+      "byteLength": 124519,
+      "sha256": "cfc51c99315c48e555a65eea3483950c18e572df69d6ca5c7f754be837428e62"
+    },
+    {
+      "file": "desktop-1420x892-changes.png",
+      "state": "changes",
+      "viewport": {
+        "width": 1420,
+        "height": 892
+      },
+      "byteLength": 142092,
+      "sha256": "9b47f7465a81026671ffe0b54d7826907be85ba9c17efac418be971aefbc3af7"
+    },
+    {
+      "file": "narrow-760x520-code.png",
+      "state": "code",
+      "viewport": {
+        "width": 760,
+        "height": 520
+      },
+      "byteLength": 50247,
+      "sha256": "d58c27f1e1b6473f69ebbee20c484c5fadbcea874a2c6266eeac28cfb047c948"
+    },
+    {
+      "file": "narrow-760x520-preview.png",
+      "state": "preview",
+      "viewport": {
+        "width": 760,
+        "height": 520
+      },
+      "byteLength": 48714,
+      "sha256": "7fa410dca0186b0cec1bce1af81d1ceec90b2decd91a3e60035c08b01fad4f5f"
+    },
+    {
+      "file": "narrow-760x520-changes.png",
+      "state": "changes",
+      "viewport": {
+        "width": 760,
+        "height": 520
+      },
+      "byteLength": 58464,
+      "sha256": "f9315720c115366eb059740198e8da3cf336716b6d7a09eaeb95b92a04990816"
+    }
+  ]
+}

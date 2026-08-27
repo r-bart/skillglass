@@ -96,6 +96,10 @@ export class ProjectionContentFileSystem implements FileSystemPort {
     }
   }
 
+  async writeTreeExclusive(): Promise<void> {
+    throw new OperationValidationError("Direct content filesystem does not write tree artifacts")
+  }
+
   async replace(source: ArtifactRef, destination: ArtifactRef): Promise<void> {
     const sourcePath = await this.#writePath(source)
     const destinationPath = await this.#writePath(destination)

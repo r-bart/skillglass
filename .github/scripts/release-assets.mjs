@@ -64,7 +64,7 @@ async function collect() {
   const artifacts = []
   for (const candidate of candidates) {
     const extension = path.extname(candidate).toLowerCase()
-    const name = `forge-v${version}-${platform}-${process.arch}${extension}`
+    const name = `skill-forge-v${version}-${platform}-${process.arch}${extension}`
     const output = path.join(destination, name)
     await cp(candidate, output, { errorOnExist: true, force: false })
     const details = await stat(output)
@@ -108,7 +108,7 @@ async function manifest() {
   const metadataPath = path.join(directory, "build-metadata.json")
   await writeFile(metadataPath, `${JSON.stringify({
     schemaVersion: 1,
-    product: "Forge",
+    product: "Skill Forge",
     tag,
     commit,
     workflowRunId: runId,

@@ -73,9 +73,10 @@ export function defineAdapterCapabilities(
 }
 
 export function capabilityForOperationKind(
-  kind: "install-local" | "update-from-local" | "update-entry-content",
+  kind: "create-skill" | "install-local" | "update-from-local" | "update-entry-content",
 ): MutatingAdapterCapability {
   switch (kind) {
+    case "create-skill":
     case "install-local":
       return "installToUserRoot"
     case "update-from-local":

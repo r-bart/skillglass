@@ -11,7 +11,7 @@ test("pending surface groups and applies a verified source update through an exa
     .getByRole("button", { name: "Instalar skill" }).click()
   await fixture.changeInstallSource("Versión de origen 2")
   await app.page.getByRole("button", { name: "Buscar actualizaciones" }).click()
-  await app.page.getByRole("banner").getByRole("button", { name: "Pendientes", exact: true }).click()
+  await app.page.getByRole("navigation", { name: "Secciones principales" }).getByRole("button", { name: "Por revisar", exact: true }).click()
 
   await expect(app.page.getByRole("heading", { name: "Actualizaciones disponibles · 1" })).toBeVisible()
   const item = app.page.getByRole("listitem").filter({ hasText: "local-installable" })

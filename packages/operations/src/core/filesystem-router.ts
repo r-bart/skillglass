@@ -1,4 +1,4 @@
-import type { ArtifactObservation, ArtifactRef, FileSystemPort } from "./types.js"
+import type { ArtifactObservation, ArtifactRef, FileSystemPort, TreeContentEntry } from "./types.js"
 import { OperationValidationError } from "./errors.js"
 
 /** Routes file and tree artifacts while preserving one engine-wide mutation lock. */
@@ -36,6 +36,10 @@ export class ArtifactFileSystemRouter implements FileSystemPort {
 
   writeFileExclusive(destination: ArtifactRef, content: string): Promise<void> {
     return this.#port(destination).writeFileExclusive(destination, content)
+  }
+
+  writeTreeExclusive(destination: ArtifactRef, entries: readonly TreeContentEntry[]): Promise<void> {
+    return this.#port(destination).writeTreeExclusive(destination, entries)
   }
 
   replace(source: ArtifactRef, destination: ArtifactRef, mode: "create" | "update"): Promise<void> {

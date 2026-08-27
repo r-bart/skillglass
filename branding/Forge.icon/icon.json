@@ -1,0 +1,137 @@
+{
+  "fill" : {
+    "automatic-gradient" : "srgb:0.08235,0.08627,0.10196,1.00000"
+  },
+  "groups" : [
+    {
+      "blend-mode" : "normal",
+      "blur-material" : 0.16,
+      "layers" : [
+        {
+          "glass" : false,
+          "hidden" : true,
+          "image-name" : "forge-s.svg",
+          "name" : "S · satin metal",
+          "opacity" : 1,
+          "position" : {
+            "scale" : 0.82,
+            "translation-in-points" : [
+              0,
+              0
+            ]
+          }
+        }
+      ],
+      "lighting" : "individual",
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : false,
+        "value" : 0
+      }
+    },
+    {
+      "blend-mode" : "normal",
+      "blur-material" : 0.42,
+      "layers" : [
+        {
+          "fill" : {
+            "solid" : "display-p3:0.76000,0.78000,0.83000,1.00000"
+          },
+          "glass" : true,
+          "hidden" : false,
+          "image-name" : "forge-plate-back.svg",
+          "name" : "Glass plate · back",
+          "opacity" : 0.58,
+          "position" : {
+            "scale" : 0.95,
+            "translation-in-points" : [
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "fill" : {
+            "solid" : "display-p3:0.82000,0.83500,0.87500,1.00000"
+          },
+          "glass" : true,
+          "hidden" : false,
+          "image-name" : "forge-plate-middle.svg",
+          "name" : "Glass plate · middle",
+          "opacity" : 0.65,
+          "position" : {
+            "scale" : 0.95,
+            "translation-in-points" : [
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "fill" : {
+            "solid" : "display-p3:0.88500,0.89500,0.92500,1.00000"
+          },
+          "glass" : true,
+          "hidden" : false,
+          "image-name" : "forge-plate-front.svg",
+          "name" : "Glass plate · front",
+          "opacity" : 0.72,
+          "position" : {
+            "scale" : 0.95,
+            "translation-in-points" : [
+              0,
+              0
+            ]
+          }
+        }
+      ],
+      "lighting" : "individual",
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.34
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.52
+      }
+    },
+    {
+      "blend-mode" : "normal",
+      "blur-material" : 0,
+      "layers" : [
+        {
+          "glass" : false,
+          "hidden" : false,
+          "image-name" : "forge-glow.svg",
+          "name" : "Glow · violet → orange",
+          "opacity" : 1,
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              0,
+              0
+            ]
+          }
+        }
+      ],
+      "lighting" : "individual",
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0
+      },
+      "translucency" : {
+        "enabled" : false,
+        "value" : 0
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "circles" : [
+      "watchOS"
+    ],
+    "squares" : "shared"
+  }
+}

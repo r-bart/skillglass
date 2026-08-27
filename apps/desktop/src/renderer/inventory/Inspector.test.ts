@@ -1,7 +1,6 @@
 import { act, createElement } from "react"
 import { createRoot, type Root } from "react-dom/client"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { EditorView } from "@codemirror/view"
 
 import type {
   ForgeBridge,
@@ -238,7 +237,7 @@ describe("Inspector", () => {
     expect(container.textContent).toContain("No se pudo leer el frontmatter")
     expect(container.textContent).toContain("/safe/managed-audit/SKILL.md")
     expect([...container.querySelectorAll("*")]
-      .filter(({ textContent, children }) => textContent === "Solo lectura" && children.length === 0))
+      .filter(({ textContent, children }) => textContent === "Solo lectura · origen observado" && children.length === 0))
       .toHaveLength(1)
     expect(buttonNamed("Abrir archivo")).toBeInstanceOf(HTMLButtonElement)
     expect(buttonNamed("Editar")).toBeUndefined()
@@ -296,96 +295,98 @@ describe("Inspector", () => {
     expect(buttonNamed("Fuente")?.getAttribute("aria-pressed")).toBe("true")
   })
 
-  it("previews exact edited content before confirming the operation", async () => {
+  it("delegates writable entry editing with the exact installation and trigger", async () => {
     const value = detail()
     const operationBridge = operations()
     const plan = vi.spyOn(operationBridge, "plan")
+    const onEditEntry = vi.fn()
+    await act(async () => root.render(createElement(Inspector, {
+      installationId: value.installation.installationId,
+      inventoryBridge: bridge(value),
+      onEditEntry,
+      operationBridge,
+    })))
+
+    const trigger = buttonNamed("Editar")
+    act(() => trigger?.click())
+
+    expect(onEditEntry).toHaveBeenCalledWith(
+      value.installation.installationId,
+      trigger,
+    )
+    expect(plan).not.toHaveBeenCalled()
+    expect(container.querySelector(".editor-sheet")).toBeNull()
+  })
+
+  it("never delegates editing for a managed read-only installation", async () => {
+    const value = detail("read-only")
+    const onEditEntry = vi.fn()
+    await act(async () => root.render(createElement(Inspector, {
+      installationId: value.installation.installationId,
+      inventoryBridge: bridge(value),
+      onEditEntry,
+    })))
+
+    expect(buttonNamed("Editar")).toBeUndefined()
+    expect(onEditEntry).not.toHaveBeenCalled()
+    expect(container.querySelector(".inspector-read-only-note")?.textContent).toBe("Solo inspección")
+  })
+
+  it("keeps source-update planning and confirmation in Inspector", async () => {
+    const base = detail()
+    const value: InstallationDetailDto = {
+      ...base,
+      installation: {
+        ...base.installation,
+        status: { ...base.installation.status, update: "available" },
+      },
+      provenance: { ...base.provenance, kind: "forge-import", managedBy: "forge" },
+      capabilities: { ...base.capabilities, canUpdateFromSource: true },
+    }
+    const operationBridge = operations()
+    const plan = vi.spyOn(operationBridge, "plan").mockResolvedValue({
+      planId: "plan_update",
+      kind: "update-from-local",
+      status: "planned",
+      createdAt: NOW,
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      adapterId: "codex",
+      installationIds: [value.installation.installationId],
+      targetRootId: "root_global",
+      affectedScopes: [{ kind: "global" }],
+      affectedEntries: [{
+        action: "modify",
+        rootId: "root_global",
+        installationId: value.installation.installationId,
+        relativePath: "global-review/SKILL.md",
+      }],
+      preconditions: [],
+      conflicts: [],
+      warnings: [],
+      undo: "persistent",
+      summary: "Actualizar global-review desde origen",
+    })
     const confirm = vi.spyOn(operationBridge, "confirm")
     const onStatus = vi.fn()
     await act(async () => root.render(createElement(Inspector, {
       installationId: value.installation.installationId,
       inventoryBridge: bridge(value),
-      operationBridge,
       onStatus,
+      operationBridge,
     })))
 
-    act(() => buttonNamed("Editar")?.click())
-    const editorDialog = container.querySelector<HTMLElement>('[role="dialog"]')
-    expect(editorDialog?.classList.contains("editor-sheet")).toBe(true)
-    expect(editorDialog?.getAttribute("aria-labelledby")).toBe("editor-dialog-title")
-    expect(editorDialog?.getAttribute("aria-describedby")).toBe("editor-dialog-description")
-    const editorElement = container.querySelector<HTMLElement>(".cm-editor")
-    const editor = editorElement === null ? null : EditorView.findFromDOM(editorElement)
-    if (editor === null) throw new Error("Editor was not rendered")
-    expect(container.querySelector(".editor-sheet__footer")?.contains(buttonNamed("Revisar cambios") ?? null)).toBe(true)
-    expect(container.querySelector(".editor-sheet__footer")?.contains(buttonNamed("Cancelar") ?? null)).toBe(true)
-    const changed = `${value.rawEntryContent}\nNueva regla verificable.`
-    await act(async () => {
-      editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: changed } })
-    })
-    await act(async () => buttonNamed("Revisar cambios")?.click())
-
-    expect(plan).toHaveBeenCalledWith({
-      kind: "update-entry-content",
+    await act(async () => buttonNamed("Actualizar")?.click())
+    expect(plan).toHaveBeenLastCalledWith({
+      kind: "update-from-local",
       installationId: value.installation.installationId,
       expectedSnapshotId: value.snapshotId,
-      content: changed,
     })
-    expect(container.querySelector('[role="dialog"]')?.textContent).toContain("/safe/global-review/SKILL.md")
-    expect(container.querySelector('[role="dialog"]')?.textContent).toContain("Nueva regla verificable.")
+    expect(container.querySelector('[role="dialog"]')?.textContent)
+      .toContain("Confirmar actualización de origen")
 
     await act(async () => buttonNamed("Actualizar skill")?.click())
     expect(confirm).toHaveBeenCalledWith({ planId: "plan_update" })
     expect(onStatus).toHaveBeenCalledWith("Skill actualizada")
-  })
-
-  it("closes the editor sheet with Escape and restores focus to its trigger", async () => {
-    const value = detail()
-    await act(async () => root.render(createElement(Inspector, {
-      installationId: value.installation.installationId,
-      inventoryBridge: bridge(value),
-      operationBridge: operations(),
-    })))
-    const trigger = buttonNamed("Editar")
-    trigger?.focus()
-    act(() => trigger?.click())
-    const dialog = container.querySelector<HTMLElement>('[role="dialog"]')
-    expect(dialog?.contains(document.activeElement)).toBe(true)
-
-    await act(async () => dialog?.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Escape" })))
-
-    expect(container.querySelector(".editor-sheet")).toBeNull()
-    expect(document.activeElement).toBe(buttonNamed("Editar"))
-  })
-
-  it("keeps transient editor state mounted during watcher-driven detail refresh", async () => {
-    const value = detail()
-    let finishRefresh: ((next: InstallationDetailDto) => void) | undefined
-    const inventoryBridge = bridge(value)
-    const inspect = vi.fn()
-      .mockResolvedValueOnce(value)
-      .mockImplementationOnce(() => new Promise<InstallationDetailDto>((resolve) => { finishRefresh = resolve }))
-    const refreshingBridge = { ...inventoryBridge, inspect }
-    await act(async () => root.render(createElement(Inspector, {
-      installationId: value.installation.installationId,
-      inventoryBridge: refreshingBridge,
-      operationBridge: operations(),
-      revision: 0,
-    })))
-    act(() => buttonNamed("Editar")?.click())
-    expect(container.querySelector(".cm-editor")).not.toBeNull()
-
-    await act(async () => root.render(createElement(Inspector, {
-      installationId: value.installation.installationId,
-      inventoryBridge: refreshingBridge,
-      operationBridge: operations(),
-      revision: 1,
-    })))
-    expect(container.querySelector(".cm-editor")).not.toBeNull()
-    expect(container.textContent).not.toContain("Cargando inspector…")
-
-    await act(async () => finishRefresh?.(value))
-    expect(container.querySelector(".cm-editor")).not.toBeNull()
   })
 
   it("refuses a source update when main reports local divergence", async () => {

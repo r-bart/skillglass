@@ -39,6 +39,10 @@ export function createForgeBridge(port: IpcRendererPort): ForgeBridge {
       selectProject: () => invoke(port, IPC_INVOKE_CHANNELS.onboardingSelectProject, {}) as ReturnType<ForgeBridge["onboarding"]["selectProject"]>,
       approveRoots: (input) => invoke(port, IPC_INVOKE_CHANNELS.onboardingApproveRoots, input) as ReturnType<ForgeBridge["onboarding"]["approveRoots"]>,
     },
+    monitoring: {
+      state: () => invoke(port, IPC_INVOKE_CHANNELS.monitoringState, {}) as ReturnType<ForgeBridge["monitoring"]["state"]>,
+      save: (input) => invoke(port, IPC_INVOKE_CHANNELS.monitoringSave, input) as ReturnType<ForgeBridge["monitoring"]["save"]>,
+    },
     inventory: {
       list: (input) => invoke(port, IPC_INVOKE_CHANNELS.inventoryList, input) as ReturnType<ForgeBridge["inventory"]["list"]>,
       inspect: (input) => invoke(port, IPC_INVOKE_CHANNELS.inventoryInspect, input) as ReturnType<ForgeBridge["inventory"]["inspect"]>,

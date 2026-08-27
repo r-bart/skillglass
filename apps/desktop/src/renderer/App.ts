@@ -1,15 +1,18 @@
-import { createElement, useEffect, useRef, useState, type ReactNode } from "react"
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 
 import type {
   ForgeBridge,
+  InventoryPageDto,
+  InventoryQuery,
   LocalSourceSelectionDto,
+  MonitoringStateDto,
   OnboardingStateDto,
   OperationProgressEvent,
   OperationPlanDto,
-  RootCandidateDto,
 } from "@forge/contracts"
 
 import { AccessibleDialog } from "./AccessibleDialog.js"
+import { CreateSkillWorkspace } from "./CreateSkillWorkspace.js"
 import {
   AppSidebar,
   AppTopbar,
@@ -17,141 +20,58 @@ import {
   type Surface,
 } from "./AppChrome.js"
 import { Inspector, Inventory } from "./inventory/index.js"
+import { createElement, loadSavedLocale, saveLocale, setActiveLocale, type Locale } from "./i18n.js"
+import { MonitoringManagerDialog, OnboardingFlow, SourceApprovalStep } from "./onboarding/index.js"
 import { OperationPlanDetails } from "./OperationPlanDetails.js"
 import { Pending } from "./Pending.js"
+import { SkillWorkspace } from "./SkillWorkspace.js"
 import {
-  CompactSurfaceHeader,
   MetalAction,
   QuietAction,
-  SectionLabel,
   StatusPill,
 } from "./VisualPrimitives.js"
 
-const accessLabels: Record<RootCandidateDto["access"], string> = {
-  "read-write": "Lectura y escritura",
-  "read-only": "Solo lectura",
-  missing: "No disponible",
-  denied: "Acceso denegado",
+export type SkillWorkspaceRoute =
+  | Readonly<{
+      kind: "edit"
+      installationId: string
+      initialMode: "preview" | "code"
+      returnFocus: HTMLElement
+    }>
+  | Readonly<{
+      kind: "create"
+      returnFocus: HTMLElement
+    }>
+
+function canRestoreFocus(element: HTMLElement): boolean {
+  if (!element.isConnected) return false
+  if (element instanceof HTMLButtonElement && element.disabled) return false
+  if (element.closest("[hidden], [inert], [aria-hidden='true']") !== null) return false
+  let current: HTMLElement | null = element
+  while (current !== null) {
+    const style = window.getComputedStyle(current)
+    if (style.display === "none" || style.visibility === "hidden") return false
+    current = current.parentElement
+  }
+  return true
 }
 
-function historyKindLabel(kind: "install-local" | "update-entry-content" | "update-from-local"): string {
+function historyKindLabel(kind: "create-skill" | "install-local" | "update-entry-content" | "update-from-local"): string {
   switch (kind) {
+    case "create-skill": return "Creación"
     case "install-local": return "Instalación local"
     case "update-entry-content": return "Actualización de contenido"
     case "update-from-local": return "Actualización de origen"
   }
 }
 
-function historyUndoLabel(kind: "install-local" | "update-entry-content" | "update-from-local"): string {
+function historyUndoLabel(kind: "create-skill" | "install-local" | "update-entry-content" | "update-from-local"): string {
   switch (kind) {
+    case "create-skill": return "Deshacer creación"
     case "install-local": return "Deshacer instalación"
     case "update-entry-content": return "Deshacer actualización"
     case "update-from-local": return "Deshacer actualización de origen"
   }
-}
-
-function Onboarding({
-  state,
-  selected,
-  busy,
-  error,
-  onToggle,
-  onAdd,
-  onAddProject,
-  onApprove,
-}: {
-  state: OnboardingStateDto | null
-  selected: ReadonlySet<string>
-  busy: boolean
-  error: string | null
-  onToggle: (candidateId: string) => void
-  onAdd: () => void
-  onAddProject: () => void
-  onApprove: () => void
-}) {
-  return createElement(
-    "section",
-    { className: "content-surface onboarding-surface", "aria-labelledby": "onboarding-title", "data-scroll-panel": "onboarding" },
-    createElement(CompactSurfaceHeader, {
-      className: "onboarding-header",
-      description: "Revisa las ubicaciones propuestas. Forge no iniciará el primer escaneo hasta guardar tu aprobación.",
-      eyebrow: "Primer uso",
-      title: "Carpetas de skills",
-      titleId: "onboarding-title",
-    }),
-    state === null
-      ? createElement("p", { className: "surface-note", role: "status" }, "Detectando ubicaciones compatibles…")
-      : createElement(
-          "form",
-          { className: "root-form", onSubmit: (event) => { event.preventDefault(); onApprove() } },
-          createElement(
-            "div",
-            { className: "onboarding-card" },
-            createElement(
-              "fieldset",
-              { className: "root-fieldset", disabled: busy },
-              createElement(
-                "legend",
-                null,
-                createElement(SectionLabel, { as: "span" }, "Ubicaciones que Forge puede observar"),
-              ),
-              createElement(
-                "div",
-                { className: "root-list" },
-                ...state.proposedRoots.map((root) => createElement(
-                  "label",
-                  { className: "root-option glass-selectable-row", key: root.candidateId },
-                  createElement("input", {
-                    type: "checkbox",
-                    checked: selected.has(root.candidateId),
-                    onChange: () => onToggle(root.candidateId),
-                  }),
-                  createElement(
-                    "span",
-                    { className: "root-copy" },
-                    createElement("span", { className: "root-name" }, root.displayName),
-                    createElement("span", { className: "root-path" }, root.displayPath),
-                    createElement(
-                      "span",
-                      { className: "root-meta" },
-                      createElement(StatusPill, {
-                        tone: root.access === "read-write" ? "ok" : root.access === "denied" ? "danger" : "idle",
-                      }, accessLabels[root.access]),
-                      createElement("span", { className: "root-evidence" }, root.discovery.kind === "unknown" ? "Evidencia desconocida" : `Evidencia ${root.discovery.kind}`),
-                    ),
-                  ),
-                )),
-              ),
-            ),
-            createElement(
-              "div",
-              { className: "onboarding-card__footer" },
-              createElement(
-                "div",
-                { className: "root-secondary-actions" },
-                createElement(QuietAction, { disabled: busy, onClick: onAdd }, "Añadir carpeta…"),
-                createElement(QuietAction, { disabled: busy, onClick: onAddProject }, "Añadir proyecto Codex…"),
-              ),
-              createElement(MetalAction, {
-                disabled: busy || selected.size === 0,
-                type: "submit",
-              }, busy ? "Escaneando…" : state.status === "complete" ? "Guardar cambios" : "Escanear carpetas aprobadas"),
-            ),
-          ),
-          createElement(
-            "p",
-            { className: "root-safety-note" },
-            createElement("span", { "aria-hidden": "true", className: "root-safety-note__icon" }, "✓"),
-            createElement("span", null, "La carpeta se elige mediante el diálogo del sistema. Forge nunca solicita privilegios de administrador."),
-          ),
-        ),
-    error === null ? null : createElement("p", { className: "form-error", role: "alert" }, error),
-    createElement(
-      "p",
-      { className: "surface-note", role: "status" },
-      state?.status === "complete" ? "La aprobación está guardada en este dispositivo." : "El inventario permanece bloqueado hasta guardar al menos una ubicación.",
-    ),
-  )
 }
 
 function PageContent({ activeSurface, onboarding, inventory, pending }: { activeSurface: Surface; onboarding: ReactNode; inventory: ReactNode; pending: ReactNode }): ReactNode {
@@ -162,29 +82,41 @@ function PageContent({ activeSurface, onboarding, inventory, pending }: { active
 export function App({
   onboardingBridge: suppliedOnboardingBridge,
   inventoryBridge: suppliedInventoryBridge,
+  monitoringBridge: suppliedMonitoringBridge,
   eventBridge: suppliedEventBridge,
   operationBridge: suppliedOperationBridge,
 }: {
   onboardingBridge?: ForgeBridge["onboarding"]
   inventoryBridge?: ForgeBridge["inventory"]
+  monitoringBridge?: ForgeBridge["monitoring"]
   eventBridge?: ForgeBridge["events"]
   operationBridge?: ForgeBridge["operations"]
 }) {
   const onboardingBridge = suppliedOnboardingBridge ?? window.forge.onboarding
   const inventoryBridge = suppliedInventoryBridge ?? window.forge.inventory
+  const monitoringBridge = suppliedMonitoringBridge ?? window.forge.monitoring
   const eventBridge = suppliedEventBridge ?? window.forge.events
   const operationBridge = suppliedOperationBridge ?? window.forge.operations
+  const [locale, setLocale] = useState<Locale>(loadSavedLocale)
+  setActiveLocale(locale)
   const mainContentRef = useRef<HTMLElement>(null)
+  const workspaceReturnFocusRef = useRef<HTMLElement | undefined>(undefined)
   const [activeSurface, setActiveSurface] = useState<Surface>("onboarding")
   const [scrollResetRevision, setScrollResetRevision] = useState(0)
   const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false)
   const [onboardingState, setOnboardingState] = useState<OnboardingStateDto | null>(null)
+  const [monitoringState, setMonitoringState] = useState<MonitoringStateDto | null>(null)
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [scanNotice, setScanNotice] = useState<string>()
   const [inventoryRevision, setInventoryRevision] = useState(0)
+  const [focusInventoryTitle, setFocusInventoryTitle] = useState(false)
+  const [inventoryProjects, setInventoryProjects] = useState<NonNullable<InventoryPageDto["projects"]>>([])
+  const [inventoryScope, setInventoryScope] = useState<InventoryQuery["scope"]>({ kind: "all" })
+  const [monitoringManagerTrigger, setMonitoringManagerTrigger] = useState<HTMLElement>()
   const [selectedInstallationId, setSelectedInstallationId] = useState<string>()
+  const [skillWorkspaceRoute, setSkillWorkspaceRoute] = useState<SkillWorkspaceRoute>()
   const [operationStatus, setOperationStatus] = useState<string>()
   const [operationProgress, setOperationProgress] = useState<OperationProgressEvent>()
   const [historyOpen, setHistoryOpen] = useState(false)
@@ -197,6 +129,24 @@ export function App({
   const [pendingInstallTargetId, setPendingInstallTargetId] = useState<string>()
 
   const writableInstallTargets = onboardingState?.approvedRoots.filter((root) => root.access === "read-write") ?? []
+  const monitoredInstallationIds = useMemo<ReadonlySet<string> | undefined>(
+    () => monitoringState?.status === "complete"
+      ? new Set(monitoringState.selectedInstallationIds)
+      : undefined,
+    [monitoringState],
+  )
+  const monitoringManagerBridge = useMemo(
+    () => ({ inventory: inventoryBridge, monitoring: monitoringBridge }),
+    [inventoryBridge, monitoringBridge],
+  )
+  const monitoringRootDisplayPaths = useMemo(
+    () => new Map(onboardingState?.approvedRoots.map((root) => [root.rootId, root.displayPath]) ?? []),
+    [onboardingState],
+  )
+
+  useEffect(() => {
+    saveLocale(locale)
+  }, [locale])
 
   const sourceClaim = (selection: LocalSourceSelectionDto) => {
     const suggestedName = selection.kind === "zip"
@@ -319,20 +269,40 @@ export function App({
 
   useEffect(() => {
     let current = true
-    onboardingBridge.state().then((state) => {
+    Promise.all([
+      onboardingBridge.state(),
+      monitoringBridge.state(),
+    ]).then(([roots, monitoring]) => {
       if (!current) return
-      setOnboardingState(state)
-      setSelected(new Set(state.selectedCandidateIds))
-      setActiveSurface(state.status === "complete" ? "inventory" : "onboarding")
+      setOnboardingState(roots)
+      setMonitoringState(monitoring)
+      setSelected(new Set(roots.selectedCandidateIds))
+      setActiveSurface(
+        roots.status === "complete" && monitoring.status === "complete"
+          ? "inventory"
+          : "onboarding",
+      )
     }).catch((reason: unknown) => {
       if (current) setError(reason instanceof Error ? reason.message : "No se pudo cargar la configuración")
     })
     return () => { current = false }
-  }, [onboardingBridge])
+  }, [monitoringBridge, onboardingBridge])
 
   useEffect(() => {
+    let current = true
     const stopInventory = eventBridge.onInventoryChanged((event) => {
       setInventoryRevision((current) => current + 1)
+      void monitoringBridge.state().then((state) => {
+        if (current) setMonitoringState(state)
+      }).catch((reason: unknown) => {
+        if (current) {
+          setScanNotice(
+            reason instanceof Error
+              ? reason.message
+              : "No se pudo actualizar el seguimiento",
+          )
+        }
+      })
       const findings = event.findings ?? []
       if (findings.length === 0) {
         if (event.reason === "watcher" || event.reason === "root-approval") setScanNotice(undefined)
@@ -349,13 +319,47 @@ export function App({
       setOperationProgress(undefined)
     })
     return () => {
+      current = false
       stopInventory()
       stopProgress()
       stopCompleted()
     }
-  }, [eventBridge])
+  }, [eventBridge, monitoringBridge])
 
-  const onboardingRequired = onboardingState?.status !== "complete"
+  const setupRequired = onboardingState?.status !== "complete"
+    || monitoringState?.status !== "complete"
+  const workspaceOpen = skillWorkspaceRoute !== undefined
+  const inspectorVisible = activeSurface !== "onboarding" && selectedInstallationId !== undefined
+
+  // Task 3.2 will pass `open` to Inspector without changing the route model.
+  const workspaceNavigation = {
+    open: (route: SkillWorkspaceRoute): void => {
+      workspaceReturnFocusRef.current = undefined
+      setSkillWorkspaceRoute(route)
+      setMobileNavigationOpen(false)
+    },
+    close: (): void => {
+      workspaceReturnFocusRef.current = skillWorkspaceRoute?.returnFocus
+      setSkillWorkspaceRoute(undefined)
+    },
+  }
+
+  useEffect(() => {
+    if (workspaceOpen) return
+    const returnFocus = workspaceReturnFocusRef.current
+    workspaceReturnFocusRef.current = undefined
+    if (returnFocus !== undefined && canRestoreFocus(returnFocus)) {
+      returnFocus.focus()
+      return
+    }
+    const fallbackSelector = returnFocus?.classList.contains("create-skill-button")
+      ? ".create-skill-button"
+      : undefined
+    if (fallbackSelector !== undefined) {
+      const fallback = document.querySelector<HTMLElement>(fallbackSelector)
+      if (fallback !== null && canRestoreFocus(fallback)) fallback.focus()
+    }
+  }, [workspaceOpen])
 
   useEffect(() => {
     const main = mainContentRef.current
@@ -368,11 +372,26 @@ export function App({
     }
   }, [activeSurface, scrollResetRevision])
 
+  useEffect(() => {
+    if (!focusInventoryTitle || setupRequired || activeSurface !== "inventory") return
+    const title = document.getElementById("inventory-title")
+    if (!(title instanceof HTMLElement)) return
+    title.tabIndex = -1
+    title.focus({ preventScroll: true })
+    setFocusInventoryTitle(false)
+  }, [activeSurface, focusInventoryTitle, inventoryRevision, setupRequired])
+
   const navigate = (surface: Surface) => {
-    if (surface !== "onboarding" && onboardingRequired) return
+    if (surface !== "onboarding" && setupRequired) return
     setActiveSurface(surface)
     setScrollResetRevision((current) => current + 1)
     setMobileNavigationOpen(false)
+  }
+
+  const navigateToInventoryScope = (scope: InventoryQuery["scope"]): void => {
+    if (setupRequired) return
+    setInventoryScope(scope)
+    navigate("inventory")
   }
 
   const addRoot = async () => {
@@ -407,45 +426,100 @@ export function App({
     }
   }
 
-  const approve = async () => {
+  const approve = async (): Promise<OnboardingStateDto> => {
     setBusy(true)
     setError(null)
     try {
       const approvedRoots = await onboardingBridge.approveRoots({ candidateIds: [...selected] })
-      setOnboardingState((state) => state === null ? state : { ...state, status: "complete", selectedCandidateIds: [...selected], approvedRoots })
-      setActiveSurface("inventory")
-      setScrollResetRevision((current) => current + 1)
+      if (onboardingState === null) throw new Error("No se pudo cargar la configuración")
+      const nextState: OnboardingStateDto = {
+        ...onboardingState,
+        status: "complete",
+        selectedCandidateIds: [...selected],
+        approvedRoots,
+      }
+      setOnboardingState(nextState)
+      setInventoryRevision((current) => current + 1)
+      return nextState
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "No se pudo guardar la aprobación")
+      const nextError = reason instanceof Error ? reason.message : "No se pudo guardar la aprobación"
+      setError(nextError)
+      throw reason instanceof Error ? reason : new Error(nextError)
     } finally {
       setBusy(false)
     }
   }
 
-  const onboarding = createElement(Onboarding, {
-    state: onboardingState,
-    selected,
+  const toggleRoot = (candidateId: string): void => setSelected((current) => {
+    const next = new Set(current)
+    if (next.has(candidateId)) next.delete(candidateId)
+    else next.add(candidateId)
+    return next
+  })
+
+  const completeSetup = (state: MonitoringStateDto): void => {
+    setMonitoringState(state)
+    setInventoryScope({ kind: "all" })
+    setActiveSurface("inventory")
+    setInventoryRevision((current) => current + 1)
+    setScrollResetRevision((current) => current + 1)
+    setOperationStatus("Tu inventario está listo")
+    setFocusInventoryTitle(true)
+  }
+
+  if (setupRequired) {
+    return createElement(
+      "div",
+      { className: "app-shell app-shell--onboarding" },
+      createElement("a", { className: "skip-link", href: "#main-content" }, "Saltar al contenido"),
+      createElement(OnboardingFlow, {
+        inventoryBridge,
+        monitoring: monitoringState,
+        onAddFolder: () => { void addRoot() },
+        onAddProject: () => { void addProject() },
+        onApproveRoots: approve,
+        onComplete: completeSetup,
+        onSaveMonitoring: (installationIds) => monitoringBridge.save({ installationIds: [...installationIds] }),
+        onToggleRoot: toggleRoot,
+        roots: onboardingState,
+        selectedCandidateIds: selected,
+        sourceBusy: busy,
+        sourceError: error,
+      }),
+    )
+  }
+
+  const onboarding = createElement(SourceApprovalStep, {
     busy,
     error,
-    onToggle: (candidateId: string) => setSelected((current) => {
-      const next = new Set(current)
-      if (next.has(candidateId)) next.delete(candidateId)
-      else next.add(candidateId)
-      return next
-    }),
-    onAdd: () => { void addRoot() },
+    mode: "management",
+    onAddFolder: () => { void addRoot() },
     onAddProject: () => { void addProject() },
-    onApprove: () => { void approve() },
+    onApprove: () => {
+      void approve().then(() => {
+        setOperationStatus("Carpetas actualizadas")
+      }).catch(() => undefined)
+    },
+    onToggle: toggleRoot,
+    selectedCandidateIds: selected,
+    state: onboardingState,
   })
   const inventory = createElement(Inventory, {
+    active: !workspaceOpen,
+    externalNavigation: true,
     inventoryBridge,
     eventBridge,
+    ...(monitoredInstallationIds === undefined ? {} : { monitoredInstallationIds }),
+    onManageMonitoring: setMonitoringManagerTrigger,
+    onProjectsChange: setInventoryProjects,
     onSelectionChange: setSelectedInstallationId,
+    scope: inventoryScope,
   })
   const pending = createElement(Pending, {
     inventoryBridge,
     operationBridge,
     eventBridge,
+    ...(monitoredInstallationIds === undefined ? {} : { monitoredInstallationIds }),
     onSelectInstallation: (installationId: string) => {
       setSelectedInstallationId(installationId)
       setOperationStatus("Pendiente abierto en el inspector")
@@ -455,19 +529,26 @@ export function App({
 
   return createElement(
     "div",
-    { className: "app-shell" },
+    { className: workspaceOpen ? "app-shell app-shell--workspace" : "app-shell" },
     createElement("a", { className: "skip-link", href: "#main-content" }, "Saltar al contenido"),
     createElement(AppTopbar, {
       activeSurface,
+      locale,
       mobileNavigationOpen,
-      onboardingRequired,
+      ...(workspaceOpen ? {
+        contextLabel: skillWorkspaceRoute?.kind === "create" ? "Crear skill" : "Editar skill",
+        navigationVisible: false,
+      } : {}),
+      onboardingRequired: setupRequired,
       onNavigate: navigate,
+      onCreateSkill: (trigger) => workspaceNavigation.open({ kind: "create", returnFocus: trigger }),
       onToggleMobileNavigation: () => setMobileNavigationOpen((isOpen) => !isOpen),
       onOpenHistory: () => { void openHistory() },
-      operationsVisible: activeSurface !== "onboarding" && !onboardingRequired,
+      operationsVisible: !workspaceOpen && activeSurface !== "onboarding" && !setupRequired,
       operationBusy,
       onInstallDirectory: () => { void installFrom("directory") },
       onInstallZip: () => { void installFrom("zip") },
+      onLocaleChange: setLocale,
       onRefreshUpdates: () => { void refreshUpdates() },
     }),
     operationError === undefined
@@ -484,7 +565,7 @@ export function App({
             ? null
             : createElement("small", null, operationProgress.stage === "rolling-back"
               ? "Recuperación en curso; la operación no se puede cancelar."
-              : "No cancelable durante la escritura; si se interrumpe, Forge recuperará el journal al reiniciar."),
+              : "No cancelable durante la escritura; si se interrumpe, Skill Forge recuperará el journal al reiniciar."),
         ),
     historyOpen
       ? createElement(
@@ -527,7 +608,7 @@ export function App({
                           createElement(
                             "small",
                             null,
-                            new Intl.DateTimeFormat("es-ES", { dateStyle: "medium", timeStyle: "short" }).format(new Date(item.createdAt)),
+                            new Intl.DateTimeFormat(locale === "es" ? "es-ES" : "en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(item.createdAt)),
                           ),
                           createElement("small", { className: "history-entry__id" }, item.journalId),
                         ),
@@ -559,6 +640,20 @@ export function App({
             ),
         )
       : null,
+    monitoringManagerTrigger === undefined
+      ? null
+      : createElement(MonitoringManagerDialog, {
+          bridge: monitoringManagerBridge,
+          onDismiss: () => setMonitoringManagerTrigger(undefined),
+          onSaved: (state) => {
+            setMonitoringState(state)
+            setMonitoringManagerTrigger(undefined)
+            setOperationStatus("Seguimiento actualizado")
+          },
+          projects: inventoryProjects,
+          returnFocus: monitoringManagerTrigger,
+          rootDisplayPaths: monitoringRootDisplayPaths,
+        }),
     pendingInstallSource === undefined
       ? null
       : createElement(
@@ -604,34 +699,111 @@ export function App({
               createElement("button", { type: "button", className: "secondary-action", disabled: operationBusy, onClick: () => setInstallPlan(undefined) }, "Cancelar"),
             ),
         ),
-    mobileNavigationOpen
+    !workspaceOpen && mobileNavigationOpen
       ? createElement(
           "div",
           { className: "mobile-navigation", id: "mobile-navigation" },
-          createElement(PrimaryNavigation, { activeSurface, onNavigate: navigate, onboardingRequired }),
+          createElement(PrimaryNavigation, {
+            activeSurface,
+            inventoryProjects,
+            inventoryScope,
+            onInventoryScopeChange: navigateToInventoryScope,
+            onNavigate: navigate,
+            onboardingRequired: setupRequired,
+          }),
         )
       : null,
     createElement(
       "div",
-      { className: "app-body" },
-      createElement(AppSidebar, { activeSurface, onNavigate: navigate, onboardingRequired }),
+      {
+        className: workspaceOpen
+          ? "app-body app-body--workspace"
+          : inspectorVisible
+            ? "app-body"
+            : "app-body app-body--without-inspector",
+      },
       createElement(
-        "main",
-        { className: "main-content", id: "main-content", ref: mainContentRef, tabIndex: -1 },
-        scanNotice === undefined
-          ? null
-          : createElement("p", { className: "form-error", role: "alert" }, scanNotice),
-        createElement(PageContent, { activeSurface, onboarding, inventory, pending }),
+        "div",
+        {
+          "aria-hidden": workspaceOpen,
+          className: "app-library",
+          hidden: workspaceOpen,
+          inert: workspaceOpen,
+          style: { display: "contents" },
+        },
+        createElement(AppSidebar, {
+          activeSurface,
+          inventoryProjects,
+          inventoryScope,
+          onInventoryScopeChange: navigateToInventoryScope,
+          onNavigate: navigate,
+          onboardingRequired: setupRequired,
+        }),
+        createElement(
+          "main",
+          { className: "main-content", id: workspaceOpen ? undefined : "main-content", ref: mainContentRef, tabIndex: -1 },
+          scanNotice === undefined
+            ? null
+            : createElement("p", { className: "form-error", role: "alert" }, scanNotice),
+          createElement(PageContent, { activeSurface, onboarding, inventory, pending }),
+        ),
+        inspectorVisible
+          ? createElement(Inspector, {
+              installationId: selectedInstallationId,
+              inventoryBridge,
+              onEditEntry: (installationId, trigger) => workspaceNavigation.open({
+                kind: "edit",
+                initialMode: "code",
+                installationId,
+                returnFocus: trigger,
+              }),
+              operationBridge,
+              onStatus: setOperationStatus,
+              revision: inventoryRevision,
+            })
+          : null,
       ),
-      createElement(Inspector, {
-        inventoryBridge,
-        operationBridge,
-        onStatus: setOperationStatus,
-        revision: inventoryRevision,
-        ...(activeSurface !== "onboarding" && selectedInstallationId !== undefined
-          ? { installationId: selectedInstallationId }
-          : {}),
-      }),
+      skillWorkspaceRoute === undefined
+        ? null
+        : createElement(
+            "main",
+            {
+              className: "main-content main-content--workspace",
+              id: "main-content",
+              tabIndex: -1,
+            },
+            skillWorkspaceRoute.kind === "create"
+              ? createElement(CreateSkillWorkspace, {
+                  key: "create-skill",
+                  onBack: workspaceNavigation.close,
+                  onCreated: (installationId) => {
+                    setSelectedInstallationId(installationId)
+                    setInventoryRevision((current) => current + 1)
+                    setSkillWorkspaceRoute({
+                      kind: "edit",
+                      installationId,
+                      initialMode: "preview",
+                      returnFocus: skillWorkspaceRoute.returnFocus,
+                    })
+                  },
+                  onStatus: setOperationStatus,
+                  operationBridge,
+                  roots: writableInstallTargets,
+                })
+              : createElement(SkillWorkspace, {
+                  initialMode: skillWorkspaceRoute.initialMode,
+                  installationId: skillWorkspaceRoute.installationId,
+                  inventoryBridge,
+                  key: `${skillWorkspaceRoute.installationId}:${skillWorkspaceRoute.initialMode}`,
+                  onBack: workspaceNavigation.close,
+                  onCommitted: (detail) => {
+                    setSelectedInstallationId(detail.installation.installationId)
+                    setInventoryRevision((current) => current + 1)
+                  },
+                  onStatus: setOperationStatus,
+                  operationBridge,
+                }),
+          ),
     ),
   )
 }

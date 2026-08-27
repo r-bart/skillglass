@@ -4,6 +4,11 @@ export const EXTERNAL_LINK_ORIGINS = [
   "https://github.com",
 ] as const
 
+// Vite reads this value before Electron starts, then exposes it through its
+// csp-nonce meta tag so development CSS/HMR style elements remain CSP-safe.
+// Production windows continue to receive a fresh random nonce.
+export const DEVELOPMENT_STYLE_NONCE = "ForgeDevStyleNonce123456"
+
 const DEVELOPMENT_CSP = [
   "default-src 'none'",
   "script-src 'self'",
@@ -38,13 +43,19 @@ const PRODUCTION_CSP = [
   "frame-ancestors 'none'",
 ].join("; ")
 
-export function contentSecurityPolicy(isPackaged: boolean): string {
-  return isPackaged ? PRODUCTION_CSP : DEVELOPMENT_CSP
+export function contentSecurityPolicy(isPackaged: boolean, styleNonce: string): string {
+  const basePolicy = isPackaged ? PRODUCTION_CSP : DEVELOPMENT_CSP
+  return basePolicy.replace("style-src 'self'", `style-src 'self' 'nonce-${styleNonce}'`)
 }
 
-export function createSecureWebPreferences(preload: string, isPackaged: boolean): WebPreferences {
+export function createSecureWebPreferences(
+  preload: string,
+  isPackaged: boolean,
+  styleNonce: string,
+): WebPreferences {
   return {
     preload,
+    additionalArguments: [`--forge-style-nonce=${styleNonce}`],
     contextIsolation: true,
     nodeIntegration: false,
     nodeIntegrationInSubFrames: false,

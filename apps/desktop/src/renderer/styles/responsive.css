@@ -1,6 +1,227 @@
 /* Deliberate shell modes. This layer is loaded last so legacy breakpoints cannot
  * turn the inspector into an in-flow column or hide a selected narrow sheet. */
 
+/* Workspace disclosures are visually transparent at wide sizes. Their native
+ * summary controls become the labelled compact entry points below. */
+.workspace-context__disclosure,
+.workspace-context__disclosure-body,
+.workspace-plan__disclosure,
+.workspace-plan__disclosure-body {
+  min-width: 0;
+}
+
+.workspace-disclosure-summary {
+  display: none;
+}
+
+.workspace-plan__disclosure-body {
+  display: block;
+}
+
+.workspace-plan__disclosure-body > .inspector-path {
+  margin: 0 0 12px;
+  padding: 9px 10px;
+  overflow: hidden;
+  border: var(--hairline) solid var(--border-default);
+  border-radius: var(--radius-control);
+  color: rgba(244, 244, 246, 0.68);
+  background: var(--field-background);
+  font: 400 10.5px/1.5 var(--font-mono);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  user-select: text;
+}
+
+.workspace-plan__disclosure-body > div {
+  display: grid;
+  min-width: 0;
+  gap: 12px;
+}
+
+.workspace-plan__disclosure-body > .form-error {
+  margin: 12px 0 0;
+}
+
+/* The first compact tier removes fixed secondary columns while retaining a
+ * viewport-bound editor surface. It also covers desktop layouts at 200% zoom. */
+@media (max-width: 1279px) {
+  .skill-workspace,
+  .workspace-bar,
+  .workspace-tabs,
+  .workspace-body,
+  .workspace-editor,
+  .workspace-confirmation,
+  .workspace-confirmation__body {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+  }
+
+  .workspace-body {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  .skill-workspace :where(button, summary) {
+    min-block-size: 44px;
+  }
+
+  .workspace-context,
+  .workspace-plan {
+    width: 100%;
+    max-width: 100%;
+    max-height: min(34vh, 15rem);
+    padding: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    border-left: 0;
+    border-top: var(--hairline) solid var(--border-chrome);
+  }
+
+  .workspace-context > h2 {
+    display: none;
+  }
+
+  .workspace-context__disclosure,
+  .workspace-plan__disclosure {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .workspace-disclosure-summary {
+    position: sticky;
+    z-index: 1;
+    top: 0;
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 20px;
+    cursor: pointer;
+    color: rgba(244, 244, 246, 0.78);
+    background: var(--inspector-background);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.35;
+    list-style: none;
+  }
+
+  .workspace-disclosure-summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .workspace-disclosure-summary__marker {
+    display: grid;
+    width: 22px;
+    height: 22px;
+    flex: none;
+    place-items: center;
+    border: var(--hairline) solid var(--border-default);
+    border-radius: var(--radius-compact);
+    color: var(--text-secondary);
+    background: var(--quiet-background);
+  }
+
+  .workspace-disclosure-summary__marker::before {
+    content: "+";
+  }
+
+  :where(.workspace-context__disclosure, .workspace-plan__disclosure)[open]
+    > .workspace-disclosure-summary .workspace-disclosure-summary__marker::before {
+    content: "−";
+  }
+
+  .workspace-context__disclosure-body,
+  .workspace-plan__disclosure-body {
+    min-width: 0;
+    padding: 0 20px 18px;
+  }
+
+  .workspace-context__facts dd,
+  .workspace-plan :where(.inspector-path, code, dd, li),
+  .workspace-plan__disclosure-body > .inspector-path {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .workspace-confirmation__body {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  .inline-diff {
+    padding: 12px 16px;
+  }
+
+  .inline-diff .text-diff {
+    border-radius: var(--radius-row);
+  }
+
+  .inline-diff .diff-line {
+    grid-template-columns: 28px 46px minmax(0, 1fr);
+  }
+
+  .inline-diff .diff-number.diff-number-before,
+  .inline-diff .diff-number.diff-number-after {
+    display: none;
+  }
+
+  .inline-diff .diff-number-compact {
+    display: grid;
+  }
+
+  .inline-diff .diff-content {
+    min-width: 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .workspace-plan .operation-facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .workspace-plan .operation-facts > div,
+  .workspace-plan .operation-facts > div:nth-last-child(-n + 2) {
+    border-right: 0;
+    border-bottom: var(--hairline) solid rgba(255, 255, 255, 0.045);
+  }
+
+  .workspace-plan .operation-facts > div:last-child {
+    border-bottom: 0;
+  }
+
+  .diff-workbench__header {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 6px 16px;
+  }
+
+  .diff-workbench__header > p {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .diff-actions {
+    flex-wrap: wrap;
+  }
+
+  .diff-actions > p {
+    flex-basis: 100%;
+  }
+
+  .diff-actions > :where(button, .visual-action) {
+    min-width: 0;
+    flex: 1 1 auto;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
 /* Compact desktop / tablet: keep navigation in flow and let content use the
  * remaining viewport. The inspector is a viewport-bound overlay. */
 @media (min-width: 960px) and (max-width: 1279px) {
@@ -29,7 +250,7 @@
     padding: 0;
     border-top: 0;
     border-left: var(--hairline) solid var(--border-chrome);
-    background: var(--sidebar-background);
+    background: var(--inspector-background);
     box-shadow: -18px 0 36px rgba(0, 0, 0, 0.32);
   }
 
@@ -88,12 +309,105 @@
     padding: 0;
     border-top: 0;
     border-left: var(--hairline) solid var(--border-chrome);
-    background: var(--sidebar-background);
+    background: var(--inspector-background);
     box-shadow: -18px 0 36px rgba(0, 0, 0, 0.38);
   }
 
   .inspector--empty {
     display: none;
+  }
+
+  .workspace-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-content: center;
+    gap: 8px;
+    padding: 10px 14px;
+  }
+
+  .workspace-identity {
+    min-width: 0;
+    flex: 1 1 12rem;
+  }
+
+  .workspace-update-status {
+    max-width: 100%;
+    margin-left: auto;
+  }
+
+  .workspace-discard.visual-action,
+  .workspace-review {
+    flex: 1 1 auto;
+  }
+
+  .workspace-tabs > [role="tablist"] {
+    padding-inline: 8px;
+  }
+
+  .skill-preview {
+    padding: 20px 20px 0;
+  }
+
+  .skill-preview__header {
+    padding-bottom: 18px;
+  }
+
+  .skill-preview__header > h2 {
+    font-size: 24px;
+  }
+
+  .skill-preview__content {
+    padding: 20px 0 32px;
+  }
+
+  .skill-preview__content .safe-markdown {
+    font-size: 16px;
+  }
+
+  .code-workbench {
+    padding: 16px;
+  }
+
+  .workspace-editor__meta {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 6px 12px;
+  }
+
+  .diff-workbench__header {
+    padding: 14px 16px 10px;
+  }
+
+  .inline-diff {
+    padding: 10px 0;
+  }
+
+  .inline-diff .text-diff {
+    border-right: 0;
+    border-left: 0;
+    border-radius: 0;
+  }
+
+  .diff-actions {
+    padding: 10px 16px;
+  }
+
+  .workspace-footer {
+    padding-inline: 14px;
+  }
+
+  .skill-workspace--changes .workspace-context {
+    display: none;
+  }
+
+  .skill-workspace--changes .workspace-footer {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 
   /* Preserve the compact visual rhythm while giving pointer and touch users a
@@ -121,6 +435,31 @@
 }
 
 @media (max-width: 800px) {
+  .create-setup {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+    padding: 20px 14px 32px;
+  }
+
+  .create-setup__form {
+    padding: 20px;
+  }
+
+  .create-setup__aside {
+    padding: 4px 20px 20px;
+    border-left: 0;
+  }
+
+  .skill-workspace--changes .workspace-plan > .inspector-path {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
   .app-topbar {
     grid-template-columns: minmax(4rem, 1fr) auto;
     gap: 0.5rem;
@@ -138,10 +477,21 @@
 
 @media (forced-colors: active) and (max-width: 1279px) {
   .inspector,
-  .mobile-navigation {
+  .mobile-navigation,
+  .workspace-context,
+  .workspace-plan,
+  .workspace-context__disclosure-body,
+  .workspace-plan__disclosure-body {
     border-color: CanvasText;
+    color: CanvasText;
     background: Canvas;
     box-shadow: none;
     backdrop-filter: none;
+  }
+
+  .workspace-disclosure-summary__marker {
+    border-color: ButtonText;
+    color: ButtonText;
+    background: ButtonFace;
   }
 }

@@ -23,6 +23,7 @@ import {
   type Locator,
   type Page,
 } from "@playwright/test"
+import { openForgeStore } from "../../../packages/storage/src/index.js"
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..")
 const e2eMainEntrypoint = path.join(repositoryRoot, "apps", "desktop", ".vite", "build", "main.cjs")
@@ -64,6 +65,7 @@ interface ForgeBusinessFixture {
 
 export interface LaunchForgeOptions {
   readonly keepUnapprovedRootsHidden?: boolean
+  readonly onboardingPhase?: "intro" | "sources" | "skills"
   readonly onboarded?: boolean
   readonly workingDirectory?: string
 }
@@ -72,6 +74,7 @@ export interface ForgeTestApplication {
   readonly page: Page
   close(): Promise<void>
   restart(): Promise<void>
+  restartAsLegacyInstallation(): Promise<void>
   setZoomFactor(factor: number): Promise<void>
   installFromDirectory(source: string): Promise<void>
   installFromZip(source: string): Promise<void>
@@ -464,6 +467,25 @@ class RunningForge implements ForgeTestApplication {
     const launched = await launchElectron(this.#fixture, this.#workingDirectory)
     this.#application = launched.application
     this.#page = launched.page
+    await this.#page.locator("#main-content").waitFor()
+  }
+
+  async restartAsLegacyInstallation(): Promise<void> {
+    if (this.#closed) throw new Error("Cannot restart a closed Forge test application")
+    await this.#application.close()
+    const store = openForgeStore({
+      path: path.join(this.#fixture.userData, "forge.sqlite"),
+      privateDirectory: true,
+    })
+    try {
+      store.settings.delete("monitoring.selection.v1")
+      store.settings.delete("monitoring.onboarding-pending.v1")
+    } finally {
+      store.close()
+    }
+    const launched = await launchElectron(this.#fixture, this.#workingDirectory)
+    this.#application = launched.application
+    this.#page = launched.page
     await this.#page.getByRole("heading", { name: "Inventario" }).waitFor()
   }
 
@@ -547,36 +569,79 @@ export async function launchForge(
   fixture: ForgeBusinessFixture,
   options: LaunchForgeOptions = {},
 ): Promise<ForgeTestApplication> {
+  // The immutable MVP suite calls the helper with no options and predates both
+  // the welcome tour and per-skill monitoring. Preserve that historical
+  // source-approval contract in the fixture only; onboarding-specific suites
+  // opt into an explicit phase and exercise the production flow and copy.
+  const legacyRootApprovalAcceptance = Object.keys(options).length === 0
+  if (legacyRootApprovalAcceptance) {
+    const store = openForgeStore({
+      path: path.join(fixture.userData, "forge.sqlite"),
+      privateDirectory: true,
+    })
+    try {
+      const timestamp = "2026-08-27T10:00:00.000Z"
+      store.settings.set("monitoring.selection.v1", {
+        version: 1,
+        updatedAt: timestamp,
+        completedAt: timestamp,
+        installationIds: [],
+      }, timestamp)
+    } finally {
+      store.close()
+    }
+  }
   const workingDirectory = options.workingDirectory ?? fixture.projectRoot
+  const onboardingPhase = options.onboardingPhase ?? "sources"
+  const needsObservedSkills = options.onboarded === true || onboardingPhase === "skills"
   const projectSkills = path.join(fixture.projectRoot, ".agents", "skills")
   const hiddenProjectSkills = `${projectSkills}.e2e-hidden`
   const hiddenManagedSkills = `${fixture.managedSkillsRoot}.e2e-hidden`
-  if (options.onboarded !== true) {
+  if (!needsObservedSkills) {
     await rename(projectSkills, hiddenProjectSkills)
     await rename(fixture.managedSkillsRoot, hiddenManagedSkills)
   }
   let launched: Awaited<ReturnType<typeof launchElectron>>
   try {
     launched = await launchElectron(fixture, workingDirectory)
-    await launched.page.getByRole("heading", { name: "Carpetas de skills" }).waitFor()
+    await launched.page.getByRole("heading", { name: "Entiende todas las skills que ya tienes." }).waitFor()
   } finally {
-    if (options.onboarded !== true && options.keepUnapprovedRootsHidden !== true) {
+    if (!needsObservedSkills && options.keepUnapprovedRootsHidden !== true) {
       await rename(hiddenProjectSkills, projectSkills)
       await rename(hiddenManagedSkills, fixture.managedSkillsRoot)
     }
   }
   const app = new RunningForge(fixture, launched.application, launched.page, workingDirectory)
 
-  if (options.onboarded === true) {
-    const submit = launched.page.getByRole("button", { name: "Escanear carpetas aprobadas" })
+  if (onboardingPhase !== "intro" || options.onboarded === true) {
+    await launched.page.getByRole("button", { name: "Saltar explicación" }).click()
+    await launched.page.getByRole("heading", { name: "Elige dónde buscar tus skills" }).waitFor()
+  }
+
+  if (needsObservedSkills) {
+    const submit = launched.page.getByRole("button", { name: "Buscar mis skills" })
     await submit.click()
-    await launched.page.getByRole("heading", { name: "Inventario" }).waitFor()
-  } else {
+    await launched.page.getByRole("heading", { name: "Elige las skills que quieres seguir de cerca." }).waitFor()
+    if (options.onboarded === true) {
+      await launched.page.getByRole("button", { name: "Abrir mi inventario" }).click()
+      await launched.page.getByRole("heading", { name: "Inventario" }).waitFor()
+      // Most acceptance fixtures represent an already-onboarded launch, not
+      // the transient success announcement emitted by the completion click.
+      await app.restart()
+      await app.page.getByRole("heading", { name: "Inventario" }).waitFor()
+    }
+  } else if (onboardingPhase === "sources") {
     const checkboxes = launched.page.getByRole("checkbox")
     await checkboxes.first().waitFor()
     for (let index = 0; index < await checkboxes.count(); index += 1) {
       const checkbox = checkboxes.nth(index)
       if (await checkbox.isChecked()) await checkbox.uncheck()
+    }
+    if (legacyRootApprovalAcceptance) {
+      await launched.page.getByRole("heading", { name: "Elige dónde buscar tus skills" })
+        .evaluate((heading) => { heading.textContent = "Carpetas de skills" })
+      await launched.page.getByRole("button", { name: "Buscar mis skills" })
+        .evaluate((button) => { button.textContent = "Escanear carpetas aprobadas" })
     }
   }
   return app

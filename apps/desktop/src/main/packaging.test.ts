@@ -3,23 +3,29 @@ import { describe, expect, it, vi } from "vitest"
 
 import { FuseV1Options } from "@electron/fuses"
 
+import { DEVELOPMENT_STYLE_NONCE } from "./security.js"
+
 import config, {
   finalizeDarwinAdHocSignature,
   FORGE_FUSE_OPTIONS,
   FORGE_LICENSE_PATH,
   FORGE_LINUX_MAKER_OPTIONS,
   FORGE_PACKAGER_CONFIG,
+  SKILL_FORGE_EXECUTABLE_NAME,
+  SKILL_FORGE_ICON_PATH,
+  SKILL_FORGE_PRODUCT_NAME,
 } from "../../forge.config.js"
 import mainVite from "../../vite.main.config.js"
 import preloadVite from "../../vite.preload.config.js"
 import rendererVite from "../../vite.renderer.config.js"
 
 describe("desktop distributable policy", () => {
-  it("packages only the Forge product in an integrity-protected ASAR", () => {
+  it("packages only the Skill Forge product in an integrity-protected ASAR", () => {
     expect(FORGE_PACKAGER_CONFIG).toMatchObject({
       asar: true,
-      name: "Forge",
-      executableName: "Forge",
+      name: SKILL_FORGE_PRODUCT_NAME,
+      executableName: SKILL_FORGE_EXECUTABLE_NAME,
+      icon: SKILL_FORGE_ICON_PATH,
       appBundleId: "app.skillforge.desktop",
       extraResource: [FORGE_LICENSE_PATH],
       prune: true,
@@ -32,8 +38,8 @@ describe("desktop distributable policy", () => {
     ])
     expect(FORGE_LINUX_MAKER_OPTIONS).toMatchObject({
       name: "forge",
-      productName: "Forge",
-      bin: "Forge",
+      productName: SKILL_FORGE_PRODUCT_NAME,
+      bin: SKILL_FORGE_EXECUTABLE_NAME,
       license: "Apache-2.0",
       categories: ["Development"],
     })
@@ -59,19 +65,19 @@ describe("desktop distributable policy", () => {
     const run = vi.fn(() => Promise.resolve())
     await finalizeDarwinAdHocSignature({
       platform: "darwin",
-      outputPaths: ["/tmp/Forge-darwin-arm64"],
+      outputPaths: ["/tmp/Skill Forge-darwin-arm64"],
     }, run)
     expect(run).toHaveBeenCalledWith("/usr/bin/codesign", [
       "--force",
       "--deep",
       "--sign",
       "-",
-      "/tmp/Forge-darwin-arm64/Forge.app",
+      "/tmp/Skill Forge-darwin-arm64/Skill Forge.app",
     ])
 
     await expect(finalizeDarwinAdHocSignature({
       platform: "darwin",
-      outputPaths: ["/tmp/Forge-darwin-arm64"],
+      outputPaths: ["/tmp/Skill Forge-darwin-arm64"],
     }, () => Promise.reject(new Error("codesign failed")))).rejects.toThrow("codesign failed")
   })
 
@@ -89,6 +95,7 @@ describe("desktop distributable policy", () => {
     expect(mainVite).toMatchObject({ build: { sourcemap: false } })
     expect(preloadVite).toMatchObject({ build: { sourcemap: false } })
     expect(rendererVite).toMatchObject({ build: { sourcemap: false } })
+    expect(rendererVite).toMatchObject({ html: { cspNonce: DEVELOPMENT_STYLE_NONCE } })
   })
 
   it("declares the CommonJS main bundle with a CommonJS extension", async () => {
@@ -122,10 +129,10 @@ describe("desktop distributable policy", () => {
   it("keeps the Linux Electron sandbox enabled in native smoke tests", async () => {
     const workflow = await readFile(new URL("../../../../.github/workflows/ci.yml", import.meta.url), "utf8")
     const releaseWorkflow = await readFile(new URL("../../../../.github/workflows/release.yml", import.meta.url), "utf8")
-    expect(workflow).toContain("sudo chown root:root apps/desktop/out/Forge-linux-*/chrome-sandbox")
-    expect(workflow).toContain("sudo chmod 4755 apps/desktop/out/Forge-linux-*/chrome-sandbox")
-    expect(releaseWorkflow).toContain("sudo chown root:root apps/desktop/out/Forge-linux-*/chrome-sandbox")
-    expect(releaseWorkflow).toContain("sudo chmod 4755 apps/desktop/out/Forge-linux-*/chrome-sandbox")
+    expect(workflow).toContain("sudo chown root:root apps/desktop/out/Skill\\ Forge-linux-*/chrome-sandbox")
+    expect(workflow).toContain("sudo chmod 4755 apps/desktop/out/Skill\\ Forge-linux-*/chrome-sandbox")
+    expect(releaseWorkflow).toContain("sudo chown root:root apps/desktop/out/Skill\\ Forge-linux-*/chrome-sandbox")
+    expect(releaseWorkflow).toContain("sudo chmod 4755 apps/desktop/out/Skill\\ Forge-linux-*/chrome-sandbox")
     expect(workflow).not.toContain("--no-sandbox")
     expect(releaseWorkflow).not.toContain("--no-sandbox")
   })

@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto"
+import { createHash, randomUUID } from "node:crypto"
 import path from "node:path"
 
 import type {
@@ -13,6 +13,7 @@ import {
   OperationConflictError,
   OperationEngine,
   OperationValidationError,
+  createContentTreePlan,
   createContentUpdatePlan,
   type FileSystemPort,
   type OperationPlan,
@@ -42,8 +43,22 @@ function relativeContained(root: string, candidate: string): string {
 
 function publicKind(kind: OperationPlan["kind"]): OperationPlanDto["kind"] {
   if (kind === "install") return "install-local"
+  if (kind === "create-content-tree") return "create-skill"
   if (kind === "update-source") return "update-from-local"
   return "update-entry-content"
+}
+
+const CREATE_SKILL_METADATA = "create-skill-v1"
+
+function createdSkillMetadata(plan: OperationPlan): { rootId: string; relativePath: string } | undefined {
+  if (plan.commitMetadata?.contract !== CREATE_SKILL_METADATA) return undefined
+  const value = plan.commitMetadata.value
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined
+  const rootId = "rootId" in value ? value.rootId : undefined
+  const relativePath = "relativePath" in value ? value.relativePath : undefined
+  return typeof rootId === "string" && typeof relativePath === "string"
+    ? { rootId, relativePath }
+    : undefined
 }
 
 export class ContentUpdateCoordinator {
@@ -70,8 +85,9 @@ export class ContentUpdateCoordinator {
   }
 
   async plan(input: OperationRequestDto): Promise<OperationPlanDto> {
+    if (input.kind === "create-skill") return this.#planCreate(input)
     if (input.kind !== "update-entry-content") {
-      throw new OperationValidationError("This coordinator accepts direct content updates only")
+      throw new OperationValidationError("This coordinator accepts direct content authoring only")
     }
     const installation = this.#projections.getInstallation(input.installationId)
     if (installation === undefined) throw new OperationValidationError("Installation not found")
@@ -141,6 +157,64 @@ export class ContentUpdateCoordinator {
     }
   }
 
+  async #planCreate(input: Extract<OperationRequestDto, { kind: "create-skill" }>): Promise<OperationPlanDto> {
+    const root = this.#projections.listRoots().find(({ id }) => id === input.targetRootId)
+    if (root === undefined) throw new OperationValidationError("Approved root not found")
+    if (root.access !== "read-write" || root.kind === "managed" || root.kind === "system") {
+      throw new OperationValidationError("The approved root is read-only")
+    }
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(input.skillKey)) {
+      throw new OperationValidationError("Skill key must use lowercase letters, numbers, and hyphens")
+    }
+    const suffix = this.#ids().replaceAll("-", "")
+    const createdAt = this.#now().toISOString()
+    const plan = createContentTreePlan({
+      id: `plan_${suffix}`,
+      createdAt,
+      expiresAt: new Date(this.#now().getTime() + 15 * 60_000).toISOString(),
+      adapterId: root.adapterId,
+      destination: { rootId: root.id, relativePath: input.skillKey },
+      stage: { rootId: root.id, relativePath: `.${input.skillKey}.forge-stage-${suffix}` },
+      entries: [{ relativePath: "SKILL.md", content: input.content }],
+      commitMetadata: {
+        contract: CREATE_SKILL_METADATA,
+        value: { rootId: root.id, relativePath: input.skillKey },
+      },
+    })
+    await this.#engine.register(plan)
+    const entryHash = createHash("sha256").update(input.content).digest("hex")
+    return {
+      planId: plan.id,
+      kind: "create-skill",
+      status: "planned",
+      createdAt: plan.createdAt,
+      expiresAt: plan.expiresAt ?? plan.createdAt,
+      adapterId: plan.adapterId,
+      installationIds: [],
+      targetRootId: root.id,
+      affectedScopes: [root.kind === "project" && root.projectId !== undefined
+        ? { kind: "project", projectId: root.projectId }
+        : { kind: "global" }],
+      affectedEntries: [{
+        action: "create",
+        rootId: root.id,
+        relativePath: `${input.skillKey}/SKILL.md`,
+        afterByteLength: Buffer.byteLength(input.content, "utf8"),
+        afterSha256: entryHash,
+      }],
+      preconditions: [{
+        code: "destination-absent",
+        message: "La carpeta de destino debe seguir libre hasta confirmar",
+        relativePath: input.skillKey,
+      }],
+      conflicts: [],
+      warnings: [],
+      undo: "persistent",
+      summary: `Crear ${input.skillKey}/SKILL.md`,
+      destinationLabel: path.join(root.canonicalPath, input.skillKey),
+    }
+  }
+
   async confirm(planId: string): Promise<OperationResultDto> {
     return this.#mutate(planId, false)
   }
@@ -169,14 +243,32 @@ export class ContentUpdateCoordinator {
     try {
       const result = undo ? await this.#engine.undo(id) : await this.#engine.execute(id)
       await this.#rescan()
+      const creation = createdSkillMetadata(result)
+      const createdInstallation = creation === undefined || undo
+        ? undefined
+        : (() => {
+            const root = this.#projections.listRoots().find(({ id: rootId }) => rootId === creation.rootId)
+            if (root === undefined) return undefined
+            const canonicalDestination = path.resolve(root.canonicalPath, creation.relativePath)
+            return this.#projections.listInstallations().find((candidate) =>
+              candidate.rootId === root.id && path.resolve(candidate.canonicalPath) === canonicalDestination)
+          })()
+      if (creation !== undefined && !undo && createdInstallation === undefined) {
+        throw new OperationConflictError("La skill creada no apareció en el inventario tras el escaneo")
+      }
+      const installationIds = createdInstallation === undefined
+        ? [...result.installationIds]
+        : [createdInstallation.id]
       return {
         operationId: `operation_${this.#ids().replaceAll("-", "")}`,
         planId: result.id,
         journalId: result.id,
         status: "committed",
         finishedAt: this.#now().toISOString(),
-        installationIds: [...result.installationIds],
-        message: undo ? "Actualización deshecha" : "Skill actualizada",
+        installationIds,
+        message: undo
+          ? creation === undefined ? "Actualización deshecha" : "Creación deshecha"
+          : creation === undefined ? "Skill actualizada" : "Skill creada",
         issues: [],
         undoAvailable: !undo && result.undoStatus === "available",
       }

@@ -1,0 +1,103 @@
+{
+  "fill" : {
+    "automatic-gradient" : "srgb:0.08235,0.08627,0.10196,1.00000"
+  },
+  "groups" : [
+    {
+      "blend-mode" : "screen",
+      "blur-material" : 0.08,
+      "layers" : [
+        {
+          "glass" : false,
+          "hidden" : false,
+          "image-name" : "forge-metal-highlight.svg",
+          "name" : "Metal edge · specular",
+          "opacity" : 0.82,
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              0,
+              0
+            ]
+          }
+        }
+      ],
+      "lighting" : "individual",
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.08
+      },
+      "translucency" : {
+        "enabled" : false,
+        "value" : 0
+      }
+    },
+    {
+      "blend-mode" : "normal",
+      "blur-material" : 0.48,
+      "layers" : [
+        {
+          "fill" : {
+            "solid" : "display-p3:0.85000,0.86500,0.91000,1.00000"
+          },
+          "glass" : true,
+          "hidden" : false,
+          "image-name" : "forge-diamond.svg",
+          "name" : "Glass plate · diamond",
+          "opacity" : 0.84,
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              0,
+              0
+            ]
+          }
+        }
+      ],
+      "lighting" : "individual",
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.38
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.44
+      }
+    },
+    {
+      "blend-mode" : "normal",
+      "blur-material" : 0.68,
+      "layers" : [
+        {
+          "glass" : false,
+          "hidden" : false,
+          "image-name" : "forge-glow.svg",
+          "name" : "Glow · diamond edge",
+          "opacity" : 1,
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              0,
+              0
+            ]
+          }
+        }
+      ],
+      "lighting" : "individual",
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0
+      },
+      "translucency" : {
+        "enabled" : false,
+        "value" : 0
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "circles" : [
+      "watchOS"
+    ],
+    "squares" : "shared"
+  }
+}

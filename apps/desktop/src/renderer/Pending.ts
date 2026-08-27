@@ -1,9 +1,11 @@
-import { createElement, useEffect, useMemo, useState, type ReactNode } from "react"
+import { useEffect, useMemo, useState, type ReactNode } from "react"
 
-import type { ForgeBridge, InventoryItemDto, InventoryQuery, OperationPlanDto } from "@forge/contracts"
+import type { ForgeBridge, InventoryItemDto, OperationPlanDto } from "@forge/contracts"
 
 import { AccessibleDialog } from "./AccessibleDialog.js"
 import { OperationPlanDetails } from "./OperationPlanDetails.js"
+import { createElement } from "./i18n.js"
+import { loadAllInventoryItems } from "./inventory/load-all.js"
 import {
   CompactSurfaceHeader,
   MetalAction,
@@ -74,18 +76,6 @@ function reviewLabel(kind: PendingKind): string {
   return "Revisar hallazgos"
 }
 
-async function loadAll(inventory: ForgeBridge["inventory"]): Promise<readonly InventoryItemDto[]> {
-  const base: InventoryQuery = { scope: { kind: "all" }, pageSize: 100, sort: { by: "name", direction: "asc" } }
-  const items: InventoryItemDto[] = []
-  let cursor: string | undefined
-  do {
-    const page = await inventory.list({ ...base, ...(cursor === undefined ? {} : { cursor }) })
-    items.push(...page.items)
-    cursor = page.nextCursor ?? undefined
-  } while (cursor !== undefined)
-  return items
-}
-
 function pendingItems(items: readonly InventoryItemDto[]): readonly PendingItem[] {
   const pending: PendingItem[] = []
   for (const item of items) {
@@ -100,11 +90,12 @@ export interface PendingProps {
   readonly inventoryBridge: ForgeBridge["inventory"]
   readonly operationBridge: ForgeBridge["operations"]
   readonly eventBridge: ForgeBridge["events"]
+  readonly monitoredInstallationIds?: ReadonlySet<string>
   readonly onSelectInstallation: (installationId: string) => void
   readonly onStatus: (message: string) => void
 }
 
-export function Pending({ inventoryBridge, operationBridge, eventBridge, onSelectInstallation, onStatus }: PendingProps): ReactNode {
+export function Pending({ inventoryBridge, operationBridge, eventBridge, monitoredInstallationIds, onSelectInstallation, onStatus }: PendingProps): ReactNode {
   const [items, setItems] = useState<readonly PendingItem[]>([])
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
   const [plans, setPlans] = useState<readonly OperationPlanDto[]>()
@@ -115,12 +106,23 @@ export function Pending({ inventoryBridge, operationBridge, eventBridge, onSelec
 
   useEffect(() => eventBridge.onInventoryChanged(() => setRevision((value) => value + 1)), [eventBridge])
   useEffect(() => {
+    setItems((current) => current.filter(({ item }) => monitoredInstallationIds?.has(item.installationId) ?? false))
+    setSelected((current) => new Set([...current].filter((id) => monitoredInstallationIds?.has(id) ?? false)))
+    setPlans((current) => current?.every((plan) => plan.installationIds.every((id) => monitoredInstallationIds?.has(id) ?? false))
+      ? current
+      : undefined)
+    if (monitoredInstallationIds === undefined) {
+      setLoading(true)
+      setError(undefined)
+      return
+    }
+
     let current = true
     setLoading(true)
     setError(undefined)
-    loadAll(inventoryBridge).then((loaded) => {
+    loadAllInventoryItems(inventoryBridge).then((loaded) => {
       if (!current) return
-      const next = pendingItems(loaded)
+      const next = pendingItems(loaded.filter(({ installationId }) => monitoredInstallationIds.has(installationId)))
       setItems(next)
       setSelected((selection) => new Set([...selection].filter((id) => next.some(({ item }) => item.installationId === id))))
     }).catch((reason: unknown) => {
@@ -129,11 +131,18 @@ export function Pending({ inventoryBridge, operationBridge, eventBridge, onSelec
       if (current) setLoading(false)
     })
     return () => { current = false }
-  }, [inventoryBridge, revision])
+  }, [inventoryBridge, monitoredInstallationIds, revision])
+
+  const monitoredItems = useMemo(
+    () => monitoredInstallationIds === undefined
+      ? []
+      : items.filter(({ item }) => monitoredInstallationIds.has(item.installationId)),
+    [items, monitoredInstallationIds],
+  )
 
   const selectedItems = useMemo(
-    () => items.filter(({ item }) => selected.has(item.installationId)),
-    [items, selected],
+    () => monitoredItems.filter(({ item }) => selected.has(item.installationId)),
+    [monitoredItems, selected],
   )
   const onlyUpdates = selectedItems.length > 0 && selectedItems.every(({ kind }) => kind === "update")
   const batchLabel = onlyUpdates ? `Actualizar ${selectedItems.length}` : `Resolver ${selectedItems.length} pendientes`
@@ -143,7 +152,7 @@ export function Pending({ inventoryBridge, operationBridge, eventBridge, onSelec
       const first = selectedItems[0]
       if (first !== undefined) {
         onSelectInstallation(first.item.installationId)
-        onStatus("Revisa los pendientes seleccionados en el inspector; Forge no simula una resolución automática")
+        onStatus("Revisa los pendientes seleccionados en el inspector; Skill Forge no simula una resolución automática")
       }
       return
     }
@@ -194,7 +203,7 @@ export function Pending({ inventoryBridge, operationBridge, eventBridge, onSelec
 
   const grouped = (["update", "conflict", "validation"] as const).map((kind) => ({
     kind,
-    entries: items.filter((item) => item.kind === kind),
+    entries: monitoredItems.filter((item) => item.kind === kind),
   })).filter(({ entries }) => entries.length > 0)
   const blocked = plans?.some((plan) => plan.status === "blocked" || plan.conflicts.length > 0) ?? false
 
@@ -203,9 +212,9 @@ export function Pending({ inventoryBridge, operationBridge, eventBridge, onSelec
     { className: "content-surface pending-surface", "aria-labelledby": "pending-title" },
     createElement(CompactSurfaceHeader, {
       className: "pending-header",
-      title: "Pendientes",
+      title: "Por revisar",
       titleId: "pending-title",
-      description: `${items.length} ${items.length === 1 ? "elemento pide" : "elementos piden"} atención · agrupados por causa`,
+      description: `${monitoredItems.length} ${monitoredItems.length === 1 ? "elemento pide" : "elementos piden"} atención · agrupados por causa`,
     }),
     createElement(
       "div",
@@ -213,10 +222,10 @@ export function Pending({ inventoryBridge, operationBridge, eventBridge, onSelec
       createElement(
         "p",
         { className: "pending-note" },
-        "Forge solo prepara en lote actualizaciones compatibles. Los conflictos y hallazgos de validación se revisan individualmente.",
+        "Skill Forge solo prepara en lote actualizaciones compatibles. Los conflictos y hallazgos de validación se revisan individualmente.",
       ),
       error === undefined ? null : createElement("p", { className: "form-error", role: "alert" }, error),
-      loading
+      loading || monitoredInstallationIds === undefined
         ? createElement("p", { className: "pending-loading", role: "status" }, "Consultando pendientes…")
         : grouped.length === 0
           ? createElement("div", { className: "empty-state" }, createElement("p", { className: "empty-state-kicker" }, "Todo al día"), createElement("h2", null, "No hay acciones pendientes"), createElement("p", null, "Los nuevos hallazgos aparecerán aquí después de un escaneo o una observación del origen."))
@@ -295,7 +304,7 @@ export function Pending({ inventoryBridge, operationBridge, eventBridge, onSelec
       AccessibleDialog,
       { labelledBy: "pending-plan-title", ...(busy ? {} : { onDismiss: () => setPlans(undefined) }) },
       createElement("h2", { id: "pending-plan-title" }, `Confirmar ${plans.length === 1 ? "actualización" : `${plans.length} actualizaciones`}`),
-      createElement("p", null, "El lote se aplica de forma secuencial. Si una precondición falla, Forge conserva lo ya confirmado y detiene el resto."),
+      createElement("p", null, "El lote se aplica de forma secuencial. Si una precondición falla, Skill Forge conserva lo ya confirmado y detiene el resto."),
       ...plans.map((plan) => createElement(OperationPlanDetails, { key: plan.planId, plan })),
       createElement("div", { className: "inspector-actions" },
         createElement("button", { type: "button", className: "primary-action", disabled: busy || blocked, onClick: () => { void confirm() } }, busy ? "Actualizando…" : `Confirmar ${plans.length}`),

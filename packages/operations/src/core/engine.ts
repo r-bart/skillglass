@@ -143,7 +143,7 @@ export class OperationEngine {
         await this.#fileSystem.replace(
           plan.artifacts.stage,
           plan.artifacts.destination,
-          plan.kind === "install" ? "create" : "update",
+          plan.kind === "install" || plan.kind === "create-content-tree" ? "create" : "update",
         )
 
         plan = await this.#transition(plan, "verifying", {})
@@ -225,6 +225,8 @@ export class OperationEngine {
   async #createStage(plan: OperationPlan): Promise<void> {
     if (plan.kind === "update-content") {
       await this.#fileSystem.writeFileExclusive(plan.artifacts.stage, plan.content ?? "")
+    } else if (plan.kind === "create-content-tree") {
+      await this.#fileSystem.writeTreeExclusive(plan.artifacts.stage, plan.treeContent ?? [])
     } else {
       const source = plan.artifacts.source
       if (source === undefined) throw new OperationValidationError("Source artifact is missing")
@@ -290,7 +292,7 @@ export class OperationEngine {
       const destination = await this.#fileSystem.observe(plan.artifacts.destination)
       if (!destinationMutationAttempted) {
         // Preconditions/staging/snapshot work never touched the live destination.
-      } else if (plan.kind === "install") {
+      } else if (plan.kind === "install" || plan.kind === "create-content-tree") {
         if (exactObservation(destination, plan.expectedAfterHash)) {
           if (!(await this.#fileSystem.removeExact(plan.artifacts.destination, plan.expectedAfterHash))) {
             throw new OperationConflictError("Created destination could not be removed exactly")

@@ -2,6 +2,7 @@ import type { IpcMainInvokeEvent } from "electron"
 import { describe, expect, it } from "vitest"
 
 import {
+  DEVELOPMENT_STYLE_NONCE,
   contentSecurityPolicy,
   createSecureWebPreferences,
   isAllowedExternalUrl,
@@ -10,8 +11,15 @@ import {
 } from "./security.js"
 
 describe("desktop security policy", () => {
+  it("shares a strict Vite development style nonce without weakening CSP", () => {
+    expect(DEVELOPMENT_STYLE_NONCE).toMatch(/^[A-Za-z0-9_-]{24}$/u)
+    const policy = contentSecurityPolicy(false, DEVELOPMENT_STYLE_NONCE)
+    expect(policy).toContain(`style-src 'self' 'nonce-${DEVELOPMENT_STYLE_NONCE}'`)
+    expect(policy).not.toContain("'unsafe-inline'")
+  })
+
   it("keeps renderer and preload sandboxed without Node integration", () => {
-    const preferences = createSecureWebPreferences("/absolute/preload.js", true)
+    const preferences = createSecureWebPreferences("/absolute/preload.js", true, "test-style-nonce")
 
     expect(preferences).toMatchObject({
       contextIsolation: true,
@@ -24,18 +32,20 @@ describe("desktop security policy", () => {
       experimentalFeatures: false,
       devTools: false,
       webviewTag: false,
+      additionalArguments: ["--forge-style-nonce=test-style-nonce"],
     })
 
-    expect(createSecureWebPreferences("/absolute/preload.js", false).devTools).toBe(true)
+    expect(createSecureWebPreferences("/absolute/preload.js", false, "test-style-nonce").devTools).toBe(true)
   })
 
   it("does not permit eval, objects, frames, forms, or arbitrary production connections", () => {
-    const policy = contentSecurityPolicy(true)
+    const policy = contentSecurityPolicy(true, "test-style-nonce")
 
     expect(policy).toContain("default-src 'none'")
     expect(policy).toContain("script-src 'self'")
     expect(policy).not.toContain("'unsafe-eval'")
     expect(policy).not.toContain("'unsafe-inline'")
+    expect(policy).toContain("style-src 'self' 'nonce-test-style-nonce'")
     expect(policy).toContain("connect-src 'self'")
     expect(policy).toContain("worker-src 'none'")
     expect(policy).toContain("script-src-attr 'none'")

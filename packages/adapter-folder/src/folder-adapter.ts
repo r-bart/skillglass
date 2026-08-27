@@ -181,7 +181,7 @@ function installationFor(request: AdapterOperationRequest): SkillInstallation {
     throw new FolderAdapterError("INSTALLATION_NOT_WRITABLE", "The installation is read-only")
   }
   if (
-    request.request.kind !== "install-local" &&
+    request.request.kind !== "install-local" && request.request.kind !== "create-skill" &&
     installation.snapshotId !== request.request.expectedSnapshotId
   ) {
     throw new FolderAdapterError("SNAPSHOT_STALE", "The installation changed after the edit or update was requested")
@@ -306,6 +306,8 @@ export class FolderAdapter implements SkillRuntimeAdapter {
     this.#writableRoot(request.targetRoot)
 
     switch (request.request.kind) {
+      case "create-skill":
+        return { status: "planned", plan: await this.#planCreate(request) }
       case "install-local":
         return { status: "planned", plan: await this.#planInstall(request) }
       case "update-from-local":
@@ -415,7 +417,9 @@ export class FolderAdapter implements SkillRuntimeAdapter {
 
   #operationBase(request: AdapterOperationRequest, relativePath: string, action: "create" | "modify"): OperationPlanDto {
     const createdAt = this.#now()
-    const installationId = request.request.kind === "install-local" ? undefined : request.request.installationId
+    const installationId = request.request.kind === "install-local" || request.request.kind === "create-skill"
+      ? undefined
+      : request.request.installationId
     return {
       planId: opaqueId("plan", `${request.request.kind}:${request.targetRoot.id}:${relativePath}:${createdAt.toISOString()}`),
       kind: request.request.kind,
@@ -448,6 +452,36 @@ export class FolderAdapter implements SkillRuntimeAdapter {
     try {
       await lstat(destination)
       throw new FolderAdapterError("DESTINATION_COLLISION", "The installation destination already exists")
+    } catch (error) {
+      if (error instanceof FolderAdapterError) throw error
+      if (!(typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT")) throw error
+    }
+    return {
+      operation: this.#operationBase(request, relativePath, "create"),
+      capability: "installToUserRoot",
+      steps: [{
+        kind: "create-installation",
+        rootId: request.targetRoot.id,
+        relativePath,
+        sourceTreeHash: manifest.treeHash,
+      }],
+      postconditions: [{
+        kind: "tree-hash-equals",
+        rootId: request.targetRoot.id,
+        relativePath,
+        expectedHash: manifest.treeHash,
+      }],
+    }
+  }
+
+  async #planCreate(request: AdapterOperationRequest): Promise<AdapterOperationPlan> {
+    if (request.request.kind !== "create-skill") throw new TypeError("Expected create request")
+    const manifest = sourceManifest(request.sourceManifest, request.sourceManifest?.treeHash ?? "")
+    const relativePath = request.request.skillKey
+    const destination = await request.rootPolicy.authorizeWrite(request.targetRoot.id, relativePath)
+    try {
+      await lstat(destination)
+      throw new FolderAdapterError("DESTINATION_COLLISION", "The skill destination already exists")
     } catch (error) {
       if (error instanceof FolderAdapterError) throw error
       if (!(typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT")) throw error

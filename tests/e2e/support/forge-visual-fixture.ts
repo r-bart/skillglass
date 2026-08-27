@@ -13,7 +13,9 @@ export const FORGE_VISUAL_VIEWPORT = { width: 1_420, height: 892 } as const
 
 export type ForgeVisualScenarioName =
   | "onboarding"
+  | "onboarding-selection"
   | "inventory"
+  | "create"
   | "inspector"
   | "pending"
   | "operation-confirmation"
@@ -218,6 +220,14 @@ async function preparePendingGroups(
   await confirmInstall(app.page)
   await waitForPath(path.join(fixture.conflictDestination, "SKILL.md"))
 
+  await app.page.getByRole("button", { name: "Gestionar seguimiento" }).click()
+  const monitoring = app.page.getByRole("dialog", { name: "Gestionar seguimiento" })
+  await monitoring.getByRole("region", { name: "Seleccionar skills bajo seguimiento" }).waitFor()
+  const selectVisible = monitoring.getByRole("button", { name: "Seleccionar las visibles" })
+  if (await selectVisible.count() > 0) await selectVisible.click()
+  await monitoring.getByRole("button", { name: "Guardar cambios" }).click()
+  await app.page.getByRole("status").filter({ hasText: "Seguimiento actualizado" }).waitFor()
+
   await fixture.business.changeInstallSource("Versión de origen 2 para revisión visual")
   await writeFile(
     path.join(fixture.conflictDestination, "SKILL.md"),
@@ -233,7 +243,7 @@ async function preparePendingGroups(
     await app.page.locator('summary[aria-label="Abrir acciones de instalación"]').click()
   }
   await refresh.click()
-  await app.page.getByRole("banner").getByRole("button", { name: "Pendientes", exact: true }).click()
+  await app.page.getByRole("navigation", { name: "Secciones principales" }).getByRole("button", { name: "Por revisar", exact: true }).click()
   await app.page.getByRole("heading", { name: "Actualizaciones disponibles · 1" }).waitFor()
   await app.page.getByRole("heading", { name: "Conflictos de origen · 1" }).waitFor()
   await app.page.getByRole("heading", { name: "Validación pendiente · 1" }).waitFor()
@@ -250,22 +260,61 @@ export async function launchForgeVisualScenario(
   const fixture = await createForgeVisualFixture()
   let app: ForgeTestApplication | undefined
   try {
-    app = await launchForge(fixture.business, {
-      keepUnapprovedRootsHidden: name === "onboarding",
-      onboarded: name !== "onboarding",
-    })
+    const onboardingScenario = name === "onboarding" || name === "onboarding-selection"
+    app = await launchForge(fixture.business, onboardingScenario
+      ? {
+          keepUnapprovedRootsHidden: name === "onboarding",
+          onboardingPhase: name === "onboarding" ? "intro" : "skills",
+        }
+      : { onboarded: true })
     await configureVisualPage(app.page)
 
     switch (name) {
       case "onboarding": {
-        const candidates = app.page.getByRole("group", { name: "Ubicaciones que Forge puede observar" })
-          .getByRole("checkbox")
-        const count = await candidates.count()
-        if (count !== 1) throw new Error(`Expected one proposed writable root; observed ${String(count)}`)
+        await app.page.getByRole("heading", { name: "Entiende todas las skills que ya tienes." }).waitFor()
+        break
+      }
+      case "onboarding-selection": {
+        const global = app.page.getByRole("button", { name: /Global/u })
+        const geometry = await global.evaluate((element) => {
+          const main = element.closest("main")
+          const selection = element.closest(".skill-selection")
+          const results = selection?.querySelector(".skill-selection__results")
+          const box = element.getBoundingClientRect()
+          return {
+            button: { top: box.top, bottom: box.bottom },
+            main: main === null ? null : {
+              clientHeight: main.clientHeight,
+              scrollHeight: main.scrollHeight,
+              scrollTop: main.scrollTop,
+            },
+            results: results === null || results === undefined ? null : {
+              clientHeight: results.clientHeight,
+              scrollHeight: results.scrollHeight,
+              scrollTop: results.scrollTop,
+            },
+            selection: selection === null ? null : selection.getBoundingClientRect().toJSON(),
+            viewportHeight: innerHeight,
+          }
+        })
+        if (geometry.button.top < 0 || geometry.button.bottom > geometry.viewportHeight) {
+          throw new Error(`Onboarding selection toolbar escaped viewport: ${JSON.stringify(geometry)}`)
+        }
+        if (geometry.results === null || geometry.results.scrollHeight <= geometry.results.clientHeight) {
+          throw new Error(`Onboarding selection fixture must exercise its owned scroll panel: ${JSON.stringify(geometry)}`)
+        }
+        await global.click()
+        await app.page.getByText("global-review", { exact: true }).waitFor()
         break
       }
       case "inventory":
         await app.page.getByRole("row", { name: /visual-regression/u }).waitFor()
+        break
+      case "create":
+        await app.page.getByRole("banner").getByRole("button", { name: "Crear skill", exact: true }).click()
+        await app.page.getByRole("heading", { name: "Crear skill", level: 1 }).waitFor()
+        await app.page.getByLabel("Identificador").fill("contract-review")
+        await app.page.getByLabel("Descripción").fill("Revisa contratos con un flujo seguro y verificable.")
         break
       case "inspector":
         await selectGlobalReview(app.page)

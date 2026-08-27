@@ -116,7 +116,9 @@ Groups actionable findings by operation type. A selection may only expose a batc
 
 ### Editor and history
 
-The editor updates real files in user-writable roots. Saving creates a recoverable snapshot before an atomic write. Managed and read-only content can be inspected but is never modified or forked implicitly.
+Editing takes place in a first-class skill workspace rather than a transient editor overlay. `Vista previa`, `Código`, and `Cambios` are modes of that same destination: they share the observed installation, opening snapshot, draft, and operation state while keeping rendered inspection, source editing, and exact review distinct.
+
+The workspace updates real files only in user-approved, user-writable roots. `Vista previa` renders the draft inertly, and entering `Cambios` requires a previewable backend operation plan before Forge can apply anything. Saving creates a recoverable snapshot before an atomic write and retains the existing history and undo guarantees. Managed and read-only content can be inspected but is never modified or forked implicitly. Agent analysis, feedback, and rewriting are deferred to a later product contract.
 
 ### Onboarding
 

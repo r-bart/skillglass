@@ -74,4 +74,31 @@ describe("validated preload bridge", () => {
     })).toThrow()
     expect(ipc.invoke).toHaveBeenCalledTimes(1)
   })
+
+  it("exposes monitoring state and save through validated allowlisted channels", async () => {
+    const state = {
+      status: "complete" as const,
+      selectedInstallationIds: ["installation_alpha"],
+      completedAt: "2026-08-27T10:00:00.000Z",
+    }
+    const ipc = port(new Map([
+      [IPC_INVOKE_CHANNELS.monitoringState, state],
+      [IPC_INVOKE_CHANNELS.monitoringSave, state],
+    ]))
+    const bridge = createForgeBridge(ipc.value)
+
+    await expect(bridge.monitoring.state()).resolves.toEqual(state)
+    expect(ipc.invoke).toHaveBeenCalledWith(IPC_INVOKE_CHANNELS.monitoringState, {})
+    await expect(bridge.monitoring.save({
+      installationIds: ["installation_alpha"],
+    })).resolves.toEqual(state)
+    expect(ipc.invoke).toHaveBeenCalledWith(
+      IPC_INVOKE_CHANNELS.monitoringSave,
+      { installationIds: ["installation_alpha"] },
+    )
+    expect(() => bridge.monitoring.save({
+      installationIds: ["installation_alpha", "installation_alpha"],
+    })).toThrow("Installation IDs must be unique")
+    expect(ipc.invoke).toHaveBeenCalledTimes(2)
+  })
 })

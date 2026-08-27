@@ -1,9 +1,11 @@
 import { BrowserWindow, screen, session, shell } from "electron"
+import { randomBytes } from "node:crypto"
 import type { BrowserWindowConstructorOptions } from "electron"
 import { join } from "node:path"
 
 import { FORGE_APP_ORIGIN } from "./protocol.js"
 import {
+  DEVELOPMENT_STYLE_NONCE,
   contentSecurityPolicy,
   createSecureWebPreferences,
   isAllowedExternalUrl,
@@ -15,6 +17,15 @@ export const MINIMUM_CONTENT_SIZE = { width: 760, height: 520 } as const
 export interface DisplayWorkAreaSize {
   readonly width: number
   readonly height: number
+}
+
+export function developmentDockIconPath(
+  appPath: string,
+  usesBuiltAssets: boolean,
+  platform: NodeJS.Platform = process.platform,
+): string | undefined {
+  if (platform !== "darwin" || usesBuiltAssets) return undefined
+  return join(appPath, "../../branding/SkillForge.png")
 }
 
 function clampPreferredDimension(preferred: number, minimum: number, available: number): number {
@@ -51,7 +62,7 @@ export function calculateWindowOptions(
         : {}
 
   return {
-    title: "Forge",
+    title: "Skill Forge",
     width: clampPreferredDimension(
       PREFERRED_CONTENT_SIZE.width,
       MINIMUM_CONTENT_SIZE.width,
@@ -85,8 +96,8 @@ function installDefaultDenyPermissions(): void {
   })
 }
 
-function installContentSecurityPolicy(isPackaged: boolean): void {
-  const policy = contentSecurityPolicy(isPackaged)
+function installContentSecurityPolicy(isPackaged: boolean, styleNonce: string): void {
+  const policy = contentSecurityPolicy(isPackaged, styleNonce)
 
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     callback({
@@ -99,14 +110,17 @@ function installContentSecurityPolicy(isPackaged: boolean): void {
 }
 
 export async function createMainWindow(isPackaged: boolean): Promise<BrowserWindow> {
+  const styleNonce = isPackaged
+    ? randomBytes(18).toString("base64url")
+    : DEVELOPMENT_STYLE_NONCE
   installDefaultDenyPermissions()
-  installContentSecurityPolicy(isPackaged)
+  installContentSecurityPolicy(isPackaged, styleNonce)
 
   const activeDisplay = screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
 
   const window = new BrowserWindow({
     ...calculateWindowOptions(activeDisplay.workArea),
-    webPreferences: createSecureWebPreferences(join(__dirname, "preload.js"), isPackaged),
+    webPreferences: createSecureWebPreferences(join(__dirname, "preload.js"), isPackaged, styleNonce),
   })
 
   if (isPackaged) window.setMenu(null)

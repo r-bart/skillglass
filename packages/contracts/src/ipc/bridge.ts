@@ -6,6 +6,10 @@ import type {
 } from "./inventory.js"
 import type { AckDto } from "./primitives.js"
 import type {
+  MonitoringStateDto,
+  SaveMonitoringSelectionInput,
+} from "./monitoring.js"
+import type {
   ConfirmOperationInput,
   LocalSourceSelectionDto,
   OperationPlanDto,
@@ -46,6 +50,10 @@ export interface ForgeBridge {
     list(input: InventoryQuery): Promise<InventoryPageDto>
     inspect(input: InspectInstallationInput): Promise<InstallationDetailDto>
     openEntry(input: InspectInstallationInput): Promise<AckDto>
+  }
+  monitoring: {
+    state(): Promise<MonitoringStateDto>
+    save(input: SaveMonitoringSelectionInput): Promise<MonitoringStateDto>
   }
   operations: {
     selectLocalSource(

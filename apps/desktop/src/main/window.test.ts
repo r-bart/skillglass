@@ -4,9 +4,17 @@ import {
   MINIMUM_CONTENT_SIZE,
   PREFERRED_CONTENT_SIZE,
   calculateWindowOptions,
+  developmentDockIconPath,
 } from "./window.js"
 
 describe("desktop window options", () => {
+  it("uses the product icon for the macOS Dock only in source development", () => {
+    expect(developmentDockIconPath("/workspace/apps/desktop", false, "darwin"))
+      .toBe("/workspace/branding/SkillForge.png")
+    expect(developmentDockIconPath("/workspace/apps/desktop", true, "darwin")).toBeUndefined()
+    expect(developmentDockIconPath("/workspace/apps/desktop", false, "linux")).toBeUndefined()
+  })
+
   it("uses the canonical content viewport when the display has enough room", () => {
     const options = calculateWindowOptions({ width: 1728, height: 1080 }, "darwin")
 

@@ -1,12 +1,15 @@
 import { createHash } from "node:crypto"
 import { posix } from "node:path"
 
+import { createLocalSourceManifest } from "@forge/scanner"
+
 import { OperationValidationError } from "./errors.js"
 import type {
   ArtifactRef,
   OperationPlan,
   OperationPrecondition,
   RootRelativePath,
+  TreeContentEntry,
 } from "./types.js"
 
 interface CommonPlanInput {
@@ -40,6 +43,12 @@ export interface CreateContentUpdatePlanInput extends CommonPlanInput {
   readonly content: string
   readonly stage: RootRelativePath
   readonly snapshot: RootRelativePath
+}
+
+export interface CreateContentTreePlanInput extends CommonPlanInput {
+  readonly destination: RootRelativePath
+  readonly stage: RootRelativePath
+  readonly entries: readonly TreeContentEntry[]
 }
 
 function validateRootRelative(path: RootRelativePath, label: string): void {
@@ -196,6 +205,39 @@ export function createInstallPlan(input: CreateInstallPlanInput): OperationPlan 
   }
 }
 
+export function createContentTreePlan(input: CreateContentTreePlanInput): OperationPlan {
+  const destination = artifact(input.destination, "tree")
+  const stage = artifact(input.stage, "tree")
+  validateStageSibling(destination, stage)
+  if (input.entries.length === 0) {
+    throw new OperationValidationError("Created content tree requires at least one file")
+  }
+  const entries = input.entries.map((entry) => ({
+    relativePath: entry.relativePath,
+    content: entry.content,
+  }))
+  const manifest = createLocalSourceManifest(entries.map((entry) => ({
+    path: entry.relativePath,
+    byteLength: Buffer.byteLength(entry.content, "utf8"),
+    sha256: createHash("sha256").update(entry.content).digest("hex"),
+  })))
+  return {
+    ...base(input),
+    kind: "create-content-tree",
+    artifacts: { destination, stage },
+    expectedBefore: { exists: false },
+    expectedAfterHash: manifest.treeHash,
+    treeContent: entries,
+    preconditions: commonPreconditions(undefined, destination, stage, undefined),
+    affectedPaths: [pathOnly(destination)],
+    backup: { kind: "none-created-installation" },
+    postconditions: [
+      { code: "destination-hash", path: pathOnly(destination), expected: manifest.treeHash },
+    ],
+    undo: { kind: "remove-created", artifact: destination, expectedHash: manifest.treeHash },
+  }
+}
+
 export function createSourceUpdatePlan(
   input: CreateSourceUpdatePlanInput,
 ): OperationPlan {
@@ -279,19 +321,39 @@ export function assertOperationPlan(plan: OperationPlan): void {
   if (plan.commitMetadata !== undefined && plan.commitMetadata.contract.length === 0) {
     throw new OperationValidationError("Commit metadata contract cannot be empty")
   }
-  if (plan.kind === "install" && plan.expectedBefore.exists) {
-    throw new OperationValidationError("Install destination must be absent")
+  const createsDestination = plan.kind === "install" || plan.kind === "create-content-tree"
+  if (createsDestination && plan.expectedBefore.exists) {
+    throw new OperationValidationError("Created destination must be absent")
   }
-  if (plan.kind !== "install" && !plan.expectedBefore.exists) {
+  if (!createsDestination && !plan.expectedBefore.exists) {
     throw new OperationValidationError("Update destination must have a known hash")
   }
   if (plan.kind === "update-content" && plan.content === undefined) {
     throw new OperationValidationError("Content update requires persisted content")
   }
-  if (plan.kind !== "update-content" && plan.artifacts.source === undefined) {
+  if (plan.kind === "create-content-tree" && (plan.treeContent === undefined || plan.treeContent.length === 0)) {
+    throw new OperationValidationError("Created content tree requires persisted entries")
+  }
+  if (plan.kind === "create-content-tree" && plan.treeContent !== undefined) {
+    if (plan.artifacts.destination.kind !== "tree" || plan.artifacts.stage.kind !== "tree") {
+      throw new OperationValidationError("Created content tree requires tree artifacts")
+    }
+    const manifest = createLocalSourceManifest(plan.treeContent.map((entry) => ({
+      path: entry.relativePath,
+      byteLength: Buffer.byteLength(entry.content, "utf8"),
+      sha256: createHash("sha256").update(entry.content).digest("hex"),
+    })))
+    if (manifest.treeHash !== plan.expectedAfterHash) {
+      throw new OperationValidationError("Persisted tree content no longer matches its planned hash")
+    }
+    if (plan.artifacts.source !== undefined || plan.artifacts.snapshot !== undefined) {
+      throw new OperationValidationError("Created content tree cannot use source or snapshot artifacts")
+    }
+  }
+  if (plan.kind !== "update-content" && plan.kind !== "create-content-tree" && plan.artifacts.source === undefined) {
     throw new OperationValidationError("Source-based operation requires a source artifact")
   }
-  if (plan.kind !== "install" && plan.artifacts.snapshot === undefined) {
+  if (!createsDestination && plan.artifacts.snapshot === undefined) {
     throw new OperationValidationError("Update operation requires a snapshot artifact")
   }
 }

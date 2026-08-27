@@ -1,5 +1,4 @@
 import {
-  createElement,
   useEffect,
   useMemo,
   useRef,
@@ -8,6 +7,7 @@ import {
   type ReactNode,
 } from "react"
 import { createPortal } from "react-dom"
+import { createElement, getActiveLocale } from "../i18n.js"
 
 import type {
   ForgeBridge,
@@ -77,7 +77,7 @@ const sourceOptions = [
   { value: "", label: "Todos" }, { value: "local", label: "Local" }, { value: "managed", label: "Gestionada" }, { value: "read-only", label: "Instalaciones de solo lectura" }, { value: "modified", label: "Modificada" }, { value: "unknown", label: "Sin datos" },
 ] as const
 const provenanceOptions = [
-  { value: "", label: "Todas" }, { value: "local", label: "Local" }, { value: "forge-import", label: "Importada por Forge" }, { value: "registry", label: "Registro" }, { value: "package", label: "Paquete" }, { value: "plugin", label: "Plugin" }, { value: "system", label: "Sistema" }, { value: "unknown", label: "Sin datos" },
+  { value: "", label: "Todas" }, { value: "local", label: "Local" }, { value: "forge-import", label: "Importada por Skill Forge" }, { value: "registry", label: "Registro" }, { value: "package", label: "Paquete" }, { value: "plugin", label: "Plugin" }, { value: "system", label: "Sistema" }, { value: "unknown", label: "Sin datos" },
 ] as const
 const updateOptions = [
   { value: "", label: "Todas" }, { value: "available", label: "Disponible" }, { value: "diverged", label: "Con cambios locales" }, { value: "current", label: "Actualizadas" }, { value: "unknown", label: "Sin datos" },
@@ -112,12 +112,13 @@ function ScopeNavigation({
   projects: NonNullable<InventoryPageDto["projects"]>
   onChange: (scope: Scope) => void
 }) {
-  const button = (label: string, value: Scope) => createElement(
+  const button = (label: string, value: Scope, accessibleLabel = label) => createElement(
     "button",
     {
       key: scopeKey(value),
       type: "button",
       className: "navigation-item scope-button",
+      "aria-label": accessibleLabel,
       "aria-pressed": scopeKey(scope) === scopeKey(value),
       onClick: () => onChange(value),
     },
@@ -126,8 +127,8 @@ function ScopeNavigation({
   )
   return createElement(
     "nav",
-    { className: "scope-navigation scope-navigation--sidebar", "aria-label": "Ámbitos del inventario" },
-    button("Esta máquina", { kind: "all" }),
+    { className: "scope-navigation scope-navigation--sidebar", "aria-label": "Vistas del inventario" },
+    button("Todas las skills", { kind: "all" }, "Todas las skills · Esta máquina"),
     button("Global", { kind: "global" }),
     ...projects.map((project) => button(project.displayName, {
       kind: "project",
@@ -163,12 +164,6 @@ function FilterSelect({
   )
 }
 
-function evidenceText(item: InventoryItemDto): string {
-  return item.name.state === "unknown"
-    ? "Nombre derivado de la carpeta"
-    : "Nombre observado"
-}
-
 function statusTone(
   kind: "validity" | "source" | "update",
   value: string,
@@ -202,12 +197,14 @@ function InventoryTable({
   items,
   projects,
   groupBy,
+  monitoredInstallationIds,
   selectedId,
   onSelect,
 }: {
   items: readonly InventoryItemDto[]
   projects: NonNullable<InventoryPageDto["projects"]>
   groupBy: GroupBy
+  monitoredInstallationIds?: ReadonlySet<string>
   selectedId: string | undefined
   onSelect: (installationId: string) => void
 }) {
@@ -263,6 +260,7 @@ function InventoryTable({
     }
     for (const item of entries) {
       const selected = selectedId === item.installationId
+      const monitored = monitoredInstallationIds?.has(item.installationId) ?? false
       rows.push(createElement(
         "tr",
         {
@@ -283,9 +281,9 @@ function InventoryTable({
             createElement(
               "span",
               {
-                className: `inventory-evidence-marker inventory-evidence-marker--${item.status.validity}`,
+                className: `inventory-evidence-marker inventory-evidence-marker--${item.status.update}`,
                 role: "img",
-                "aria-label": `Validez: ${validityLabels[item.status.validity]}. ${evidenceText(item)}`,
+                "aria-label": `Actualización: ${updateLabels[item.status.update]}`,
               },
             ),
             createElement(SkillTile, {
@@ -296,6 +294,12 @@ function InventoryTable({
               createElement("span", { className: "inventory-row__identity" },
                 createElement("span", { className: "skill-name" }, item.key),
                 createElement("span", { className: "skill-scope" }, scopeText(item, projectLabels)),
+                monitored
+                  ? createElement(StatusPill, {
+                      className: "inventory-monitoring-pill",
+                      tone: "neutral",
+                    }, "En seguimiento")
+                  : null,
               ),
               createElement("span", { className: "skill-description" },
                 item.description.state === "unknown"
@@ -351,14 +355,31 @@ function InventoryTable({
 }
 
 export interface InventoryProps {
+  readonly active?: boolean
   readonly inventoryBridge: ForgeBridge["inventory"]
   readonly eventBridge?: ForgeBridge["events"]
+  readonly externalNavigation?: boolean
+  readonly monitoredInstallationIds?: ReadonlySet<string>
+  readonly onManageMonitoring?: (trigger: HTMLElement) => void
+  readonly onProjectsChange?: (projects: NonNullable<InventoryPageDto["projects"]>) => void
   readonly onSelectionChange?: (installationId: string | undefined) => void
+  readonly scope?: Scope
 }
 
-export function Inventory({ inventoryBridge, eventBridge, onSelectionChange }: InventoryProps) {
+export function Inventory({
+  active = true,
+  inventoryBridge,
+  eventBridge,
+  externalNavigation = false,
+  monitoredInstallationIds,
+  onManageMonitoring,
+  onProjectsChange,
+  onSelectionChange,
+  scope: controlledScope,
+}: InventoryProps) {
   const searchRef = useRef<HTMLInputElement>(null)
-  const [scope, setScope] = useState<Scope>({ kind: "all" })
+  const [internalScope, setInternalScope] = useState<Scope>({ kind: "all" })
+  const scope = controlledScope ?? internalScope
   const [search, setSearch] = useState("")
   const [validity, setValidity] = useState("")
   const [runtime, setRuntime] = useState("")
@@ -378,6 +399,7 @@ export function Inventory({ inventoryBridge, eventBridge, onSelectionChange }: I
   const [revision, setRevision] = useState(0)
 
   useEffect(() => {
+    if (!active) return
     const keydown = (event: globalThis.KeyboardEvent): void => {
       const macOS = /Mac|iPhone|iPad/u.test(navigator.platform)
       const primaryModifier = macOS ? event.metaKey : event.ctrlKey
@@ -388,9 +410,13 @@ export function Inventory({ inventoryBridge, eventBridge, onSelectionChange }: I
     }
     document.addEventListener("keydown", keydown)
     return () => document.removeEventListener("keydown", keydown)
-  }, [])
+  }, [active])
 
   useEffect(() => eventBridge?.onInventoryChanged(() => setRevision((current) => current + 1)), [eventBridge])
+
+  useEffect(() => {
+    onProjectsChange?.(page.projects ?? [])
+  }, [onProjectsChange, page.projects])
 
   const query = useMemo<InventoryQuery>(() => {
     const [sortBy = "name", direction = "asc"] = sort.split(":")
@@ -481,11 +507,11 @@ export function Inventory({ inventoryBridge, eventBridge, onSelectionChange }: I
   const authorOptions = [...new Set(page.items
     .map(({ author }) => knownLabel(author))
     .filter((value): value is string => value !== undefined))]
-    .sort((left, right) => left.localeCompare(right, "es", { sensitivity: "base" }))
+    .sort((left, right) => left.localeCompare(right, getActiveLocale(), { sensitivity: "base" }))
   const packageOptions = [...new Set(page.items
     .map((item) => knownLabel(item.packageId))
     .filter((value): value is string => value !== undefined))]
-    .sort((left, right) => left.localeCompare(right, "es", { sensitivity: "base" }))
+    .sort((left, right) => left.localeCompare(right, getActiveLocale(), { sensitivity: "base" }))
   const filtered = [
     search,
     validity,
@@ -532,7 +558,7 @@ export function Inventory({ inventoryBridge, eventBridge, onSelectionChange }: I
   const scopeNavigation = createElement(ScopeNavigation, {
     scope,
     projects: page.projects ?? [],
-    onChange: setScope,
+    onChange: setInternalScope,
   })
   const searchControl = createElement(
     "label",
@@ -553,7 +579,6 @@ export function Inventory({ inventoryBridge, eventBridge, onSelectionChange }: I
     ),
   )
   const searchTarget = document.getElementById("inventory-search-slot")
-  const scopeTarget = document.getElementById("inventory-scope-slot")
 
   return createElement(
     "section",
@@ -561,15 +586,22 @@ export function Inventory({ inventoryBridge, eventBridge, onSelectionChange }: I
     searchTarget === null
       ? createElement("div", { className: "inventory-search-fallback", role: "search" }, searchControl)
       : createPortal(searchControl, searchTarget),
-    scopeTarget === null
-      ? createElement("div", { className: "inventory-scope-fallback" }, scopeNavigation)
-      : createPortal(scopeNavigation, scopeTarget),
+    externalNavigation
+      ? null
+      : createElement("div", { className: "inventory-scope-fallback" }, scopeNavigation),
     createElement(
       "div",
       { className: "page-heading inventory-heading" },
       createElement("p", { className: "eyebrow" }, "Skills observadas"),
       createElement("h1", { id: "inventory-title" }, "Inventario"),
       createElement("p", { className: "page-description" }, "Instalaciones y evidencia observada en los ámbitos aprobados."),
+      onManageMonitoring === undefined
+        ? null
+        : createElement("button", {
+            className: "visual-action visual-action--quiet inventory-monitoring-action",
+            onClick: (event) => onManageMonitoring(event.currentTarget),
+            type: "button",
+          }, "Gestionar seguimiento"),
     ),
     createElement(
       "div",
@@ -661,7 +693,14 @@ export function Inventory({ inventoryBridge, eventBridge, onSelectionChange }: I
     loading
       ? createElement("p", { "aria-live": "polite", className: "inventory-loading" }, "Consultando inventario…")
       : page.items.length > 0
-        ? createElement(InventoryTable, { items: page.items, projects: page.projects ?? [], groupBy, selectedId, onSelect: select })
+        ? createElement(InventoryTable, {
+            items: page.items,
+            projects: page.projects ?? [],
+            groupBy,
+            ...(monitoredInstallationIds === undefined ? {} : { monitoredInstallationIds }),
+            selectedId,
+            onSelect: select,
+          })
         : createElement(
             "div",
             { className: "empty-state" },

@@ -58,6 +58,7 @@ interface HarnessOptions {
   readonly sourceRoot?: string
   readonly databasePath?: string
   readonly afterPersist?: (plan: OperationPlan) => Promise<void> | void
+  readonly onSkillAdded?: (installationIds: readonly string[]) => void
 }
 
 async function harness(options: HarnessOptions = {}) {
@@ -95,9 +96,10 @@ async function harness(options: HarnessOptions = {}) {
   const repository = new StorageOperationRepository(store.operations)
   const contentFileSystem = new ProjectionContentFileSystem(store.projections, [recovery])
   const treeFileSystem = new ApprovedRootLocalInstallFileSystem(policy)
+  const operationFileSystem = new ArtifactFileSystemRouter(contentFileSystem, treeFileSystem)
   const engine = new OperationEngine({
     repository,
-    fileSystem: new ArtifactFileSystemRouter(contentFileSystem, treeFileSystem),
+    fileSystem: operationFileSystem,
     ...(options.afterPersist === undefined ? {} : { afterPersist: options.afterPersist }),
   })
   await engine.recoverStartup()
@@ -148,7 +150,7 @@ async function harness(options: HarnessOptions = {}) {
     projections: store.projections,
     snapshots: store.snapshots,
     repository,
-    fileSystem: contentFileSystem,
+    fileSystem: operationFileSystem,
     engine,
     rescan,
     recoveryRootId: RECOVERY_ROOT_ID,
@@ -171,11 +173,51 @@ async function harness(options: HarnessOptions = {}) {
     recoveryRootId: RECOVERY_ROOT_ID,
     leases,
     ids: () => `integration${String(id++)}`,
+    ...(options.onSkillAdded === undefined ? {} : { onSkillAdded: options.onSkillAdded }),
   })
   return { targetRoot, recoveryRoot, sourceRoot, databasePath, root, store, service, rescan }
 }
 
 describe("desktop local operation integration", () => {
+  it("creates a reviewed SKILL.md atomically, returns the observed installation, and can undo it", async () => {
+    const added: string[][] = []
+    const test = await harness({ onSkillAdded: (installationIds) => added.push([...installationIds]) })
+    const content = "---\nname: contract-review\ndescription: Review contracts safely\n---\n\n# Contract review\n"
+    const destination = path.join(test.targetRoot, "contract-review")
+
+    const plan = await test.service.plan({
+      kind: "create-skill",
+      targetRootId: test.root.id,
+      skillKey: "contract-review",
+      content,
+    })
+
+    await expect(readFile(path.join(destination, "SKILL.md"), "utf8")).rejects.toMatchObject({ code: "ENOENT" })
+    expect(plan).toMatchObject({
+      kind: "create-skill",
+      targetRootId: test.root.id,
+      affectedEntries: [{ action: "create", relativePath: "contract-review/SKILL.md" }],
+    })
+
+    const created = await test.service.confirm({ planId: plan.planId })
+    expect(created).toMatchObject({ status: "committed", message: "Skill creada", undoAvailable: true })
+    expect(created.installationIds).toHaveLength(1)
+    expect(added).toEqual([[created.installationIds[0]]])
+    expect(await readFile(path.join(destination, "SKILL.md"), "utf8")).toBe(content)
+    expect((await test.service.history()).items).toContainEqual(expect.objectContaining({
+      journalId: plan.planId,
+      kind: "create-skill",
+      undoAvailable: true,
+    }))
+
+    await expect(test.service.undo({ journalId: plan.planId })).resolves.toMatchObject({
+      status: "committed",
+      message: "Creación deshecha",
+    })
+    await expect(readFile(path.join(destination, "SKILL.md"), "utf8")).rejects.toMatchObject({ code: "ENOENT" })
+    test.store.close()
+  })
+
   it("invalidates a persisted preview when a watcher reports an overlapping external change", async () => {
     const test = await harness()
     const selection = await test.service.selectLocalSource({ kind: "directory" })
@@ -205,7 +247,8 @@ describe("desktop local operation integration", () => {
   })
 
   it("installs, discovers an update, applies it, persists provenance, and undoes", async () => {
-    const test = await harness()
+    const added: string[][] = []
+    const test = await harness({ onSkillAdded: (installationIds) => added.push([...installationIds]) })
     const selection = await test.service.selectLocalSource({ kind: "directory" })
     if (selection?.kind !== "directory") throw new Error("directory selection was cancelled")
     const installPlan = await test.service.plan({
@@ -227,6 +270,7 @@ describe("desktop local operation integration", () => {
 
     const installed = await test.service.confirm({ planId: installPlan.planId })
     expect(installed).toMatchObject({ status: "committed", undoAvailable: true })
+    expect(added).toEqual([[installed.installationIds[0]]])
     expect(await readFile(path.join(destination, "SKILL.md"), "utf8")).toContain("basic-skill")
     expect(test.store.projections.listInstallations()).toHaveLength(1)
     expect(test.store.projections.listInstallations()[0]?.id).toBe(folderInstallationId(destination))

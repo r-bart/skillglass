@@ -1,13 +1,14 @@
 import { createHash } from "node:crypto"
-import { lstat, rename } from "node:fs/promises"
+import { lstat, mkdir, open, rename, rmdir, unlink } from "node:fs/promises"
 import path from "node:path"
 
-import type { ApprovedRootPolicy } from "@forge/scanner"
+import { createLocalSourceManifest, type ApprovedRootPolicy } from "@forge/scanner"
 
-import type { ArtifactObservation, ArtifactRef, FileSystemPort } from "../core/index.js"
+import type { ArtifactObservation, ArtifactRef, FileSystemPort, TreeContentEntry } from "../core/index.js"
 import { sourceIdentity } from "./directory.js"
 import { LocalSourceError } from "./errors.js"
 import { FileSystemLocalSourceMaterializer } from "./materializer.js"
+import { admitPortablePath, assertUniquePortablePaths, bytewisePathSort } from "./path-policy.js"
 import { inspectStrictTree, strictTreeMatchesManifest } from "./strict-tree.js"
 
 function filesystemCode(error: unknown): string | undefined {
@@ -78,6 +79,62 @@ export class ApprovedRootLocalInstallFileSystem implements FileSystemPort {
 
   async writeFileExclusive(): Promise<void> {
     throw new LocalSourceError("SOURCE_TYPE", "Local install filesystem does not write direct-content artifacts")
+  }
+
+  async writeTreeExclusive(destination: ArtifactRef, entries: readonly TreeContentEntry[]): Promise<void> {
+    assertTree(destination)
+    const canonical = await this.#policy.authorizeWrite(destination.rootId, destination.relativePath)
+    const admitted = entries.map((entry) => ({
+      path: admitPortablePath(entry.relativePath).normalized,
+      content: entry.content,
+      kind: "file" as const,
+    })).sort((left, right) => bytewisePathSort(left.path, right.path))
+    assertUniquePortablePaths(admitted)
+    const manifest = createLocalSourceManifest(admitted.map((entry) => ({
+      path: entry.path,
+      byteLength: Buffer.byteLength(entry.content, "utf8"),
+      sha256: createHash("sha256").update(entry.content).digest("hex"),
+    })))
+    const createdFiles: string[] = []
+    const createdDirectories: string[] = []
+    const ownedDirectories = new Set<string>()
+    try {
+      await mkdir(canonical, { mode: 0o700 })
+      createdDirectories.push(canonical)
+      ownedDirectories.add(canonical)
+      for (const entry of admitted) {
+        const segments = entry.path.split("/")
+        let parent: string = canonical
+        for (const segment of segments.slice(0, -1)) {
+          parent = path.join(parent, segment)
+          if (ownedDirectories.has(parent)) continue
+          await mkdir(parent, { mode: 0o700 })
+          createdDirectories.push(parent)
+          ownedDirectories.add(parent)
+        }
+        const target = path.join(canonical, ...segments)
+        const handle = await open(target, "wx", 0o600)
+        createdFiles.push(target)
+        try {
+          await handle.writeFile(entry.content, "utf8")
+          await handle.sync()
+        } finally {
+          await handle.close()
+        }
+      }
+      const inspected = await inspectStrictTree(canonical)
+      if (!strictTreeMatchesManifest(inspected, manifest)) {
+        throw new LocalSourceError("STAGING_MISMATCH", "Created content does not match its planned manifest")
+      }
+    } catch (error) {
+      for (const file of [...createdFiles].reverse()) {
+        try { await unlink(file) } catch { /* Preserve uncertain paths. */ }
+      }
+      for (const directory of [...createdDirectories].reverse()) {
+        try { await rmdir(directory) } catch { /* Never recursively delete. */ }
+      }
+      throw error
+    }
   }
 
   async replace(source: ArtifactRef, destination: ArtifactRef, mode: "create" | "update"): Promise<void> {

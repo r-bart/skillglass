@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <radialGradient id="violet" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#7447ff" stop-opacity="0.92"/>
+      <stop offset="0.34" stop-color="#6833ec" stop-opacity="0.68"/>
+      <stop offset="0.72" stop-color="#4a1ba8" stop-opacity="0.24"/>
+      <stop offset="1" stop-color="#291064" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="magenta" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#d13ab4" stop-opacity="0.66"/>
+      <stop offset="0.5" stop-color="#a82991" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#5d1859" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="orange" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#ff8a32" stop-opacity="0.92"/>
+      <stop offset="0.34" stop-color="#ef6c22" stop-opacity="0.68"/>
+      <stop offset="0.72" stop-color="#a83d16" stop-opacity="0.24"/>
+      <stop offset="1" stop-color="#5a220f" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <ellipse cx="385" cy="596" rx="310" ry="280" fill="url(#violet)"/>
+  <ellipse cx="520" cy="610" rx="250" ry="220" fill="url(#magenta)"/>
+  <ellipse cx="655" cy="586" rx="310" ry="280" fill="url(#orange)"/>
+</svg>

@@ -31,7 +31,8 @@
   /* Matte surfaces */
   --app-background: #0b0b0d;
   --topbar-background: #101013;
-  --sidebar-background: #0e0e11;
+  --sidebar-background: #08080a;
+  --inspector-background: #0e0e11;
   --surface-raised: #131317;
   --sheet-background: #111115;
   --field-background: #0d0d10;

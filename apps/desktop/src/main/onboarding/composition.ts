@@ -37,6 +37,9 @@ import { isTrustedRendererUrl } from "../security.js"
 import { e2eAdminSkillsRoot, useE2eBuiltAssets } from "../e2e-test-seam.js"
 import { registerInventoryIpc } from "../inventory/ipc.js"
 import { InventoryService } from "../inventory/service.js"
+import { registerMonitoringIpc } from "../monitoring/ipc.js"
+import { MonitoringService } from "../monitoring/service.js"
+import { ForgeMonitoringSettingsRepository } from "../monitoring/settings-repository.js"
 import { registerOperationIpc } from "../operations/ipc.js"
 import { DesktopOperationService } from "../operations/service.js"
 import { PrivateSourceLeaseRepository, recoverPrivateSourceLeases } from "../operations/artifact-leases.js"
@@ -189,8 +192,8 @@ export async function createOnboardingComposition(
     picker: {
       async selectDirectory() {
         const result = await dialog.showOpenDialog({
-          title: "Añadir carpeta de skills",
-          buttonLabel: "Añadir carpeta",
+          title: "Añadir carpeta de skills · Add skills folder",
+          buttonLabel: "Añadir / Add",
           properties: ["openDirectory"],
         })
         return result.canceled ? null : (result.filePaths[0] ?? null)
@@ -199,8 +202,8 @@ export async function createOnboardingComposition(
     projectPicker: {
       async selectProject() {
         const result = await dialog.showOpenDialog({
-          title: "Añadir proyecto Codex",
-          buttonLabel: "Añadir proyecto",
+          title: "Añadir proyecto Codex · Add Codex project",
+          buttonLabel: "Añadir / Add",
           properties: ["openDirectory"],
         })
         const selected = result.canceled ? undefined : result.filePaths[0]
@@ -222,7 +225,21 @@ export async function createOnboardingComposition(
       }))
     },
   })
-  await rootService.state()
+  const hadPersistedApprovalAtCreation = (await rootService.state()).status === "complete"
+  const monitoringService = new MonitoringService({
+    settings: new ForgeMonitoringSettingsRepository(store.settings),
+    projections: store.projections,
+  })
+  if (!hadPersistedApprovalAtCreation) monitoringService.beginOnboarding()
+  let resolveStartupReady: () => void = () => undefined
+  let rejectStartupReady: (reason?: unknown) => void = () => undefined
+  const startupReady = new Promise<void>((resolve, reject) => {
+    resolveStartupReady = resolve
+    rejectStartupReady = reject
+  })
+  // The main startup path observes this rejection too, but keeping a local
+  // rejection handler prevents an unhandled promise if no renderer invoked IPC.
+  void startupReady.catch(() => undefined)
   const usesBuiltAssets = app.isPackaged || useE2eBuiltAssets()
   const developmentServerUrl = usesBuiltAssets ? undefined : MAIN_WINDOW_VITE_DEV_SERVER_URL
   const unregister = registerOnboardingIpc({
@@ -237,6 +254,16 @@ export async function createOnboardingComposition(
   const unregisterInventory = registerInventoryIpc({
     ipcMain,
     inventoryService: new InventoryService(store.inventory, store.projections, shell),
+    isTrustedSender: (url) => isTrustedRendererUrl(
+      url,
+      usesBuiltAssets,
+      ...(developmentServerUrl === undefined ? [] : [developmentServerUrl]),
+    ),
+  })
+  const unregisterMonitoring = registerMonitoringIpc({
+    ipcMain,
+    monitoringService,
+    startupReady,
     isTrustedSender: (url) => isTrustedRendererUrl(
       url,
       usesBuiltAssets,
@@ -296,16 +323,16 @@ export async function createOnboardingComposition(
     dialog: {
       async selectDirectory() {
         const result = await dialog.showOpenDialog({
-          title: "Seleccionar carpeta de skill",
-          buttonLabel: "Seleccionar",
+          title: "Seleccionar carpeta de skill · Select skill folder",
+          buttonLabel: "Seleccionar / Select",
           properties: ["openDirectory"],
         })
         return result.canceled ? undefined : result.filePaths[0]
       },
       async selectZipFile() {
         const result = await dialog.showOpenDialog({
-          title: "Seleccionar ZIP de skill",
-          buttonLabel: "Seleccionar",
+          title: "Seleccionar ZIP de skill · Select skill ZIP",
+          buttonLabel: "Seleccionar / Select",
           properties: ["openFile"],
           filters: [{ name: "Archivo ZIP", extensions: ["zip"] }],
         })
@@ -334,7 +361,7 @@ export async function createOnboardingComposition(
     projections: store.projections,
     snapshots: store.snapshots,
     repository: operationRepository,
-    fileSystem: contentFileSystem,
+    fileSystem: operationFileSystem,
     engine: operationEngine,
     recoveryRootId: RECOVERY_ROOT_ID,
     rescan: async () => {
@@ -372,6 +399,14 @@ export async function createOnboardingComposition(
       reason: "operation",
       observedAt: new Date().toISOString(),
     })),
+    onSkillAdded: (installationIds) => {
+      try {
+        monitoringService.includeCurrentInstallations(installationIds)
+      } catch {
+        // Monitoring is an attention preference; a persistence limit must not
+        // turn an already-committed filesystem operation into a failed one.
+      }
+    },
     onCompleted: (result) => send(IPC_EVENT_CHANNELS.operationCompleted, OperationCompletedEventSchema.parse(result)),
   })
   const watcherService = new ApprovedRootWatcherService({
@@ -399,15 +434,31 @@ export async function createOnboardingComposition(
       ...(developmentServerUrl === undefined ? [] : [developmentServerUrl]),
     ),
   })
+  let persistedScan: Promise<boolean> | undefined
+  const startPersistedScan = (): Promise<boolean> => {
+    persistedScan ??= (async () => {
+      try {
+        const scanned = await rootService.scanPersistedApproval()
+        await operationService.recoverCommittedLocalState()
+        if (hadPersistedApprovalAtCreation && !monitoringService.isOnboardingPending()) {
+          monitoringService.bootstrapLegacySelection()
+        }
+        resolveStartupReady()
+        return scanned
+      } catch (error) {
+        rejectStartupReady(error)
+        throw error
+      }
+    })()
+    return persistedScan
+  }
+
   return {
     rootService,
-    startPersistedScan: async () => {
-      const scanned = await rootService.scanPersistedApproval()
-      await operationService.recoverCommittedLocalState()
-      return scanned
-    },
+    startPersistedScan,
     dispose: () => {
       unregisterOperations()
+      unregisterMonitoring()
       unregisterInventory()
       unregister()
       void watcherService.dispose().finally(() => store.close())

@@ -2,7 +2,7 @@ import { app, BrowserWindow, protocol } from "electron"
 import { join } from "node:path"
 
 import { FORGE_SCHEME, registerForgeProtocol } from "./protocol.js"
-import { createMainWindow } from "./window.js"
+import { createMainWindow, developmentDockIconPath } from "./window.js"
 import { createOnboardingComposition, type OnboardingComposition } from "./onboarding/composition.js"
 import { applyE2eProcessPathOverrides, useE2eBuiltAssets } from "./e2e-test-seam.js"
 import { applyUserDataCommandLineOverride } from "./user-data-path.js"
@@ -34,6 +34,9 @@ let mainWindow: BrowserWindow | undefined
 let onboarding: OnboardingComposition | undefined
 
 app.whenReady().then(async () => {
+  const dockIcon = developmentDockIconPath(app.getAppPath(), usesBuiltAssets)
+  if (dockIcon !== undefined) app.dock?.setIcon(dockIcon)
+
   if (usesBuiltAssets) {
     registerForgeProtocol(join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}`))
   }
@@ -50,7 +53,7 @@ app.whenReady().then(async () => {
     }
   })
 }).catch((reason: unknown) => {
-  console.error("Forge failed during startup", reason)
+  console.error("Skill Forge failed during startup", reason)
   app.exit(1)
 })
 

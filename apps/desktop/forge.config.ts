@@ -12,6 +12,11 @@ import { VitePlugin } from "@electron-forge/plugin-vite"
 import { FuseV1Options, FuseVersion } from "@electron/fuses"
 
 const execFileAsync = promisify(execFile)
+export const SKILL_FORGE_PRODUCT_NAME = "Skill Forge"
+export const SKILL_FORGE_EXECUTABLE_NAME = process.platform === "linux" ? "skill-forge" : SKILL_FORGE_PRODUCT_NAME
+export const SKILL_FORGE_ICON_PATH = fileURLToPath(new URL("../../branding/SkillForge.icon", import.meta.url))
+export const SKILL_FORGE_ICON_ICO_PATH = fileURLToPath(new URL("../../branding/SkillForge.ico", import.meta.url))
+export const SKILL_FORGE_ICON_PNG_PATH = fileURLToPath(new URL("../../branding/SkillForge.png", import.meta.url))
 export const FORGE_LICENSE_PATH = fileURLToPath(new URL("../../LICENSE", import.meta.url))
 
 export async function finalizeDarwinAdHocSignature(
@@ -25,15 +30,16 @@ export async function finalizeDarwinAdHocSignature(
       "--deep",
       "--sign",
       "-",
-      path.join(outputPath, "Forge.app"),
+      path.join(outputPath, `${SKILL_FORGE_PRODUCT_NAME}.app`),
     ])
   }
 }
 
 export const FORGE_PACKAGER_CONFIG = {
   asar: true,
-  name: "Forge",
-  executableName: "Forge",
+  name: SKILL_FORGE_PRODUCT_NAME,
+  executableName: SKILL_FORGE_EXECUTABLE_NAME,
+  icon: SKILL_FORGE_ICON_PATH,
   appBundleId: "app.skillforge.desktop",
   appCategoryType: "public.app-category.developer-tools",
   osxSign: {
@@ -65,11 +71,12 @@ export const FORGE_FUSE_OPTIONS = {
 
 export const FORGE_LINUX_MAKER_OPTIONS: NonNullable<MakerDebConfig["options"]> & NonNullable<MakerRpmConfig["options"]> = {
   name: "forge",
-  productName: "Forge",
+  productName: SKILL_FORGE_PRODUCT_NAME,
   genericName: "Agent skill manager",
   description: "Local-first inventory and safe updater for agent skills",
   productDescription: "Discover, inspect, install, and safely update agent skills without changing harness activation.",
-  bin: "Forge",
+  bin: SKILL_FORGE_EXECUTABLE_NAME,
+  icon: SKILL_FORGE_ICON_PNG_PATH,
   license: "Apache-2.0",
   categories: ["Development"],
 }
@@ -84,7 +91,7 @@ const config = {
     }>) => finalizeDarwinAdHocSignature(packageResult),
   },
   makers: [
-    new MakerSquirrel({ name: "forge" }),
+    new MakerSquirrel({ name: "forge", setupIcon: SKILL_FORGE_ICON_ICO_PATH }),
     new MakerZIP({}, ["darwin"]),
     new MakerDeb({ options: FORGE_LINUX_MAKER_OPTIONS }),
     new MakerRpm({ options: FORGE_LINUX_MAKER_OPTIONS }),

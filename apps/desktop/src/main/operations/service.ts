@@ -36,7 +36,7 @@ import type {
   SettingsRepository,
   UpdateObservationRepository,
 } from "@forge/storage"
-import type { ApprovedRootPolicy, ExternalChangeInvalidation } from "@forge/scanner"
+import { createLocalSourceManifest, type ApprovedRootPolicy, type ExternalChangeInvalidation } from "@forge/scanner"
 
 import { PrivateSourceLeaseRepository } from "./artifact-leases.js"
 
@@ -72,6 +72,7 @@ export interface DesktopOperationServiceOptions {
   readonly now?: () => Date
   readonly ids?: () => string
   readonly onInventoryChanged?: (installationIds: readonly string[]) => void
+  readonly onSkillAdded?: (installationIds: readonly string[]) => void
   readonly onCompleted?: (result: OperationResultDto) => void
 }
 
@@ -137,6 +138,7 @@ export class DesktopOperationService {
   readonly #now: () => Date
   readonly #ids: () => string
   readonly #onInventoryChanged: (installationIds: readonly string[]) => void
+  readonly #onSkillAdded: (installationIds: readonly string[]) => void
   readonly #onCompleted: (result: OperationResultDto) => void
   readonly #pending = new Map<string, PendingLocalOperation>()
   readonly #observations = new Map<string, LocalSourceUpdateObservation>()
@@ -161,6 +163,7 @@ export class DesktopOperationService {
     this.#now = options.now ?? (() => new Date())
     this.#ids = options.ids ?? randomUUID
     this.#onInventoryChanged = options.onInventoryChanged ?? (() => undefined)
+    this.#onSkillAdded = options.onSkillAdded ?? (() => undefined)
     this.#onCompleted = options.onCompleted ?? (() => undefined)
   }
 
@@ -197,8 +200,37 @@ export class DesktopOperationService {
   }
 
   async plan(input: OperationRequestDto): Promise<OperationPlanDto> {
+    if (input.kind === "create-skill") return this.#planCreateSkill(input)
     if (input.kind === "update-entry-content") return this.#contentUpdates.plan(input)
     return input.kind === "install-local" ? this.#planInstall(input) : this.#planSourceUpdate(input)
+  }
+
+  async #planCreateSkill(input: Extract<OperationRequestDto, { kind: "create-skill" }>): Promise<OperationPlanDto> {
+    const root = this.#requireRoot(input.targetRootId)
+    const contentBytes = Buffer.from(input.content, "utf8")
+    const manifest = createLocalSourceManifest([{
+      path: "SKILL.md",
+      byteLength: contentBytes.byteLength,
+      sha256: createHash("sha256").update(contentBytes).digest("hex"),
+    }])
+    const adapter = this.#adapterForRoot(root)
+    const planned = await adapter.planOperation({
+      request: input,
+      targetRoot: root,
+      sourceManifest: manifest,
+      rootPolicy: this.#rootPolicy,
+    })
+    if (planned.status !== "planned") return unavailableReason(planned)
+    const plan = await this.#contentUpdates.plan(input)
+    const adapterDestination = planned.plan.operation.affectedEntries[0]?.relativePath
+    if (adapterDestination !== input.skillKey || plan.targetRootId !== root.id) {
+      throw new OperationConflictError("El adapter propuso un destino distinto del borrador revisado")
+    }
+    return {
+      ...plan,
+      affectedScopes: planned.plan.operation.affectedScopes,
+      destinationLabel: path.join(root.canonicalPath, input.skillKey),
+    }
   }
 
   async confirm(input: ConfirmOperationInput): Promise<OperationResultDto> {
@@ -218,8 +250,12 @@ export class DesktopOperationService {
     }
     const pending = this.#pending.get(input.planId)
     if (pending === undefined) {
+      const plan = await this.#repository.get(input.planId)
       const result = await this.#contentUpdates.confirm(input.planId)
-      if (result.status === "committed") await this.refreshUpdates()
+      if (result.status === "committed") {
+        if (plan?.kind === "create-content-tree") this.#onSkillAdded(result.installationIds)
+        await this.refreshUpdates()
+      }
       this.#onCompleted(result)
       return result
     }
@@ -264,7 +300,7 @@ export class DesktopOperationService {
         .map(({ relativePath }) => path.resolve(root.canonicalPath, relativePath))
         .some((affected) => changed.some((candidate) => pathsOverlap(affected, candidate)))
       if (!overlaps) continue
-      this.#invalidatedPlans.set(plan.id, "Los archivos cambiaron fuera de Forge; revisa y crea un nuevo plan")
+      this.#invalidatedPlans.set(plan.id, "Los archivos cambiaron fuera de Skill Forge; revisa y crea un nuevo plan")
       invalidated.push(plan.id)
     }
     return invalidated
@@ -434,6 +470,7 @@ export class DesktopOperationService {
       })
       this.#markLocalCommitApplied(executed.plan.id)
       this.#pending.delete(prepared.plan.id)
+      this.#onSkillAdded([installed.id])
       this.#onInventoryChanged([installed.id])
       return this.#result(executed.plan.id, "committed", [installed.id], "Skill instalada", true)
     } catch (error) {

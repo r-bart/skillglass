@@ -34,8 +34,10 @@ if (expected === undefined) throw new Error(`Unsupported release platform: ${pro
 const artifacts = await regularFiles(makeRoot)
 const distributables = artifacts.filter((artifact) =>
   expected.some((extension) => artifact.toLocaleLowerCase("en-US").endsWith(extension)))
-const matched = distributables.filter((artifact) =>
-  path.basename(artifact).toLocaleLowerCase("en-US").startsWith("forge"))
+const matched = distributables.filter((artifact) => {
+  const basename = path.basename(artifact).toLocaleLowerCase("en-US")
+  return basename.startsWith("forge") || basename.startsWith("skill forge") || basename.startsWith("skill-forge")
+})
 const foreign = distributables.filter((artifact) => !matched.includes(artifact))
 if (foreign.length > 0) {
   throw new Error(`Forge make emitted stale or misnamed distributables: ${foreign.join(", ")}`)

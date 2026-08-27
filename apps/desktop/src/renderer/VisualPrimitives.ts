@@ -1,11 +1,11 @@
 import {
-  createElement,
   type AnchorHTMLAttributes,
   type ButtonHTMLAttributes,
   type MouseEvent,
   type MouseEventHandler,
   type ReactNode,
 } from "react"
+import { createElement } from "./i18n.js"
 
 export type ActionTone = "metal" | "dark" | "quiet" | "danger"
 export type StatusTone = "ok" | "attention" | "danger" | "idle" | "neutral"

@@ -19,6 +19,7 @@ import {
   IpcEventChannelSchema,
   IpcInvokeChannelSchema,
   LocalSourceSelectionDtoSchema,
+  MonitoringStateDtoSchema,
   OperationPlanDtoSchema,
   OperationRequestDtoSchema,
   OperationResultDtoSchema,
@@ -26,6 +27,7 @@ import {
   OnboardingStateDtoSchema,
   RootCandidateDtoSchema,
   RootsChangedEventSchema,
+  SaveMonitoringSelectionInputSchema,
   UndoOperationInputSchema,
 } from "./index.js"
 
@@ -229,6 +231,60 @@ describe("inventory contracts", () => {
   })
 })
 
+describe("monitoring contracts", () => {
+  it("round-trips monitoring state and accepts the bounded selection", () => {
+    expectJsonRoundTrip(MonitoringStateDtoSchema, {
+      status: "complete",
+      selectedInstallationIds: ["installation_alpha", "installation_beta"],
+      completedAt: NOW,
+    })
+
+    const installationIds = Array.from(
+      { length: 2_000 },
+      (_, index) => `installation_${index}`,
+    )
+    expect(
+      SaveMonitoringSelectionInputSchema.parse({ installationIds }),
+    ).toEqual({ installationIds })
+  })
+
+  it("rejects excessive, duplicate, path-shaped, and non-strict selections", () => {
+    const excessiveInstallationIds = Array.from(
+      { length: 2_001 },
+      (_, index) => `installation_${index}`,
+    )
+
+    expect(
+      SaveMonitoringSelectionInputSchema.safeParse({
+        installationIds: excessiveInstallationIds,
+      }).success,
+    ).toBe(false)
+    expect(
+      SaveMonitoringSelectionInputSchema.safeParse({
+        installationIds: ["installation_alpha", "installation_alpha"],
+      }).success,
+    ).toBe(false)
+    expect(
+      SaveMonitoringSelectionInputSchema.safeParse({
+        installationIds: ["/tmp/arbitrary"],
+      }).success,
+    ).toBe(false)
+    expect(
+      SaveMonitoringSelectionInputSchema.safeParse({
+        installationIds: ["installation_alpha"],
+        path: "/tmp/arbitrary",
+      }).success,
+    ).toBe(false)
+    expect(
+      MonitoringStateDtoSchema.safeParse({
+        status: "required",
+        selectedInstallationIds: [],
+        unexpected: true,
+      }).success,
+    ).toBe(false)
+  })
+})
+
 describe("operation contracts", () => {
   const localSource = {
     kind: "zip" as const,
@@ -238,6 +294,12 @@ describe("operation contracts", () => {
   }
 
   it("accepts tokenized installs and reconstructs update sources from installation IDs", () => {
+    expectJsonRoundTrip(OperationRequestDtoSchema, {
+      kind: "create-skill",
+      targetRootId: "root_global",
+      skillKey: "review-contracts",
+      content: "---\nname: review-contracts\n---\n",
+    })
     expectJsonRoundTrip(OperationRequestDtoSchema, {
       kind: "install-local",
       source: { ...localSource, suggestedName: "skill" },
@@ -255,6 +317,14 @@ describe("operation contracts", () => {
       content: "new content",
     })
 
+    expect(
+      OperationRequestDtoSchema.safeParse({
+        kind: "create-skill",
+        targetRootId: "root_global",
+        skillKey: "../escape",
+        content: "unsafe",
+      }).success,
+    ).toBe(false)
     expect(
       OperationRequestDtoSchema.safeParse({
         kind: "install-local",

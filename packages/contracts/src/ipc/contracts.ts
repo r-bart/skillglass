@@ -2,6 +2,10 @@ import { z } from "zod"
 
 import { InventoryPageDtoSchema, InspectInstallationInputSchema, InstallationDetailDtoSchema, InventoryQuerySchema } from "./inventory.js"
 import {
+  MonitoringStateDtoSchema,
+  SaveMonitoringSelectionInputSchema,
+} from "./monitoring.js"
+import {
   ConfirmOperationInputSchema,
   LocalSourceSelectionDtoSchema,
   OperationPlanDtoSchema,
@@ -63,6 +67,14 @@ export const IPC_INVOKE_CONTRACTS = {
   [IPC_INVOKE_CHANNELS.inventoryOpenEntry]: {
     input: InspectInstallationInputSchema,
     output: AckDtoSchema,
+  },
+  [IPC_INVOKE_CHANNELS.monitoringState]: {
+    input: EmptyInputSchema,
+    output: MonitoringStateDtoSchema,
+  },
+  [IPC_INVOKE_CHANNELS.monitoringSave]: {
+    input: SaveMonitoringSelectionInputSchema,
+    output: MonitoringStateDtoSchema,
   },
   [IPC_INVOKE_CHANNELS.operationsSelectLocalSource]: {
     input: SelectLocalSourceInputSchema,

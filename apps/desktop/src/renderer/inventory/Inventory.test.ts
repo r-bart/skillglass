@@ -8,6 +8,7 @@ import type {
   InventoryPageDto,
 } from "@forge/contracts"
 
+import { setActiveLocale } from "../i18n.js"
 import { Inventory } from "./Inventory.js"
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
@@ -134,6 +135,7 @@ let container: HTMLDivElement
 let root: Root
 
 beforeEach(() => {
+  setActiveLocale("es")
   container = document.createElement("div")
   document.body.append(container)
   root = createRoot(container)
@@ -145,7 +147,7 @@ afterEach(() => {
 })
 
 describe("Inventory", () => {
-  it("navigates Esta máquina, true Global, and a project as distinct queries", async () => {
+  it("navigates Todas las skills, true Global, and a project as distinct queries", async () => {
     const list = vi.fn(() => Promise.resolve(basePage))
     await act(async () => root.render(createElement(Inventory, {
       inventoryBridge: bridge(list),
@@ -154,7 +156,7 @@ describe("Inventory", () => {
     expect(list).toHaveBeenLastCalledWith(expect.objectContaining({
       scope: { kind: "all" },
     }))
-    expect(buttonNamed("Esta máquina").getAttribute("aria-pressed")).toBe("true")
+    expect(buttonNamed("Todas las skills").getAttribute("aria-pressed")).toBe("true")
 
     await act(async () => buttonNamed("Global").click())
     expect(list).toHaveBeenLastCalledWith(expect.objectContaining({
@@ -273,6 +275,26 @@ describe("Inventory", () => {
     expect(search.selectionEnd).toBe(search.value.length)
   })
 
+  it("does not capture the platform find shortcut while the inventory is inactive", async () => {
+    await act(async () => root.render(createElement(Inventory, {
+      active: false,
+      inventoryBridge: bridge(() => Promise.resolve(basePage)),
+    })))
+    const search = container.querySelector<HTMLInputElement>('input[type="search"]')
+    if (search === null) throw new Error("Search field is missing")
+    search.blur()
+
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", {
+        bubbles: true,
+        key: "f",
+        [/Mac|iPhone|iPad/u.test(navigator.platform) ? "metaKey" : "ctrlKey"]: true,
+      }))
+    })
+
+    expect(document.activeElement).not.toBe(search)
+  })
+
   it("supports mouse and arrow-key selection with a single roving tab stop", async () => {
     const onSelectionChange = vi.fn()
     await act(async () => root.render(createElement(Inventory, {
@@ -320,16 +342,36 @@ describe("Inventory", () => {
     expect(globalRow?.querySelector('[aria-label="Validez: Válida"]')).not.toBeNull()
     expect(globalRow?.querySelector('[aria-label="Origen: Local"]')).not.toBeNull()
     expect(globalRow?.querySelector('[aria-label="Actualización: Actualizada"]')).not.toBeNull()
+    expect(globalRow?.querySelector(".inventory-evidence-marker--current")?.getAttribute("aria-label"))
+      .toBe("Actualización: Actualizada")
     expect(globalRow?.querySelector(".skill-tile")?.getAttribute("data-tile")).toMatch(/blue|green|amber|plum|steel/u)
 
     const projectRow = rows[1]
     expect(projectRow?.textContent).toContain("Acme Web")
     expect(projectRow?.querySelector('[aria-label="Actualización: Actualización disponible"]')).not.toBeNull()
+    expect(projectRow?.querySelector(".inventory-evidence-marker--available")?.getAttribute("aria-label"))
+      .toBe("Actualización: Actualización disponible")
     expect(projectRow?.querySelector(".inventory-row__version")).toBeNull()
 
-    const invalidMarker = rows[2]?.querySelector(".inventory-evidence-marker")
-    expect(invalidMarker?.getAttribute("aria-label")).toContain("Validez: Inválida")
+    const unknownUpdateMarker = rows[2]?.querySelector(".inventory-evidence-marker--unknown")
+    expect(unknownUpdateMarker?.getAttribute("aria-label")).toBe("Actualización: Sin datos")
+    expect(rows[2]?.querySelector(".inventory-evidence-marker--available")).toBeNull()
     expect(rows[2]?.querySelector('[aria-label="Origen: Solo lectura"]')).not.toBeNull()
+  })
+
+  it("keeps unmonitored installations visible and badges only monitored rows", async () => {
+    await act(async () => root.render(createElement(Inventory, {
+      inventoryBridge: bridge(() => Promise.resolve(basePage)),
+      monitoredInstallationIds: new Set(["installation_project_release"]),
+    })))
+
+    const rows = [...container.querySelectorAll<HTMLTableRowElement>(".inventory-row")]
+    expect(rows).toHaveLength(inventoryItems.length)
+    expect(rows.find((row) => row.textContent?.includes("global-review"))?.textContent)
+      .not.toContain("En seguimiento")
+    expect(rows.find((row) => row.textContent?.includes("project-release"))?.textContent)
+      .toContain("En seguimiento")
+    expect(container.querySelectorAll(".inventory-monitoring-pill")).toHaveLength(1)
   })
 
   it("loads the next deterministic cursor page without replacing visible rows", async () => {

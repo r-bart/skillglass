@@ -1,4 +1,9 @@
-export type OperationKind = "install" | "update-source" | "update-content"
+export type OperationKind = "install" | "create-content-tree" | "update-source" | "update-content"
+
+export interface TreeContentEntry {
+  readonly relativePath: string
+  readonly content: string
+}
 
 export type OperationState =
   | "planned"
@@ -97,6 +102,8 @@ export interface OperationPlan {
   readonly expectedAfterHash: string
   /** Present only for update-content; persisted so restart recovery is deterministic. */
   readonly content?: string
+  /** Present only for create-content-tree; persisted for deterministic restart recovery. */
+  readonly treeContent?: readonly TreeContentEntry[]
   /**
    * Opaque, operation-specific data required to finish idempotent projections
    * after a filesystem commit. It is durable with the plan and must be parsed
@@ -144,6 +151,7 @@ export interface FileSystemPort {
   observe(path: ArtifactRef): Promise<ArtifactObservation>
   copyExclusive(source: ArtifactRef, destination: ArtifactRef): Promise<void>
   writeFileExclusive(destination: ArtifactRef, content: string): Promise<void>
+  writeTreeExclusive(destination: ArtifactRef, entries: readonly TreeContentEntry[]): Promise<void>
   /** Atomically replaces destination where supported and consumes source. */
   replace(
     source: ArtifactRef,

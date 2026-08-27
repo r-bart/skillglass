@@ -66,6 +66,18 @@ export const LocalInstallSourceDtoSchema = z.discriminatedUnion("kind", [
 export const OperationRequestDtoSchema = z.discriminatedUnion("kind", [
   z
     .object({
+      kind: z.literal("create-skill"),
+      targetRootId: RootIdSchema,
+      skillKey: z
+        .string()
+        .min(1)
+        .max(128)
+        .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/u),
+      content: z.string().min(1).max(10 * 1_024 * 1_024),
+    })
+    .strict(),
+  z
+    .object({
       kind: z.literal("install-local"),
       source: LocalInstallSourceDtoSchema,
       targetRootId: RootIdSchema,
@@ -124,6 +136,7 @@ export const OperationPlanDtoSchema = z
   .object({
     planId: PlanIdSchema,
     kind: z.enum([
+      "create-skill",
       "install-local",
       "update-from-local",
       "update-entry-content",
@@ -165,7 +178,7 @@ export const UndoOperationInputSchema = z
 export const OperationHistoryItemDtoSchema = z
   .object({
     journalId: JournalIdSchema,
-    kind: z.enum(["install-local", "update-from-local", "update-entry-content"]),
+    kind: z.enum(["create-skill", "install-local", "update-from-local", "update-entry-content"]),
     installationIds: z.array(InstallationIdSchema).max(128),
     createdAt: IsoDateTimeSchema,
     undoAvailable: z.boolean(),

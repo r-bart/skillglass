@@ -101,7 +101,14 @@ export const discoveryContext: DiscoveryContext = {
 
 export function operationRequest(kind: OperationRequestDto["kind"]): AdapterOperationRequest {
   const request: OperationRequestDto =
-    kind === "install-local"
+    kind === "create-skill"
+      ? {
+          kind,
+          targetRootId: root.id,
+          skillKey: "alpha",
+          content: "---\nname: alpha\ndescription: created\n---\n",
+        }
+      : kind === "install-local"
       ? {
           kind,
           source: { kind: "directory", selectionToken: TOKEN, suggestedName: "alpha", treeHash: HASH },
@@ -123,7 +130,7 @@ export function operationRequest(kind: OperationRequestDto["kind"]): AdapterOper
   return {
     request,
     targetRoot: root,
-    ...(kind === "update-from-local"
+    ...(kind === "update-from-local" || kind === "create-skill"
       ? { sourceManifest: { contract: "local-source-v1" as const, hashAlgorithm: "forge-tree-v1" as const, treeHash: HASH, files: [] } }
       : {}),
     rootPolicy,
@@ -139,14 +146,14 @@ function operationPlan(request: AdapterOperationRequest): OperationPlanDto {
     expiresAt: LATER,
     adapterId: "fake",
     installationIds:
-      request.request.kind === "install-local"
+      request.request.kind === "install-local" || request.request.kind === "create-skill"
         ? []
         : [request.request.installationId],
     targetRootId: request.targetRoot.id,
     affectedScopes: [{ kind: "global" }],
     affectedEntries: [
       {
-        action: request.request.kind === "install-local" ? "create" : "modify",
+        action: request.request.kind === "install-local" || request.request.kind === "create-skill" ? "create" : "modify",
         rootId: request.targetRoot.id,
         relativePath: "alpha/SKILL.md",
       },

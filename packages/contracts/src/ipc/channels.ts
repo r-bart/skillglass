@@ -9,6 +9,8 @@ export const IPC_INVOKE_CHANNELS = {
   inventoryList: "forge:inventory:list",
   inventoryInspect: "forge:inventory:inspect",
   inventoryOpenEntry: "forge:inventory:open-entry",
+  monitoringState: "forge:monitoring:state",
+  monitoringSave: "forge:monitoring:save",
   operationsSelectLocalSource: "forge:operations:select-local-source",
   operationsPlan: "forge:operations:plan",
   operationsConfirm: "forge:operations:confirm",

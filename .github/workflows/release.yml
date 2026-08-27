@@ -77,8 +77,8 @@ jobs:
             gh release create "$RELEASE_TAG" \
               --verify-tag \
               --draft \
-              --title "Forge $RELEASE_TAG" \
-              --notes "Builds have no OS-trusted publisher identity; the macOS ad-hoc signature is not Developer ID or notarization. Verify SHA256SUMS.txt before running. Forge has no automatic updater; future versions are distributed only through this repository's Releases page."
+              --title "Skill Forge $RELEASE_TAG" \
+              --notes "Builds have no OS-trusted publisher identity; the macOS ad-hoc signature is not Developer ID or notarization. Verify SHA256SUMS.txt before running. Skill Forge has no automatic updater; future versions are distributed only through this repository's Releases page."
           fi
 
   build:
@@ -120,8 +120,8 @@ jobs:
       - name: Configure Linux sandbox helper for unpacked smoke tests
         if: runner.os == 'Linux'
         run: |
-          sudo chown root:root apps/desktop/out/Forge-linux-*/chrome-sandbox
-          sudo chmod 4755 apps/desktop/out/Forge-linux-*/chrome-sandbox
+          sudo chown root:root apps/desktop/out/Skill\ Forge-linux-*/chrome-sandbox
+          sudo chmod 4755 apps/desktop/out/Skill\ Forge-linux-*/chrome-sandbox
       - name: Electron E2E and packaged SQLite reopen smoke
         if: runner.os != 'Linux'
         env:
@@ -172,7 +172,7 @@ jobs:
         run: >-
           gh release download "$RELEASE_TAG"
           --dir release-assets
-          --pattern 'forge-*'
+          --pattern 'skill-forge-*'
           --pattern 'target-*'
       - name: Create checksums and build metadata
         env:

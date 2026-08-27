@@ -366,10 +366,14 @@ export class CodexAdapter implements SkillRuntimeAdapter {
     let action: "create" | "modify"
     let expectedBefore: string | undefined
     let expectedAfter: string
-    if (request.request.kind === "install-local") {
-      relativePath = request.request.source.suggestedName ?? `skill-${request.request.source.treeHash.slice(0, 12)}`
+    if (request.request.kind === "install-local" || request.request.kind === "create-skill") {
+      relativePath = request.request.kind === "create-skill"
+        ? request.request.skillKey
+        : request.request.source.suggestedName ?? `skill-${request.request.source.treeHash.slice(0, 12)}`
       action = "create"
-      expectedAfter = request.request.source.treeHash
+      expectedAfter = request.request.kind === "create-skill"
+        ? request.sourceManifest?.treeHash ?? sha256("missing-created-manifest")
+        : request.request.source.treeHash
       try {
         await request.rootPolicy.authorizeWrite(request.targetRoot.id, relativePath)
       } catch {
@@ -416,9 +420,13 @@ export class CodexAdapter implements SkillRuntimeAdapter {
         : [{ kind: "global" }],
       affectedEntries: [{ action, rootId: request.targetRoot.id, ...(installationIds[0] === undefined ? {} : { installationId: installationIds[0] }), relativePath }],
       preconditions: [], conflicts: [], warnings: [], undo: "persistent",
-      summary: request.request.kind === "install-local" ? "Install local skill into an approved Codex authoring root" : "Update an approved writable Codex skill",
+      summary: request.request.kind === "create-skill"
+        ? "Create a skill in an approved Codex authoring root"
+        : request.request.kind === "install-local"
+        ? "Install local skill into an approved Codex authoring root"
+        : "Update an approved writable Codex skill",
     }
-    const step = request.request.kind === "install-local"
+    const step = request.request.kind === "install-local" || request.request.kind === "create-skill"
       ? { kind: "create-installation" as const, rootId: request.targetRoot.id, relativePath, sourceTreeHash: expectedAfter }
       : request.request.kind === "update-from-local"
         ? { kind: "replace-installation" as const, rootId: request.targetRoot.id, relativePath, expectedBeforeHash: expectedBefore ?? sha256("missing"), sourceTreeHash: expectedAfter }

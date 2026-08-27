@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto"
 
+import { createLocalSourceManifest } from "@forge/scanner"
 import { describe, expect, it } from "vitest"
 
 import {
@@ -9,6 +10,7 @@ import {
   OperationInterruptedError,
   OperationNotReadyError,
   OperationValidationError,
+  createContentTreePlan,
   createContentUpdatePlan,
   createInstallPlan,
   createSourceUpdatePlan,
@@ -70,6 +72,19 @@ class FakeFileSystem implements FileSystemPort {
       kind: "file",
       hash: createHash("sha256").update(content).digest("hex"),
       content,
+    })
+  }
+
+  async writeTreeExclusive(destination: ArtifactRef, entries: readonly { relativePath: string; content: string }[]): Promise<void> {
+    if (this.artifacts.has(key(destination))) throw new Error("destination exists")
+    const files = entries.map((entry) => ({
+      path: entry.relativePath,
+      byteLength: Buffer.byteLength(entry.content),
+      sha256: createHash("sha256").update(entry.content).digest("hex"),
+    }))
+    this.artifacts.set(key(destination), {
+      kind: "tree",
+      hash: createLocalSourceManifest(files).treeHash,
     })
   }
 
@@ -176,6 +191,29 @@ describe("operation plan builders", () => {
 })
 
 describe("operation execution and persistent undo", () => {
+  it("creates a persisted direct-content tree and removes it exactly on undo", async () => {
+    const repository = new MemoryOperationRepository()
+    const fileSystem = new FakeFileSystem()
+    const engine = await readyEngine(repository, fileSystem)
+    const plan = createContentTreePlan({
+      id: "plan_create_tree",
+      createdAt: NOW,
+      adapterId: "folder",
+      destination: { rootId: "skills", relativePath: "contract-review" },
+      stage: { rootId: "skills", relativePath: ".contract-review.forge-stage" },
+      entries: [{ relativePath: "SKILL.md", content: "---\nname: contract-review\n---\n" }],
+    })
+
+    await engine.register(plan)
+    await expect(engine.execute(plan.id)).resolves.toMatchObject({ state: "committed", undoStatus: "available" })
+    await expect(fileSystem.observe(plan.artifacts.destination)).resolves.toEqual({
+      exists: true,
+      hash: plan.expectedAfterHash,
+    })
+    await expect(engine.undo(plan.id)).resolves.toMatchObject({ undoStatus: "completed" })
+    await expect(fileSystem.observe(plan.artifacts.destination)).resolves.toEqual({ exists: false })
+  })
+
   it("blocks writes until startup recovery has completed", async () => {
     const repository = new MemoryOperationRepository()
     const fileSystem = seededUpdateFileSystem()

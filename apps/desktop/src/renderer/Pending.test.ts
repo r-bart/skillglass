@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import type { ForgeBridge, InstallationDetailDto, InventoryItemDto } from "@forge/contracts"
 
+import { setActiveLocale } from "./i18n.js"
 import { Pending } from "./Pending.js"
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
@@ -65,6 +66,7 @@ let container: HTMLDivElement
 let root: Root
 
 beforeEach(() => {
+  setActiveLocale("es")
   container = document.createElement("div")
   document.body.append(container)
   root = createRoot(container)
@@ -109,13 +111,15 @@ describe("Pending surface", () => {
     }
 
     await act(async () => root.render(createElement(Pending, {
-      inventoryBridge, operationBridge, eventBridge, onSelectInstallation: vi.fn(), onStatus: vi.fn(),
+      inventoryBridge, operationBridge, eventBridge,
+      monitoredInstallationIds: new Set([available, diverged, invalid].map(({ installationId }) => installationId)),
+      onSelectInstallation: vi.fn(), onStatus: vi.fn(),
     })))
 
     expect(container.textContent).toContain("Actualizaciones disponibles · 1")
     expect(container.textContent).toContain("Conflictos de origen · 1")
     expect(container.textContent).toContain("Validación pendiente · 1")
-    expect(container.querySelector(".pending-header .surface-header__title")?.textContent).toBe("Pendientes")
+    expect(container.querySelector(".pending-header .surface-header__title")?.textContent).toBe("Por revisar")
     expect(container.querySelectorAll(".pending-group .section-label")).toHaveLength(3)
     expect(container.querySelectorAll(".pending-group__status .status-pill__dot")).toHaveLength(3)
     expect(container.querySelectorAll(".pending-group__note")).toHaveLength(3)
@@ -154,7 +158,9 @@ describe("Pending surface", () => {
     }
     const onSelectInstallation = vi.fn()
     await act(async () => root.render(createElement(Pending, {
-      inventoryBridge, operationBridge, eventBridge, onSelectInstallation, onStatus: vi.fn(),
+      inventoryBridge, operationBridge, eventBridge,
+      monitoredInstallationIds: new Set([available.installationId, diverged.installationId]),
+      onSelectInstallation, onStatus: vi.fn(),
     })))
     const checkboxes = container.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')
     await act(async () => { checkboxes[0]?.click(); checkboxes[1]?.click() })
@@ -162,5 +168,79 @@ describe("Pending surface", () => {
     await act(async () => button("Resolver 2 pendientes").click())
     expect(plan).not.toHaveBeenCalled()
     expect(onSelectInstallation).toHaveBeenCalledWith(available.installationId)
+  })
+
+  it("filters unmonitored work and prunes a selection and prepared plan when monitoring changes", async () => {
+    const inventoryBridge: ForgeBridge["inventory"] = {
+      list: () => Promise.resolve({
+        items: [available, diverged, invalid],
+        projects: [],
+        nextCursor: null,
+        total: 3,
+        observedAt: NOW,
+      }),
+      inspect: () => Promise.resolve(detail(available)),
+      openEntry: () => Promise.resolve({ ok: true }),
+    }
+    const plan = vi.fn(() => Promise.resolve({
+      planId: "plan_pruned",
+      kind: "update-from-local" as const,
+      status: "planned" as const,
+      createdAt: NOW,
+      expiresAt: "2026-08-26T10:15:00.000Z",
+      adapterId: "folder",
+      installationIds: [available.installationId],
+      targetRootId: available.rootId,
+      affectedScopes: [{ kind: "global" as const }],
+      affectedEntries: [{
+        action: "modify" as const,
+        rootId: available.rootId,
+        installationId: available.installationId,
+        relativePath: "upgrade-me/SKILL.md",
+      }],
+      preconditions: [],
+      conflicts: [],
+      warnings: [],
+      undo: "persistent" as const,
+      summary: "Actualizar upgrade-me",
+      destinationLabel: "/safe/upgrade-me",
+    }))
+    const operationBridge: ForgeBridge["operations"] = {
+      selectLocalSource: () => Promise.resolve(null),
+      plan,
+      confirm: () => Promise.reject(new Error("not used")),
+      undo: () => Promise.reject(new Error("not used")),
+      history: () => Promise.resolve({ items: [] }),
+      refreshUpdates: () => Promise.resolve({ ok: true }),
+    }
+    const props = {
+      inventoryBridge,
+      operationBridge,
+      eventBridge,
+      onSelectInstallation: vi.fn(),
+      onStatus: vi.fn(),
+    }
+
+    await act(async () => root.render(createElement(Pending, {
+      ...props,
+      monitoredInstallationIds: new Set([available.installationId]),
+    })))
+    expect(container.textContent).toContain("upgrade-me")
+    expect(container.textContent).not.toContain("changed-locally")
+    expect(container.textContent).not.toContain("invalid-skill")
+
+    const checkbox = container.querySelector<HTMLInputElement>('input[type="checkbox"]')
+    await act(async () => checkbox?.click())
+    await act(async () => button("Actualizar 1").click())
+    expect(container.querySelector('[role="dialog"]')).not.toBeNull()
+
+    await act(async () => root.render(createElement(Pending, {
+      ...props,
+      monitoredInstallationIds: new Set<string>(),
+    })))
+
+    expect(container.querySelector('[role="dialog"]')).toBeNull()
+    expect(container.querySelector(".pending-batch")).toBeNull()
+    expect(container.textContent).toContain("No hay acciones pendientes")
   })
 })

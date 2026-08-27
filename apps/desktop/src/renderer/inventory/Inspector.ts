@@ -1,10 +1,7 @@
 import {
-  createElement,
   useEffect,
   useMemo,
-  useRef,
   useState,
-  type ReactNode,
 } from "react"
 
 import type {
@@ -16,9 +13,9 @@ import type {
 } from "@forge/contracts"
 
 import { AccessibleDialog } from "../AccessibleDialog.js"
-import { CodeEditor } from "../CodeEditor.js"
 import { OperationPlanDetails } from "../OperationPlanDetails.js"
-import { TextDiff } from "../TextDiff.js"
+import { createElement, getActiveLocale, localize } from "../i18n.js"
+import { SafeMarkdown } from "../SafeMarkdown.js"
 import {
   DarkAction,
   MetalAction,
@@ -48,7 +45,7 @@ const runtimeLabels: Record<InventoryItemDto["status"]["runtimeState"], string> 
 const sourceLabels: Record<InventoryItemDto["status"]["source"], string> = {
   local: "Local",
   managed: "Gestionada",
-  "read-only": "Solo lectura",
+  "read-only": "Solo lectura · origen observado",
   modified: "Modificada",
   unknown: "Origen desconocido",
 }
@@ -63,7 +60,7 @@ const updateLabels: Record<InventoryItemDto["status"]["update"], string> = {
 
 const provenanceLabels: Record<InstallationDetailDto["provenance"]["kind"], string> = {
   local: "Local",
-  "forge-import": "Importada por Forge",
+  "forge-import": "Importada por Skill Forge",
   registry: "Registro",
   package: "Paquete",
   plugin: "Plugin",
@@ -72,7 +69,7 @@ const provenanceLabels: Record<InstallationDetailDto["provenance"]["kind"], stri
 }
 
 const managerLabels: Record<InstallationDetailDto["provenance"]["managedBy"], string> = {
-  forge: "Forge",
+  forge: "Skill Forge",
   external: "Herramienta externa",
   runtime: "Runtime",
   user: "Usuario",
@@ -158,57 +155,6 @@ function evidenceTone(evidence: Evidence): "ok" | "attention" | "idle" {
   }
 }
 
-function markdownBody(source: string): string {
-  const opening = /^(?:\uFEFF)?---(?:\r\n|\n|\r)/u.exec(source)
-  if (opening === null) return source
-  const closing = /^(?:---|\.\.\.)[ \t]*(?:\r\n|\n|\r|$)/gmu
-  closing.lastIndex = opening[0].length
-  const match = closing.exec(source)
-  return match === null ? source : source.slice(match.index + match[0].length)
-}
-
-/**
- * Intentionally small read-only renderer. Every token is emitted as React text;
- * raw HTML, links, images, directives and scripts are never interpreted.
- */
-export function SafeMarkdown({ source }: { readonly source: string }) {
-  const nodes: ReactNode[] = []
-  const lines = markdownBody(source).split(/\r\n|\n|\r/u)
-  let code: string[] | undefined
-  for (const line of lines) {
-    if (/^\s*```/u.test(line)) {
-      if (code === undefined) code = []
-      else {
-        nodes.push(createElement("pre", { key: nodes.length }, createElement("code", null, code.join("\n"))))
-        code = undefined
-      }
-      continue
-    }
-    if (code !== undefined) {
-      code.push(line)
-      continue
-    }
-    const heading = /^(#{1,6})\s+(.+)$/u.exec(line)
-    if (heading !== null) {
-      const level = Math.min(6, heading[1]?.length ?? 3)
-      nodes.push(createElement(`h${level}`, { key: nodes.length }, heading[2]))
-      continue
-    }
-    const listItem = /^\s*[-*+]\s+(.+)$/u.exec(line)
-    if (listItem !== null) {
-      nodes.push(createElement("ul", { key: nodes.length }, createElement("li", null, listItem[1])))
-      continue
-    }
-    if (line.trim().length > 0) {
-      nodes.push(createElement("p", { key: nodes.length }, line))
-    }
-  }
-  if (code !== undefined) {
-    nodes.push(createElement("pre", { key: nodes.length }, createElement("code", null, code.join("\n"))))
-  }
-  return createElement("div", { className: "safe-markdown" }, ...nodes)
-}
-
 function EmptyInspector() {
   return createElement(
     "div",
@@ -247,23 +193,20 @@ function Inspection({
   detail,
   inventoryBridge,
   operationBridge,
+  onEditEntry,
   onStatus,
 }: {
   readonly detail: InstallationDetailDto
   readonly inventoryBridge: ForgeBridge["inventory"]
   readonly operationBridge?: ForgeBridge["operations"]
+  readonly onEditEntry?: (installationId: string, trigger: HTMLElement) => void
   readonly onStatus?: (message: string) => void
 }) {
   const [sourceView, setSourceView] = useState<SourceView>("preview")
   const [actionError, setActionError] = useState<string>()
-  const [editing, setEditing] = useState(false)
-  const [content, setContent] = useState(detail.rawEntryContent)
-  const [plan, setPlan] = useState<OperationPlanDto>()
   const [sourcePlan, setSourcePlan] = useState<OperationPlanDto>()
   const [sourceConflict, setSourceConflict] = useState<string>()
   const [operationBusy, setOperationBusy] = useState(false)
-  const editButtonRef = useRef<HTMLButtonElement>(null)
-  const reviewButtonRef = useRef<HTMLButtonElement>(null)
   const path = entryPath(detail)
   const name = detail.installation.name.state === "known"
     ? detail.installation.name.value
@@ -285,41 +228,6 @@ function Inspection({
     }
   }
 
-  const review = async (): Promise<void> => {
-    if (operationBridge === undefined) return
-    setOperationBusy(true)
-    setActionError(undefined)
-    try {
-      setPlan(await operationBridge.plan({
-        kind: "update-entry-content",
-        installationId: detail.installation.installationId,
-        expectedSnapshotId: detail.snapshotId,
-        content,
-      }))
-    } catch (reason) {
-      setActionError(reason instanceof Error ? reason.message : "No se pudo preparar la actualización")
-    } finally {
-      setOperationBusy(false)
-    }
-  }
-
-  const confirm = async (): Promise<void> => {
-    if (operationBridge === undefined || plan === undefined) return
-    setOperationBusy(true)
-    setActionError(undefined)
-    try {
-      const result = await operationBridge.confirm({ planId: plan.planId })
-      if (result.status !== "committed") throw new Error(result.message)
-      setPlan(undefined)
-      setEditing(false)
-      onStatus?.(result.message)
-    } catch (reason) {
-      setActionError(reason instanceof Error ? reason.message : "No se pudo actualizar la skill")
-    } finally {
-      setOperationBusy(false)
-    }
-  }
-
   const prepareSourceUpdate = async (): Promise<void> => {
     if (operationBridge === undefined) return
     setOperationBusy(true)
@@ -338,7 +246,7 @@ function Inspection({
       }
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : "La instalación contiene cambios locales"
-      setSourceConflict(`Forge detectó cambios locales y no sobrescribirá la instalación. ${message}`)
+      setSourceConflict(`Skill Forge detectó cambios locales y no sobrescribirá la instalación. ${message}`)
     } finally {
       setOperationBusy(false)
     }
@@ -351,7 +259,7 @@ function Inspection({
     try {
       const result = await operationBridge.confirm({ planId: sourcePlan.planId })
       if (result.status === "conflict") {
-        setSourceConflict(`Forge detectó cambios locales y no sobrescribirá la instalación. ${result.message}`)
+        setSourceConflict(`Skill Forge detectó cambios locales y no sobrescribirá la instalación. ${result.message}`)
         setSourcePlan(undefined)
         return
       }
@@ -363,11 +271,6 @@ function Inspection({
     } finally {
       setOperationBusy(false)
     }
-  }
-
-  const closeContentPlan = (): void => {
-    setPlan(undefined)
-    requestAnimationFrame(() => reviewButtonRef.current?.focus())
   }
 
   return createElement(
@@ -406,121 +309,9 @@ function Inspection({
       { className: "inspector-detail__description" },
       createElement("p", { className: "inspector-description" }, description),
     ),
-    editing && plan === undefined
-      ? createElement(
-          AccessibleDialog,
-          {
-            className: "editor-sheet",
-            describedBy: "editor-dialog-description",
-            labelledBy: "editor-dialog-title",
-            onDismiss: () => { setEditing(false); setPlan(undefined) },
-            returnFocus: editButtonRef,
-          },
-            createElement(
-              "header",
-              { className: "sheet-header editor-sheet__header" },
-              createElement(SkillTile, {
-                adapterId: detail.installation.adapterId,
-                className: "editor-sheet__tile",
-                skillKey: detail.installation.key,
-              }),
-              createElement(
-                "div",
-                { className: "editor-sheet__identity" },
-                createElement("h3", { id: "editor-dialog-title" }, `Editar ${name}`),
-                createElement(
-                  "p",
-                  { id: "editor-dialog-description" },
-                  `${adapterLabel(detail.installation.adapterId)} · ${scopeLabel(detail.installation.scope)} · editable`,
-                ),
-              ),
-              createElement(StatusPill, { tone: "ok" }, "Editable"),
-            ),
-            createElement(
-              "div",
-              { className: "editor-sheet__body" },
-              createElement(
-                "section",
-                { className: "entry-editor", "aria-labelledby": "editor-content-label" },
-                createElement("p", { className: "editor-label", id: "editor-content-label" }, "Contenido de SKILL.md"),
-                createElement(CodeEditor, { ariaLabel: "Contenido", value: content, onChange: setContent }),
-              ),
-              createElement(
-                "aside",
-                { className: "editor-sheet__facts", "aria-labelledby": "editor-context-title" },
-                createElement("h4", { className: "editor-label", id: "editor-context-title" }, "Contexto observado"),
-                createElement(
-                  "dl",
-                  null,
-                  createElement("div", null, createElement("dt", null, "Skill"), createElement("dd", null, name)),
-                  createElement("div", null, createElement("dt", null, "Ubicación"), createElement("dd", null, path)),
-                  createElement("div", null, createElement("dt", null, "Gestión"), createElement("dd", null, managerLabels[detail.provenance.managedBy])),
-                  createElement("div", null, createElement("dt", null, "Snapshot"), createElement("dd", null, detail.snapshotId)),
-                ),
-                createElement(
-                  "p",
-                  { className: "editor-sheet__safety" },
-                  "Forge prepara un diff exacto antes de escribir y conserva una operación reversible cuando el backend lo acredita.",
-                ),
-              ),
-            ),
-            actionError === undefined
-              ? null
-              : createElement("p", { className: "form-error editor-sheet__error", role: "alert" }, actionError),
-            createElement(
-              "footer",
-              { className: "sheet-footer editor-sheet__footer" },
-              createElement("p", { className: "editor-sheet__note" }, "Los cambios aún no se han escrito en disco."),
-              createElement("button", {
-                className: "secondary-action",
-                disabled: operationBusy,
-                onClick: () => { setEditing(false); setPlan(undefined) },
-                type: "button",
-              }, "Cancelar"),
-              createElement("button", {
-                ref: reviewButtonRef,
-                className: "primary-action",
-                type: "button",
-                disabled: operationBusy || content === detail.rawEntryContent,
-                onClick: () => { void review() },
-              }, operationBusy ? "Preparando…" : "Revisar cambios"),
-            ),
-        )
-      : null,
     createElement(
       "div",
       { className: "inspector-detail__scroll" },
-      plan === undefined
-        ? null
-        : createElement(
-            AccessibleDialog,
-            {
-              labelledBy: "update-dialog-title",
-              returnFocus: reviewButtonRef,
-              ...(operationBusy ? {} : { onDismiss: closeContentPlan }),
-            },
-              createElement("h3", { id: "update-dialog-title" }, "Confirmar actualización"),
-              createElement(OperationPlanDetails, { plan }),
-              createElement("p", { className: "inspector-path" }, path),
-              createElement("h4", null, "Diferencia de contenido"),
-              createElement(TextDiff, { before: detail.rawEntryContent, after: content }),
-              createElement(
-                "div",
-                { className: "inspector-actions" },
-                createElement("button", {
-                  type: "button",
-                  className: "primary-action",
-                  disabled: operationBusy,
-                  onClick: () => { void confirm() },
-                }, operationBusy ? "Actualizando…" : "Actualizar skill"),
-                createElement("button", {
-                  type: "button",
-                  className: "secondary-action",
-                  disabled: operationBusy,
-                  onClick: closeContentPlan,
-                }, "Volver"),
-              ),
-          ),
       sourceConflict === undefined
         ? null
         : createElement(
@@ -547,7 +338,7 @@ function Inspection({
                 createElement("button", { type: "button", className: "secondary-action", disabled: operationBusy, onClick: () => setSourcePlan(undefined) }, "Cancelar"),
               ),
           ),
-      actionError === undefined || editing
+      actionError === undefined
         ? null
         : createElement("p", { className: "form-error", role: "alert" }, actionError),
       createElement(
@@ -640,7 +431,7 @@ function Inspection({
               "li",
               { key: `${requirement.kind}:${requirement.name}:${index}` },
               createElement("strong", null, requirement.name),
-              createElement("span", null, ` · ${requirement.resolution} · ${evidenceLabel(requirement.evidence).toLocaleLowerCase("es-ES")}`),
+              createElement("span", null, ` · ${requirement.resolution} · ${localize(evidenceLabel(requirement.evidence)).toLocaleLowerCase(getActiveLocale() === "es" ? "es-ES" : "en-US")}`),
             )),
           ),
     ),
@@ -690,31 +481,24 @@ function Inspection({
     createElement(
       "footer",
       { className: "inspector-footer" },
-      editing
-        ? createElement("span", { className: "inspector-read-only-note" }, "Edición abierta")
-        : createElement(DarkAction, { onClick: () => { void openEntry() } }, "Abrir archivo"),
-      !editing && detail.capabilities.canEditEntry
+      createElement(DarkAction, { onClick: () => { void openEntry() } }, "Abrir archivo"),
+      detail.capabilities.canEditEntry
         ? createElement("button", {
-              ref: editButtonRef,
               className: "visual-action visual-action--quiet",
-              onClick: () => {
-                setContent(detail.rawEntryContent)
-                setEditing(true)
-                setPlan(undefined)
+              onClick: (event) => {
+                onEditEntry?.(detail.installation.installationId, event.currentTarget)
               },
               type: "button",
             }, "Editar")
-        : !editing
-          ? createElement(
-              "span",
-              {
-                className: "inspector-read-only-note",
-                title: detail.capabilities.unavailableReasons.join(" · "),
-              },
-              "Solo inspección",
-            )
-          : null,
-      !editing && detail.capabilities.canUpdateFromSource && (
+        : createElement(
+            "span",
+            {
+              className: "inspector-read-only-note",
+              title: detail.capabilities.unavailableReasons.join(" · "),
+            },
+            "Solo inspección",
+          ),
+      detail.capabilities.canUpdateFromSource && (
         detail.installation.status.update === "available" ||
         detail.installation.status.update === "diverged"
       )
@@ -731,11 +515,12 @@ export interface InspectorProps {
   readonly installationId?: string
   readonly inventoryBridge: ForgeBridge["inventory"]
   readonly operationBridge?: ForgeBridge["operations"]
+  readonly onEditEntry?: (installationId: string, trigger: HTMLElement) => void
   readonly onStatus?: (message: string) => void
   readonly revision?: number
 }
 
-export function Inspector({ installationId, inventoryBridge, operationBridge, onStatus, revision = 0 }: InspectorProps) {
+export function Inspector({ installationId, inventoryBridge, operationBridge, onEditEntry, onStatus, revision = 0 }: InspectorProps) {
   const [detail, setDetail] = useState<InstallationDetailDto>()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string>()
@@ -775,9 +560,10 @@ export function Inspector({ installationId, inventoryBridge, operationBridge, on
       detail,
       inventoryBridge,
       ...(operationBridge === undefined ? {} : { operationBridge }),
+      ...(onEditEntry === undefined ? {} : { onEditEntry }),
       ...(onStatus === undefined ? {} : { onStatus }),
     })
-  }, [detail, error, installationId, inventoryBridge, loading, onStatus, operationBridge])
+  }, [detail, error, installationId, inventoryBridge, loading, onEditEntry, onStatus, operationBridge])
 
   return createElement(
     "aside",

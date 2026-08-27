@@ -1,6 +1,7 @@
-import { createElement, type ReactNode } from "react"
+import { type ReactNode } from "react"
 
 import type { OperationPlanDto } from "@forge/contracts"
+import { createElement } from "./i18n.js"
 
 function scopeLabel(scope: OperationPlanDto["affectedScopes"][number]): string {
   return scope.kind === "global" ? "Global" : `Proyecto ${scope.projectId}`
@@ -35,7 +36,7 @@ export function OperationPlanDetails({ plan }: { readonly plan: OperationPlanDto
       createElement("div", null, createElement("dt", null, "Ámbito"), createElement("dd", null, plan.affectedScopes.map(scopeLabel).join(", ") || "Sin cambio de ámbito")),
       createElement("div", null, createElement("dt", null, "Deshacer"), createElement("dd", null, plan.undo === "persistent" ? "Disponible tras reiniciar" : "No disponible")),
       createElement("div", null, createElement("dt", null, "Cancelación"), createElement("dd", null, "Disponible antes de confirmar; no durante la escritura atómica")),
-      createElement("div", null, createElement("dt", null, "Recuperación"), createElement("dd", null, "Persistente; Forge la comprueba al volver a arrancar")),
+      createElement("div", null, createElement("dt", null, "Recuperación"), createElement("dd", null, "Persistente; Skill Forge la comprueba al volver a arrancar")),
     ),
     createElement("h4", null, "Cambios exactos"),
     createElement(
