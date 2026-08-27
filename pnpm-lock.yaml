@@ -135,6 +135,9 @@ importers:
       electron:
         specifier: 43.4.1
         version: 43.4.1
+      lodash:
+        specifier: 4.18.1
+        version: 4.18.1
       vite:
         specifier: 5.4.21
         version: 5.4.21(@types/node@24.13.3)(terser@5.50.0)
@@ -5670,8 +5673,7 @@ snapshots:
 
   lodash.get@4.4.2: {}
 
-  lodash@4.18.1:
-    optional: true
+  lodash@4.18.1: {}
 
   log-symbols@4.1.0:
     dependencies:

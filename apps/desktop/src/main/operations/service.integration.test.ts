@@ -35,9 +35,11 @@ import { DesktopOperationService } from "./service.js"
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../..")
 const fixtureRoot = path.join(repositoryRoot, "packages/test-fixtures/imports/directories/basic-skill")
 const temporaryDirectories: string[] = []
+const openStores: ReturnType<typeof openForgeStore>[] = []
 const RECOVERY_ROOT_ID = "forge-recovery-v1"
 
 afterEach(async () => {
+  for (const store of openStores.splice(0)) store.close()
   await Promise.all(temporaryDirectories.splice(0).map((directory) => rm(directory, { recursive: true, force: true })))
 })
 
@@ -91,6 +93,7 @@ async function harness(options: HarnessOptions = {}) {
     writableWithoutElevation: true,
   }] })
   const store = openForgeStore({ path: databasePath })
+  openStores.push(store)
   store.projections.replaceInventory({ projects: [], roots: [root], installations: [] })
   const policy = await RefreshableApprovedRootPolicy.create([root], [recovery])
   const repository = new StorageOperationRepository(store.operations)
