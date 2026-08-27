@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises"
+import path from "node:path"
 import { describe, expect, it, vi } from "vitest"
 
 import { FuseV1Options } from "@electron/fuses"
@@ -45,8 +46,8 @@ describe("desktop distributable policy", () => {
     })
   })
 
-  it("ships the Forge Apache license as a distribution resource", async () => {
-    expect(FORGE_LICENSE_PATH).toMatch(/\/LICENSE$/)
+  it("ships the Skillglass Apache license as a distribution resource", async () => {
+    expect(path.basename(FORGE_LICENSE_PATH)).toBe("LICENSE")
     await expect(readFile(FORGE_LICENSE_PATH, "utf8")).resolves.toContain(
       "Apache License\n                           Version 2.0, January 2004",
     )
@@ -63,16 +64,17 @@ describe("desktop distributable policy", () => {
 
   it("re-seals the final macOS bundle deeply after fuses and fails closed", async () => {
     const run = vi.fn(() => Promise.resolve())
+    const outputPath = "/tmp/Skillglass-darwin-arm64"
     await finalizeDarwinAdHocSignature({
       platform: "darwin",
-      outputPaths: ["/tmp/Skillglass-darwin-arm64"],
+      outputPaths: [outputPath],
     }, run)
     expect(run).toHaveBeenCalledWith("/usr/bin/codesign", [
       "--force",
       "--deep",
       "--sign",
       "-",
-      "/tmp/Skillglass-darwin-arm64/Skillglass.app",
+      path.join(outputPath, "Skillglass.app"),
     ])
 
     await expect(finalizeDarwinAdHocSignature({
