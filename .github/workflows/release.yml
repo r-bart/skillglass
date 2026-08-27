@@ -120,8 +120,8 @@ jobs:
       - name: Configure Linux sandbox helper for unpacked smoke tests
         if: runner.os == 'Linux'
         run: |
-          sudo chown root:root apps/desktop/out/Skill\ Forge-linux-*/chrome-sandbox
-          sudo chmod 4755 apps/desktop/out/Skill\ Forge-linux-*/chrome-sandbox
+          sudo chown root:root apps/desktop/out/Skillglass-linux-*/chrome-sandbox
+          sudo chmod 4755 apps/desktop/out/Skillglass-linux-*/chrome-sandbox
       - name: Electron E2E and packaged SQLite reopen smoke
         if: runner.os != 'Linux'
         env:

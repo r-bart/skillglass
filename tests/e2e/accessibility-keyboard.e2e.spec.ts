@@ -175,7 +175,9 @@ test.describe("Forge keyboard and accessibility acceptance", () => {
         const numberBox = firstNumber.getBoundingClientRect()
         return {
           firstLine: firstLine.textContent,
-          hasAuthorizedStyles: generatedStyles.some((style) => style.nonce === window.forgeStyleNonce),
+          hasAuthorizedStyles: generatedStyles.some(
+            (style) => style.nonce === (window as Window & { forgeStyleNonce?: string }).forgeStyleNonce,
+          ),
           lineTop: lineBox.top,
           numberTop: numberBox.top,
         }
