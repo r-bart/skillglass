@@ -543,6 +543,8 @@ test.describe("Forge geometric fidelity", () => {
 })
 
 test.describe("Skill workspace visual acceptance", () => {
+  test.skip(process.platform !== "darwin", "Approved pixel baselines are maintained on macOS")
+
   for (const { label, viewport } of workspaceViewports) {
     test(`keeps Preview, Code, and Changes deterministic at ${label}`, async () => {
       const scenario = await launchForgeVisualScenario("editor")
@@ -588,6 +590,8 @@ test.describe("Skill workspace visual acceptance", () => {
 })
 
 test.describe("Forge visual regression", () => {
+  test.skip(process.platform !== "darwin", "Approved pixel baselines are maintained on macOS")
+
   for (const scenarioName of visualScenarios) {
     test(`${scenarioName} matches its approved ${platformSnapshotSuffix} baseline`, async () => {
       const scenario = await launchForgeVisualScenario(scenarioName)

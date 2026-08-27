@@ -105,7 +105,7 @@ test.describe("onboarding and monitoring acceptance", () => {
       await dialog.getByRole("button", { name: "Seleccionar las visibles" }).click()
       await dialog.getByLabel("Seleccionar global-review").uncheck()
       await dialog.getByRole("button", { name: "Guardar cambios" }).click()
-      await expect(app.page.getByRole("status")).toContainText("Seguimiento actualizado")
+      await expect(app.page.getByRole("status").filter({ hasText: "Seguimiento actualizado" })).toBeVisible()
       const globalReview = app.page.getByRole("row").filter({ hasText: "global-review" })
       await expect(globalReview).not.toContainText("En seguimiento")
       await expect(app.page.getByRole("row", { name: /project-release.*En seguimiento/u })).toBeVisible()
