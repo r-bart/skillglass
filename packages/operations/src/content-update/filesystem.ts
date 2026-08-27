@@ -81,7 +81,7 @@ export class ProjectionContentFileSystem implements FileSystemPort {
     const sourcePath = await this.#readPath(source)
     const destinationPath = await this.#writePath(destination)
     await copyFile(sourcePath, destinationPath, fsConstants.COPYFILE_EXCL)
-    const handle = await open(destinationPath, "r")
+    const handle = await open(destinationPath, "r+")
     try { await handle.sync() } finally { await handle.close() }
   }
 

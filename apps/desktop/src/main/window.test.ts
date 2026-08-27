@@ -1,3 +1,5 @@
+import path from "node:path"
+
 import { describe, expect, it } from "vitest"
 
 import {
@@ -10,7 +12,7 @@ import {
 describe("desktop window options", () => {
   it("uses the product icon for the macOS Dock only in source development", () => {
     expect(developmentDockIconPath("/workspace/apps/desktop", false, "darwin"))
-      .toBe("/workspace/branding/Skillglass.png")
+      .toBe(path.join("/workspace/apps/desktop", "../../branding/Skillglass.png"))
     expect(developmentDockIconPath("/workspace/apps/desktop", true, "darwin")).toBeUndefined()
     expect(developmentDockIconPath("/workspace/apps/desktop", false, "linux")).toBeUndefined()
   })

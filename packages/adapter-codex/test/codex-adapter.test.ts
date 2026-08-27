@@ -39,7 +39,8 @@ beforeEach(async () => {
   workingDirectory = path.join(repositoryRoot, "services", "api", "src")
   adminRoot = path.join(fixtureRoot, "admin", "etc", "codex", "skills")
   configFile = path.join(home, ".codex", "config.toml")
-  await writeFile(configFile, (await readFile(configFile, "utf8")).replaceAll("__FIXTURE_ROOT__", fixtureRoot))
+  const escapedFixtureRoot = JSON.stringify(fixtureRoot).slice(1, -1)
+  await writeFile(configFile, (await readFile(configFile, "utf8")).replaceAll("__FIXTURE_ROOT__", escapedFixtureRoot))
   manifest = JSON.parse(await readFile(path.join(fixtureRoot, "fixture-manifest.json"), "utf8")) as GoldenManifest
 })
 
