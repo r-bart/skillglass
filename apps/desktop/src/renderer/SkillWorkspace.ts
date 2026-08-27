@@ -73,7 +73,7 @@ const updateLabels: Record<InventoryItemDto["status"]["update"], string> = {
 }
 
 const managerLabels: Record<InstallationDetailDto["provenance"]["managedBy"], string> = {
-  forge: "Skill Forge",
+  forge: "Skillglass",
   external: "Herramienta externa",
   runtime: "Runtime",
   user: "Usuario",
@@ -152,7 +152,7 @@ function invalidPlanMessage(plan: OperationPlanDto): string {
   if (plan.conflicts.length > 0) {
     return plan.conflicts.map(({ message }) => message).join(" ")
   }
-  return "Skill Forge no puede preparar esta actualización con el estado observado."
+  return "Skillglass no puede preparar esta actualización con el estado observado."
 }
 
 function operationFailureMessage(result: OperationResultDto): string {
@@ -1094,7 +1094,7 @@ export function SkillWorkspace(props: SkillWorkspaceProps) {
             createElement(
               "p",
               { className: "workspace-context__safety" },
-              "Skill Forge prepara un diff exacto antes de escribir y conserva una operación reversible cuando el backend lo acredita.",
+              "Skillglass prepara un diff exacto antes de escribir y conserva una operación reversible cuando el backend lo acredita.",
             ),
           ),
         ),

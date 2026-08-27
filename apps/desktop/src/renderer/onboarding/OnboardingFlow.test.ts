@@ -193,7 +193,7 @@ describe("OnboardingFlow", () => {
       onComplete,
     })))
 
-    expect(container.textContent).not.toContain("Bienvenido a Skill Forge")
+    expect(container.textContent).not.toContain("Bienvenido a Skillglass")
     expect(container.querySelector("h1")?.textContent)
       .toBe("Elige las skills que quieres seguir de cerca.")
     expect(container.querySelector<HTMLInputElement>('input[type="checkbox"]')?.checked).toBe(true)

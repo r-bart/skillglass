@@ -77,7 +77,7 @@ const sourceOptions = [
   { value: "", label: "Todos" }, { value: "local", label: "Local" }, { value: "managed", label: "Gestionada" }, { value: "read-only", label: "Instalaciones de solo lectura" }, { value: "modified", label: "Modificada" }, { value: "unknown", label: "Sin datos" },
 ] as const
 const provenanceOptions = [
-  { value: "", label: "Todas" }, { value: "local", label: "Local" }, { value: "forge-import", label: "Importada por Skill Forge" }, { value: "registry", label: "Registro" }, { value: "package", label: "Paquete" }, { value: "plugin", label: "Plugin" }, { value: "system", label: "Sistema" }, { value: "unknown", label: "Sin datos" },
+  { value: "", label: "Todas" }, { value: "local", label: "Local" }, { value: "forge-import", label: "Importada por Skillglass" }, { value: "registry", label: "Registro" }, { value: "package", label: "Paquete" }, { value: "plugin", label: "Plugin" }, { value: "system", label: "Sistema" }, { value: "unknown", label: "Sin datos" },
 ] as const
 const updateOptions = [
   { value: "", label: "Todas" }, { value: "available", label: "Disponible" }, { value: "diverged", label: "Con cambios locales" }, { value: "current", label: "Actualizadas" }, { value: "unknown", label: "Sin datos" },

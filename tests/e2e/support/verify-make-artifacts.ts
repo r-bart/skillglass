@@ -36,7 +36,7 @@ const distributables = artifacts.filter((artifact) =>
   expected.some((extension) => artifact.toLocaleLowerCase("en-US").endsWith(extension)))
 const matched = distributables.filter((artifact) => {
   const basename = path.basename(artifact).toLocaleLowerCase("en-US")
-  return basename.startsWith("forge") || basename.startsWith("skill forge") || basename.startsWith("skill-forge")
+  return basename.startsWith("skillglass")
 })
 const foreign = distributables.filter((artifact) => !matched.includes(artifact))
 if (foreign.length > 0) {

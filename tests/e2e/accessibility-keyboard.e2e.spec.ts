@@ -82,7 +82,7 @@ test.describe("Forge keyboard and accessibility acceptance", () => {
     const skipExplanation = app.page.getByRole("button", { name: "Saltar explicación" })
     await skipExplanation.focus()
     await skipExplanation.press("Enter")
-    await expect(app.page.getByRole("group", { name: "Ubicaciones que Skill Forge puede observar" })).toBeVisible()
+    await expect(app.page.getByRole("group", { name: "Ubicaciones que Skillglass puede observar" })).toBeVisible()
     expect(await app.page.evaluate(() => matchMedia("(prefers-reduced-motion: reduce)").matches)).toBe(true)
     expect(await app.page.evaluate(() => matchMedia("(forced-colors: active)").matches)).toBe(true)
 

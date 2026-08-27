@@ -25,7 +25,7 @@ export function developmentDockIconPath(
   platform: NodeJS.Platform = process.platform,
 ): string | undefined {
   if (platform !== "darwin" || usesBuiltAssets) return undefined
-  return join(appPath, "../../branding/SkillForge.png")
+  return join(appPath, "../../branding/Skillglass.png")
 }
 
 function clampPreferredDimension(preferred: number, minimum: number, available: number): number {
@@ -62,7 +62,7 @@ export function calculateWindowOptions(
         : {}
 
   return {
-    title: "Skill Forge",
+    title: "Skillglass",
     width: clampPreferredDimension(
       PREFERRED_CONTENT_SIZE.width,
       MINIMUM_CONTENT_SIZE.width,

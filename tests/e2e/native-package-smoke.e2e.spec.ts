@@ -11,10 +11,10 @@ const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url))
 const outputRoot = path.join(repositoryRoot, "apps", "desktop", "out")
 
 async function packagedExecutable(): Promise<string> {
-  const packageRoot = path.join(outputRoot, `Skill Forge-${process.platform}-${process.arch}`)
-  const executableName = process.platform === "linux" ? "skill-forge" : "Skill Forge"
+  const packageRoot = path.join(outputRoot, `Skillglass-${process.platform}-${process.arch}`)
+  const executableName = process.platform === "linux" ? "skillglass" : "Skillglass"
   const executable = process.platform === "darwin"
-    ? path.join(packageRoot, "Skill Forge.app", "Contents", "MacOS", executableName)
+    ? path.join(packageRoot, "Skillglass.app", "Contents", "MacOS", executableName)
     : path.join(packageRoot, process.platform === "win32" ? `${executableName}.exe` : executableName)
   await access(executable)
   return executable

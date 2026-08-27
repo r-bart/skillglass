@@ -565,7 +565,7 @@ export function App({
             ? null
             : createElement("small", null, operationProgress.stage === "rolling-back"
               ? "Recuperación en curso; la operación no se puede cancelar."
-              : "No cancelable durante la escritura; si se interrumpe, Skill Forge recuperará el journal al reiniciar."),
+              : "No cancelable durante la escritura; si se interrumpe, Skillglass recuperará el journal al reiniciar."),
         ),
     historyOpen
       ? createElement(

@@ -270,7 +270,7 @@ export function OnboardingFlow({
       createElement(
         "p",
         null,
-        "Skill Forge destacará cambios en su contenido, validez y origen. Solo observa archivos locales: nunca ejecuciones ni conversaciones.",
+        "Skillglass destacará cambios en su contenido, validez y origen. Solo observa archivos locales: nunca ejecuciones ni conversaciones.",
       ),
     ),
     createElement(SkillSelectionList, {

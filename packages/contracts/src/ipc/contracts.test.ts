@@ -49,8 +49,8 @@ const inventoryItem = {
   adapterId: "adapter_codex",
   rootId: "root_global",
   scope: { kind: "global" as const },
-  key: "skill-forge",
-  name: { state: "known" as const, value: "Skill Forge", evidence: observed },
+  key: "skillglass",
+  name: { state: "known" as const, value: "Skillglass", evidence: observed },
   description: { state: "unknown" as const, evidence: unknown },
   declaredVersion: { state: "unknown" as const, evidence: unknown },
   status: {
@@ -194,9 +194,9 @@ describe("inventory contracts", () => {
     expectJsonRoundTrip(InstallationDetailDtoSchema, {
       installation: inventoryItem,
       snapshotId: "snapshot_alpha",
-      locationLabel: "Codex user skills / skill-forge",
+      locationLabel: "Codex user skills / skillglass",
       entryFile: "SKILL.md",
-      rawEntryContent: "---\nname: skill-forge\n---\n",
+      rawEntryContent: "---\nname: skillglass\n---\n",
       contentHash: HASH_A,
       files: [
         {
@@ -362,12 +362,12 @@ describe("operation contracts", () => {
         {
           action: "create",
           rootId: "root_global",
-          relativePath: "skill-forge/SKILL.md",
+          relativePath: "skillglass/SKILL.md",
         },
         {
           action: "delete",
           rootId: "root_global",
-          relativePath: "skill-forge/obsolete.md",
+          relativePath: "skillglass/obsolete.md",
           beforeByteLength: 12,
           beforeSha256: "d".repeat(64),
         },
@@ -376,7 +376,7 @@ describe("operation contracts", () => {
       conflicts: [],
       warnings: [],
       undo: "persistent",
-      summary: "Install Skill Forge",
+      summary: "Install Skillglass",
     })
 
     expectJsonRoundTrip(OperationResultDtoSchema, {

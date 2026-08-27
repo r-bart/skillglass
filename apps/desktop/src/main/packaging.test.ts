@@ -11,22 +11,22 @@ import config, {
   FORGE_LICENSE_PATH,
   FORGE_LINUX_MAKER_OPTIONS,
   FORGE_PACKAGER_CONFIG,
-  SKILL_FORGE_EXECUTABLE_NAME,
-  SKILL_FORGE_ICON_PATH,
-  SKILL_FORGE_PRODUCT_NAME,
+  SKILLGLASS_EXECUTABLE_NAME,
+  SKILLGLASS_ICON_PATH,
+  SKILLGLASS_PRODUCT_NAME,
 } from "../../forge.config.js"
 import mainVite from "../../vite.main.config.js"
 import preloadVite from "../../vite.preload.config.js"
 import rendererVite from "../../vite.renderer.config.js"
 
 describe("desktop distributable policy", () => {
-  it("packages only the Skill Forge product in an integrity-protected ASAR", () => {
+  it("packages only the Skillglass product in an integrity-protected ASAR", () => {
     expect(FORGE_PACKAGER_CONFIG).toMatchObject({
       asar: true,
-      name: SKILL_FORGE_PRODUCT_NAME,
-      executableName: SKILL_FORGE_EXECUTABLE_NAME,
-      icon: SKILL_FORGE_ICON_PATH,
-      appBundleId: "app.skillforge.desktop",
+      name: SKILLGLASS_PRODUCT_NAME,
+      executableName: SKILLGLASS_EXECUTABLE_NAME,
+      icon: SKILLGLASS_ICON_PATH,
+      appBundleId: "dev.skillglass.desktop",
       extraResource: [FORGE_LICENSE_PATH],
       prune: true,
     })
@@ -37,9 +37,9 @@ describe("desktop distributable policy", () => {
       "MakerRpm",
     ])
     expect(FORGE_LINUX_MAKER_OPTIONS).toMatchObject({
-      name: "forge",
-      productName: SKILL_FORGE_PRODUCT_NAME,
-      bin: SKILL_FORGE_EXECUTABLE_NAME,
+      name: "skillglass",
+      productName: SKILLGLASS_PRODUCT_NAME,
+      bin: SKILLGLASS_EXECUTABLE_NAME,
       license: "Apache-2.0",
       categories: ["Development"],
     })
@@ -65,19 +65,19 @@ describe("desktop distributable policy", () => {
     const run = vi.fn(() => Promise.resolve())
     await finalizeDarwinAdHocSignature({
       platform: "darwin",
-      outputPaths: ["/tmp/Skill Forge-darwin-arm64"],
+      outputPaths: ["/tmp/Skillglass-darwin-arm64"],
     }, run)
     expect(run).toHaveBeenCalledWith("/usr/bin/codesign", [
       "--force",
       "--deep",
       "--sign",
       "-",
-      "/tmp/Skill Forge-darwin-arm64/Skill Forge.app",
+      "/tmp/Skillglass-darwin-arm64/Skillglass.app",
     ])
 
     await expect(finalizeDarwinAdHocSignature({
       platform: "darwin",
-      outputPaths: ["/tmp/Skill Forge-darwin-arm64"],
+      outputPaths: ["/tmp/Skillglass-darwin-arm64"],
     }, () => Promise.reject(new Error("codesign failed")))).rejects.toThrow("codesign failed")
   })
 

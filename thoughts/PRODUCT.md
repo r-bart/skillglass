@@ -1,11 +1,11 @@
-# Forge — Product Contract
+# Skillglass — Product Contract
 
 **Status**: MVP implemented; beta release gates pending
 **Updated**: 2026-08-26
 
 ## Product Thesis
 
-Forge is a local-first desktop application for discovering, understanding, installing, and safely updating agent skills on a developer's machine.
+Skillglass is a local-first desktop application for discovering, understanding, installing, and safely updating agent skills on a developer's machine.
 
 Its primary value is not adding more skills. It is answering, with evidence:
 
@@ -14,10 +14,10 @@ Its primary value is not adding more skills. It is answering, with evidence:
 - In which scopes can it take effect?
 - Which concrete file will win when names overlap?
 - Is its on-disk structure valid?
-- What will change before Forge writes anything?
+- What will change before Skillglass writes anything?
 - How can the user undo that change?
 
-Forge must never present inferred or unavailable information as an observed fact.
+Skillglass must never present inferred or unavailable information as an observed fact.
 
 ## Intended User
 
@@ -62,7 +62,7 @@ Every non-trivial field has an evidence state:
 
 ### Filesystem remains the source of truth
 
-Forge may use SQLite for indexing, snapshots, history, and its transaction journal. The database does not replace the files that runtimes actually read.
+Skillglass may use SQLite for indexing, snapshots, history, and its transaction journal. The database does not replace the files that runtimes actually read.
 
 ### Safe by default
 
@@ -70,15 +70,15 @@ Forge may use SQLite for indexing, snapshots, history, and its transaction journ
 - Every mutation starts with a previewable operation plan.
 - Every supported write has a recoverable snapshot and persistent journal entry.
 - Imported content is treated as untrusted and is never executed during inspection or installation.
-- Forge writes only to user-approved, user-writable roots.
+- Skillglass writes only to user-approved, user-writable roots.
 - Managed, system, plugin, and permission-restricted locations are always read-only.
-- Forge never requests administrator, root, or operating-system elevation.
+- Skillglass never requests administrator, root, or operating-system elevation.
 
 ### Runtime semantics belong to adapters
 
-Forge does not invent a universal rule for inheritance, precedence, runtime state, or versions. The core presents the effective behavior reported by the selected adapter.
+Skillglass does not invent a universal rule for inheritance, precedence, runtime state, or versions. The core presents the effective behavior reported by the selected adapter.
 
-Forge never activates or deactivates a skill and never modifies harness configuration for that purpose. Runtime state may be displayed read-only when an adapter can observe it; the user changes it through the relevant harness.
+Skillglass never activates or deactivates a skill and never modifies harness configuration for that purpose. Runtime state may be displayed read-only when an adapter can observe it; the user changes it through the relevant harness.
 
 ### Accessible desktop behavior
 
@@ -118,11 +118,11 @@ Groups actionable findings by operation type. A selection may only expose a batc
 
 Editing takes place in a first-class skill workspace rather than a transient editor overlay. `Vista previa`, `Código`, and `Cambios` are modes of that same destination: they share the observed installation, opening snapshot, draft, and operation state while keeping rendered inspection, source editing, and exact review distinct.
 
-The workspace updates real files only in user-approved, user-writable roots. `Vista previa` renders the draft inertly, and entering `Cambios` requires a previewable backend operation plan before Forge can apply anything. Saving creates a recoverable snapshot before an atomic write and retains the existing history and undo guarantees. Managed and read-only content can be inspected but is never modified or forked implicitly. Agent analysis, feedback, and rewriting are deferred to a later product contract.
+The workspace updates real files only in user-approved, user-writable roots. `Vista previa` renders the draft inertly, and entering `Cambios` requires a previewable backend operation plan before Skillglass can apply anything. Saving creates a recoverable snapshot before an atomic write and retains the existing history and undo guarantees. Managed and read-only content can be inspected but is never modified or forked implicitly. Agent analysis, feedback, and rewriting are deferred to a later product contract.
 
 ### Onboarding
 
-On first launch Forge:
+On first launch Skillglass:
 
 1. Detects supported runtimes.
 2. Shows every root it proposes to scan.
@@ -178,7 +178,7 @@ The MVP does not use a single overloaded `health` value. It presents independent
 The MVP is ready for beta when:
 
 - A user can identify the exact file and scope that will take effect for a skill.
-- Forge never shows invented version, usage, dependency, permission, or update data.
+- Skillglass never shows invented version, usage, dependency, permission, or update data.
 - Every supported mutation previews affected paths and can recover from interruption.
 - Undo works after restarting the application.
 - The inventory and core operations pass automated tests on macOS, Windows, and Linux.
@@ -194,4 +194,4 @@ The MVP is ready for beta when:
 
 ## Distribution Contract
 
-Forge is open source. Official binaries are published only as release assets in the source repository. The project does not distribute binaries through app stores, mirrors, download portals, or unrelated domains. The README must state this prominently and link users only to the repository's release section once its public URL exists.
+Skillglass is open source. Official binaries are published only as release assets in the source repository. The project does not distribute binaries through app stores, mirrors, download portals, or unrelated domains. The README must state this prominently and link users only to the repository's release section once its public URL exists.

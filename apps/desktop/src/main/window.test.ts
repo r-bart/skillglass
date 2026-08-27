@@ -10,7 +10,7 @@ import {
 describe("desktop window options", () => {
   it("uses the product icon for the macOS Dock only in source development", () => {
     expect(developmentDockIconPath("/workspace/apps/desktop", false, "darwin"))
-      .toBe("/workspace/branding/SkillForge.png")
+      .toBe("/workspace/branding/Skillglass.png")
     expect(developmentDockIconPath("/workspace/apps/desktop", true, "darwin")).toBeUndefined()
     expect(developmentDockIconPath("/workspace/apps/desktop", false, "linux")).toBeUndefined()
   })

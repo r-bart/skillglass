@@ -226,7 +226,7 @@ export function WelcomeCarousel({
   return createElement(
     "section",
     {
-      "aria-label": "Introducción a Skill Forge",
+      "aria-label": "Introducción a Skillglass",
       className: "welcome-carousel onboarding-motion-region",
       "data-motion": "spatial",
     },
@@ -251,7 +251,7 @@ export function WelcomeCarousel({
         createElement(
           "p",
           { className: "welcome-carousel__eyebrow" },
-          slide === 0 ? "Bienvenido a Skill Forge" : current.eyebrow,
+          slide === 0 ? "Bienvenido a Skillglass" : current.eyebrow,
         ),
         createElement("h1", { id: titleId, ref: titleRef, tabIndex: -1 }, current.title),
         createElement("p", { id: descriptionId }, current.description),

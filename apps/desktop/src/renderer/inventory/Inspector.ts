@@ -60,7 +60,7 @@ const updateLabels: Record<InventoryItemDto["status"]["update"], string> = {
 
 const provenanceLabels: Record<InstallationDetailDto["provenance"]["kind"], string> = {
   local: "Local",
-  "forge-import": "Importada por Skill Forge",
+  "forge-import": "Importada por Skillglass",
   registry: "Registro",
   package: "Paquete",
   plugin: "Plugin",
@@ -69,7 +69,7 @@ const provenanceLabels: Record<InstallationDetailDto["provenance"]["kind"], stri
 }
 
 const managerLabels: Record<InstallationDetailDto["provenance"]["managedBy"], string> = {
-  forge: "Skill Forge",
+  forge: "Skillglass",
   external: "Herramienta externa",
   runtime: "Runtime",
   user: "Usuario",
@@ -246,7 +246,7 @@ function Inspection({
       }
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : "La instalación contiene cambios locales"
-      setSourceConflict(`Skill Forge detectó cambios locales y no sobrescribirá la instalación. ${message}`)
+      setSourceConflict(`Skillglass detectó cambios locales y no sobrescribirá la instalación. ${message}`)
     } finally {
       setOperationBusy(false)
     }
@@ -259,7 +259,7 @@ function Inspection({
     try {
       const result = await operationBridge.confirm({ planId: sourcePlan.planId })
       if (result.status === "conflict") {
-        setSourceConflict(`Skill Forge detectó cambios locales y no sobrescribirá la instalación. ${result.message}`)
+        setSourceConflict(`Skillglass detectó cambios locales y no sobrescribirá la instalación. ${result.message}`)
         setSourcePlan(undefined)
         return
       }

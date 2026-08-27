@@ -204,7 +204,7 @@ describe("Forge application shell", () => {
     expect(container.querySelector("h1")?.textContent).toBe("Inventory")
     expect(container.querySelector('nav[aria-label="Main sections"]')).not.toBeNull()
     expect(container.textContent).toContain("All skills")
-    expect(window.localStorage.getItem("skill-forge.locale")).toBe("en")
+    expect(window.localStorage.getItem("skillglass.locale")).toBe("en")
 
     await act(async () => buttonNamed("ES").click())
     expect(container.querySelector("h1")?.textContent).toBe("Inventario")
@@ -223,9 +223,9 @@ describe("Forge application shell", () => {
     expect(navigation).not.toBeNull()
     expect(inspector).toBeNull()
     expect(appBody?.classList.contains("app-body--without-inspector")).toBe(true)
-    expect(container.textContent).toContain("Skill Forge v0.0.0")
+    expect(container.textContent).toContain("Skillglass v0.0.0")
     expect(container.textContent).not.toContain("Sin cuenta ni nube")
-    expect(githubLink?.href).toBe("https://github.com/r-bart")
+    expect(githubLink?.href).toBe("https://github.com/r-bart/skillglass")
     expect(githubLink?.target).toBe("_blank")
   })
 

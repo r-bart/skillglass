@@ -152,7 +152,7 @@ export function Pending({ inventoryBridge, operationBridge, eventBridge, monitor
       const first = selectedItems[0]
       if (first !== undefined) {
         onSelectInstallation(first.item.installationId)
-        onStatus("Revisa los pendientes seleccionados en el inspector; Skill Forge no simula una resolución automática")
+        onStatus("Revisa los pendientes seleccionados en el inspector; Skillglass no simula una resolución automática")
       }
       return
     }
@@ -222,7 +222,7 @@ export function Pending({ inventoryBridge, operationBridge, eventBridge, monitor
       createElement(
         "p",
         { className: "pending-note" },
-        "Skill Forge solo prepara en lote actualizaciones compatibles. Los conflictos y hallazgos de validación se revisan individualmente.",
+        "Skillglass solo prepara en lote actualizaciones compatibles. Los conflictos y hallazgos de validación se revisan individualmente.",
       ),
       error === undefined ? null : createElement("p", { className: "form-error", role: "alert" }, error),
       loading || monitoredInstallationIds === undefined
@@ -304,7 +304,7 @@ export function Pending({ inventoryBridge, operationBridge, eventBridge, monitor
       AccessibleDialog,
       { labelledBy: "pending-plan-title", ...(busy ? {} : { onDismiss: () => setPlans(undefined) }) },
       createElement("h2", { id: "pending-plan-title" }, `Confirmar ${plans.length === 1 ? "actualización" : `${plans.length} actualizaciones`}`),
-      createElement("p", null, "El lote se aplica de forma secuencial. Si una precondición falla, Skill Forge conserva lo ya confirmado y detiene el resto."),
+      createElement("p", null, "El lote se aplica de forma secuencial. Si una precondición falla, Skillglass conserva lo ya confirmado y detiene el resto."),
       ...plans.map((plan) => createElement(OperationPlanDetails, { key: plan.planId, plan })),
       createElement("div", { className: "inspector-actions" },
         createElement("button", { type: "button", className: "primary-action", disabled: busy || blocked, onClick: () => { void confirm() } }, busy ? "Actualizando…" : `Confirmar ${plans.length}`),

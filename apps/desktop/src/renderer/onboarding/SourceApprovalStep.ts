@@ -63,8 +63,8 @@ export function SourceApprovalStep({
     createElement(CompactSurfaceHeader, {
       className: "onboarding-header",
       description: managing
-        ? "Revisa las carpetas globales y los proyectos incluidos. Al guardar, Skill Forge volverá a buscar cambios en las ubicaciones aprobadas."
-        : "Selecciona las carpetas globales y los proyectos que quieres incluir. Skill Forge esperará tu aprobación antes de buscar.",
+        ? "Revisa las carpetas globales y los proyectos incluidos. Al guardar, Skillglass volverá a buscar cambios en las ubicaciones aprobadas."
+        : "Selecciona las carpetas globales y los proyectos que quieres incluir. Skillglass esperará tu aprobación antes de buscar.",
       eyebrow: managing ? "Gestión" : "Prepara tu inventario",
       title: managing ? "Carpetas de skills" : "Elige dónde buscar tus skills",
       titleId: "source-approval-title",
@@ -89,7 +89,7 @@ export function SourceApprovalStep({
               createElement(
                 "legend",
                 null,
-                createElement(SectionLabel, { as: "span" }, "Ubicaciones que Skill Forge puede observar"),
+                createElement(SectionLabel, { as: "span" }, "Ubicaciones que Skillglass puede observar"),
               ),
               createElement(
                 "div",
@@ -148,7 +148,7 @@ export function SourceApprovalStep({
             createElement(
               "span",
               null,
-              "Elige las carpetas mediante el diálogo del sistema. Todo permanece en este dispositivo y Skill Forge nunca solicita privilegios de administrador.",
+              "Elige las carpetas mediante el diálogo del sistema. Todo permanece en este dispositivo y Skillglass nunca solicita privilegios de administrador.",
             ),
           ),
         ),

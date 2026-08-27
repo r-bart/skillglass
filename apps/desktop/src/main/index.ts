@@ -53,7 +53,7 @@ app.whenReady().then(async () => {
     }
   })
 }).catch((reason: unknown) => {
-  console.error("Skill Forge failed during startup", reason)
+  console.error("Skillglass failed during startup", reason)
   app.exit(1)
 })
 

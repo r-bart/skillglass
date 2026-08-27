@@ -77,8 +77,8 @@ jobs:
             gh release create "$RELEASE_TAG" \
               --verify-tag \
               --draft \
-              --title "Skill Forge $RELEASE_TAG" \
-              --notes "Builds have no OS-trusted publisher identity; the macOS ad-hoc signature is not Developer ID or notarization. Verify SHA256SUMS.txt before running. Skill Forge has no automatic updater; future versions are distributed only through this repository's Releases page."
+              --title "Skillglass $RELEASE_TAG" \
+              --notes "Builds have no OS-trusted publisher identity; the macOS ad-hoc signature is not Developer ID or notarization. Verify SHA256SUMS.txt before running. Skillglass has no automatic updater; future versions are distributed only through this repository's Releases page."
           fi
 
   build:
@@ -172,7 +172,7 @@ jobs:
         run: >-
           gh release download "$RELEASE_TAG"
           --dir release-assets
-          --pattern 'skill-forge-*'
+          --pattern 'skillglass-*'
           --pattern 'target-*'
       - name: Create checksums and build metadata
         env:

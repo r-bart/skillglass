@@ -1,6 +1,6 @@
-# Contributing to Skill Forge
+# Contributing to Skillglass
 
-Skill Forge is under active development and accepts contributions under the repository's [Apache License 2.0](LICENSE). Unless explicitly stated otherwise, intentionally submitted contributions are licensed under those same terms.
+Skillglass is under active development and accepts contributions under the repository's [Apache License 2.0](LICENSE). Unless explicitly stated otherwise, intentionally submitted contributions are licensed under those same terms.
 
 Bug reports and design or implementation proposals are welcome. Do not include vulnerability details in a public issue; follow [SECURITY.md](SECURITY.md) instead.
 
@@ -38,5 +38,12 @@ pnpm make
 ## Pull requests
 
 Keep each pull request focused, explain the product or security boundary it affects, and include the commands used for validation. Generated and packaged output must not be committed.
+
+## Branch workflow
+
+- `main` contains releasable code and receives release pull requests.
+- `develop` is the integration branch for completed work.
+- Create short-lived `feature/<slug>` or `fix/<slug>` branches from `develop` and open pull requests back into `develop`.
+- Promote a tested `develop` revision to `main` through a dedicated release pull request.
 
 A release is cut only from an existing version tag by the manual repository-release workflow. The workflow runs typecheck, lint, tests, and native makers, then attaches assets directly to a draft GitHub release. It does not use a package registry, mirror, or Actions artifacts as a distribution channel. A maintainer must verify the native packaged smoke evidence for macOS, Windows, and Linux, inspect the checksums and metadata, and publish the draft manually.

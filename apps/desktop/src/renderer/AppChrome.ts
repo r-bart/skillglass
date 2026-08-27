@@ -6,7 +6,7 @@ import desktopPackage from "../../package.json" with { type: "json" }
 import { MetalAction, QuietAction, SectionLabel } from "./VisualPrimitives.js"
 import { createElement, type Locale } from "./i18n.js"
 
-const SKILL_FORGE_GITHUB_URL = "https://github.com/r-bart"
+const SKILLGLASS_GITHUB_URL = "https://github.com/r-bart/skillglass"
 
 export type Surface = "onboarding" | "inventory" | "pending"
 
@@ -47,8 +47,8 @@ interface TopbarProps extends SurfaceNavigationProps {
 function Brand({ contextLabel }: { readonly contextLabel: string }): ReactNode {
   return createElement(
     "div",
-    { className: "app-brand", "aria-label": "Skill Forge" },
-    createElement("span", { className: "app-brand__wordmark" }, "Skill Forge"),
+    { className: "app-brand", "aria-label": "Skillglass" },
+    createElement("span", { className: "app-brand__wordmark" }, "Skillglass"),
     createElement("span", { "aria-hidden": "true", className: "app-brand__separator" }),
     createElement("span", { className: "app-brand__context" }, contextLabel),
   )
@@ -337,13 +337,13 @@ export function AppSidebar(props: NavigationProps): ReactNode {
       createElement(
         "span",
         { className: "app-sidebar__footer-copy" },
-        createElement("strong", null, `Skill Forge v${desktopPackage.version}`),
+        createElement("strong", null, `Skillglass v${desktopPackage.version}`),
         createElement(
           "a",
           {
             "aria-label": "Abrir GitHub",
             className: "app-sidebar__repository-link",
-            href: SKILL_FORGE_GITHUB_URL,
+            href: SKILLGLASS_GITHUB_URL,
             rel: "noreferrer",
             target: "_blank",
           },

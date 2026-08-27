@@ -300,7 +300,7 @@ export class DesktopOperationService {
         .map(({ relativePath }) => path.resolve(root.canonicalPath, relativePath))
         .some((affected) => changed.some((candidate) => pathsOverlap(affected, candidate)))
       if (!overlaps) continue
-      this.#invalidatedPlans.set(plan.id, "Los archivos cambiaron fuera de Skill Forge; revisa y crea un nuevo plan")
+      this.#invalidatedPlans.set(plan.id, "Los archivos cambiaron fuera de Skillglass; revisa y crea un nuevo plan")
       invalidated.push(plan.id)
     }
     return invalidated

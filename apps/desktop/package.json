@@ -1,11 +1,11 @@
 {
   "name": "@forge/desktop",
-  "productName": "Skill Forge",
+  "productName": "Skillglass",
   "version": "0.0.0",
   "private": true,
   "license": "Apache-2.0",
   "description": "Open-source desktop inventory and safe installer/updater for agent skills",
-  "author": "Skill Forge contributors",
+  "author": "Skillglass contributors",
   "type": "module",
   "main": ".vite/build/main.cjs",
   "scripts": {

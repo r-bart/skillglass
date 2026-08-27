@@ -20,7 +20,7 @@ document.documentElement.dataset.platform = platform.includes("mac")
 const root = document.getElementById("root")
 
 if (root === null) {
-  throw new Error("Skill Forge renderer root is missing")
+  throw new Error("Skillglass renderer root is missing")
 }
 
 createRoot(root).render(createElement(StrictMode, null, createElement(App, {})))
