@@ -1,12 +1,12 @@
 # Verificación del candidato local Skillglass v1.0.0
 
-Fecha: 2026-09-05. Checkout de trabajo sobre `d9080bf894af8b91f81f7d662890e98a88bc10dd`, todavía sin commit final.
+Fecha: 2026-09-05. El candidato de producto quedó registrado en `48d0a7f10e6cfd1b3826626b1b32e75ab18f67a2` y se subió a `origin/develop` con `[skip ci]` para permitir la prueba local antes de la matriz nativa.
 
 ## Resultado
 
 El producto queda preparado como candidato local para una v1 pequeña. Se han cerrado los fallos funcionales, de claridad, estilo, movimiento, localización y preparación de release identificados en la revisión inicial. La revisión arquitectónica final devuelve **PASS, sin hallazgos accionables**.
 
-La publicación sigue pendiente porque el commit/tag definitivo, la matriz nativa, la visibilidad del repositorio, la release y el despliegue público son acciones externas aún no ejecutadas.
+La publicación sigue pendiente porque la matriz nativa, el tag definitivo, la visibilidad del repositorio, la release y el despliegue público aún no se han ejecutado.
 
 ## Cambios verificados
 
@@ -52,7 +52,7 @@ Este ZIP prueba el checkout local. El workflow debe reconstruirlo desde el commi
 - Windows x64 y Linux x64 conservan sus makers, pero necesitan la matriz nativa del commit final y el smoke correspondiente.
 - Omarchy/Pacman continúa como no verificado hasta completar la prueba nativa en Hyprland/Wayland.
 - macOS no tiene identidad Developer ID ni notarización. Windows y Linux no tienen firma de editor.
-- El repositorio, la release, los enlaces de descarga activos y el despliegue final no se han publicado desde este checkout.
-- Tras autorizar la publicación: crear commit y tag `v1.0.0`, ejecutar la matriz, comprobar hashes y assets, publicar repositorio/release, activar las descargas y verificar todo sin sesión.
+- El candidato está en la rama privada `develop`; la release, los enlaces de descarga activos y el despliegue final no se han publicado.
+- Después de la prueba local: ejecutar la matriz sobre la revisión elegida, comprobar hashes y assets, crear el tag `v1.0.0`, publicar repositorio/release, activar las descargas y verificar todo sin sesión.
 
 Veredicto local: **APPROVE para preparar el commit candidato; publicación externa pendiente de autorización y CI nativa**.

@@ -3,7 +3,7 @@
 **Updated**: 2026-09-05
 **Branch**: `develop`
 **Active Feature**: Skillglass 1.0.0 local release candidate
-**Workflow Position**: Product and local validation complete; final commit, native CI and public release remain
+**Workflow Position**: Candidate committed and pushed with CI skipped; Roberto's local test, native CI and public release remain
 
 ## Key Decisions
 
@@ -20,7 +20,7 @@
 
 ## Current Blockers
 
-- The dirty working tree must be reviewed and turned into a final candidate commit before native CI can produce traceable artifacts.
+- Roberto must complete his local product check before the native matrix is requested.
 - The exact Windows and Linux artifacts need the native GitHub Actions matrix. Omarchy still needs the Hyprland/Wayland checklist in `packaging/arch/OMARCHY-VALIDATION.md`.
 - Repository visibility, tag, release and landing deployment have not been changed. They require the final publication authorization.
 - Trusted publisher identities are not configured: macOS is ad hoc only; Windows and Linux are unsigned. Release copy must keep this explicit.
@@ -28,6 +28,7 @@
 ## Current Evidence
 
 - The v1 readiness plan has completed phases 1–5 and local validation. Close protection, root diagnostics, safe Markdown, ES/EN, onboarding, visual polish, landing copy and release metadata are implemented.
+- Product candidate commit `48d0a7f10e6cfd1b3826626b1b32e75ab18f67a2` is available on `origin/develop`. Its `[skip ci]` marker intentionally prevented the push workflow from running.
 - Final architecture post-review: **PASS with 0 actionable findings**.
 - Node 24.19.0 and pnpm 11.5.1: root and E2E typechecks, lint, Astro check/build and production dependency audit pass.
 - Unit/integration: **55 files and 414 tests pass**.
@@ -35,5 +36,5 @@
 - E2E coverage passes. The final full run passed 44 tests; its two failures were pixel comparisons of an unmasked seconds field. After masking that volatile field, both affected tests pass. The 18 visual tests and 21 updated references were reviewed.
 - Landing ES/EN has no horizontal overflow at 320, 390, 760 or 1440 px; 390 px was reviewed visually. RTL at 390 px and CSS zoom 200% retain the layout.
 - Local macOS arm64 ZIP: `release-candidate/macos/skillglass-v1.0.0-macos-arm64.zip`, 123,912,891 bytes, SHA-256 `8e1046b99696a8bb5f70300ead6e78eda1fe357c952040c7fe43a716ea2502ae`.
-- The extracted ZIP passes strict code-sign verification and launches with an intact schema-v4 SQLite store. It remains a local working-tree candidate and must be rebuilt from the final commit.
+- The extracted ZIP passes strict code-sign verification and launches with an intact schema-v4 SQLite store. It remains a local candidate and must be rebuilt by native CI before publication.
 - Detailed evidence and limitations are recorded in `thoughts/reviews/2026-09-05-v1-release-verification.md`.
