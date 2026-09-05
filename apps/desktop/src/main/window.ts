@@ -147,3 +147,11 @@ export async function createMainWindow(isPackaged: boolean): Promise<BrowserWind
 
   return window
 }
+
+export function attachWindowCloseHandler(
+  window: BrowserWindow,
+  handler: (event: Electron.Event) => void,
+): () => void {
+  window.on("close", handler)
+  return () => window.removeListener("close", handler)
+}

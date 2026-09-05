@@ -138,4 +138,39 @@ describe("desktop distributable policy", () => {
     expect(workflow).not.toContain("--no-sandbox")
     expect(releaseWorkflow).not.toContain("--no-sandbox")
   })
+
+  it("assembles the Arch and Omarchy Pacman candidate without weakening the Electron sandbox", async () => {
+    const pkgbuild = await readFile(
+      new URL("../../../../packaging/arch/PKGBUILD.template", import.meta.url),
+      "utf8",
+    )
+    const desktopEntry = await readFile(
+      new URL("../../../../packaging/arch/skillglass.desktop", import.meta.url),
+      "utf8",
+    )
+    const containerBuilder = await readFile(
+      new URL("../../../../packaging/arch/build-in-container.sh", import.meta.url),
+      "utf8",
+    )
+    const workflow = await readFile(new URL("../../../../.github/workflows/ci.yml", import.meta.url), "utf8")
+    const releaseWorkflow = await readFile(new URL("../../../../.github/workflows/release.yml", import.meta.url), "utf8")
+
+    expect(pkgbuild).toContain("arch=('x86_64')")
+    expect(pkgbuild).toContain("cp -a \"$srcdir/Skillglass-linux-x64/.\"")
+    expect(pkgbuild).toContain("chmod 4755 \"$pkgdir/opt/skillglass/chrome-sandbox\"")
+    expect(pkgbuild).toContain("ln -s /opt/skillglass/skillglass \"$pkgdir/usr/bin/skillglass\"")
+    expect(pkgbuild).toContain("'gtk3'")
+    expect(pkgbuild).toContain("'nss'")
+    expect(desktopEntry).toContain("Exec=/usr/bin/skillglass")
+    expect(desktopEntry).toContain("Icon=skillglass")
+    expect(containerBuilder).toMatch(/archlinux:base-devel@sha256:[a-f0-9]{64}/u)
+    expect(containerBuilder).toContain('node_arch="x64"')
+    expect(containerBuilder).toContain('node_version="24.19.0"')
+    expect(containerBuilder).toContain('test "$(node --version)" = "v$SKILLGLASS_NODE_VERSION"')
+    expect(containerBuilder).toContain('arch-toolchain.json')
+    expect(containerBuilder).toContain('pacman_options+=(--disable-sandbox)')
+    expect(containerBuilder).toContain('if [[ "$SKILLGLASS_DISABLE_PACMAN_SANDBOX" == "1" ]]')
+    expect(workflow).toContain("packaging/arch/build-in-container.sh")
+    expect(releaseWorkflow).toContain("packaging/arch/build-in-container.sh")
+  })
 })

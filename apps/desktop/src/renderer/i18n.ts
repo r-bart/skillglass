@@ -1,14 +1,32 @@
 import {
+  Fragment,
   createElement as reactCreateElement,
   type ReactNode,
 } from "react"
 
 export type Locale = "es" | "en"
 
-export const DEFAULT_LOCALE: Locale = "es"
+export const DEFAULT_LOCALE: Locale = "en"
 export const LOCALE_STORAGE_KEY = "skillglass.locale"
 
 let activeLocale: Locale = DEFAULT_LOCALE
+
+const VERBATIM_PROPS = new WeakSet<object>()
+
+/**
+ * Marks observed/user supplied content as opaque to the copy translator.
+ * The Fragment is built with React directly, so the localized createElement
+ * adapter never interprets its string children as product copy.
+ */
+export function verbatim(value: ReactNode): ReactNode {
+  return reactCreateElement(Fragment, null, value)
+}
+
+/** Keeps dynamic accessibility attributes and tooltips literal as well. */
+export function verbatimProps<Props extends object>(props: Props): Props {
+  VERBATIM_PROPS.add(props)
+  return props
+}
 
 /**
  * Product copy lives as Spanish/English pairs so both versions make the same
@@ -17,8 +35,34 @@ let activeLocale: Locale = DEFAULT_LOCALE
  * class names, paths, hashes, or other product data.
  */
 const COPY: ReadonlyArray<readonly [es: string, en: string]> = [
+  ["Archivo y ubicación", "File and location"],
+  ["Cambios realizados en este dispositivo y acciones de Deshacer que siguen disponibles.", "Changes made on this device and Undo actions that are still available."],
+  ["Compara con las carpetas locales de origen", "Compares with local source folders"],
+  ["Comprobar cambios", "Check for changes"],
+  ["Consultando el historial local…", "Reading local history…"],
+  ["Copias y ámbito", "Copies and scope"],
+  ["Detalles", "Details"],
+  ["Detalles técnicos", "Technical details"],
+  ["Estado", "Status"],
+  ["Instrucciones", "Instructions"],
+  ["La escritura ya ha empezado y no se puede cancelar. Si se interrumpe, Skillglass la recuperará al volver a abrir.", "The write has started and cannot be canceled. If interrupted, Skillglass will recover it when you reopen the app."],
+  ["Las skills de las carpetas que has autorizado.", "Skills from the folders you approved."],
+  ["No se han encontrado requisitos declarados.", "No declared requirements were found."],
+  ["No se han podido cargar todos los detalles de las copias.", "Some duplicate details could not be loaded."],
+  ["No hemos encontrado skills todavía.", "We have not found any skills yet."],
+  ["Puedes cancelar antes de confirmar. La escritura no se interrumpe una vez iniciada.", "You can cancel before confirming. The write cannot be interrupted once it starts."],
+  ["Puedes abrir el inventario vacío para crear una skill o añadir otra carpeta ahora.", "You can open the empty inventory to create a skill or add another folder now."],
+  ["Puedes seguirlas todas ahora o revisar la lista y elegir cuáles quieres destacar.", "You can monitor all of them now or review the list and choose which ones to highlight."],
+  ["Disponible antes de confirmar. La escritura no se interrumpe una vez iniciada.", "Available before confirmation. The write cannot be interrupted once it starts."],
+  ["Revisa los cambios antes de crear la carpeta.", "Review the changes before creating the folder."],
+  ["Revisa los cambios antes de guardar. Deshacer seguirá disponible mientras el archivo no cambie fuera de Skillglass.", "Review the changes before saving. Undo remains available while the file stays unchanged outside Skillglass."],
+  ["Skillglass comprueba que el destino sigue libre y mantiene Deshacer mientras el contenido no cambie.", "Skillglass checks that the destination is still free and keeps Undo available while the content stays unchanged."],
+  ["Skillglass conserva una copia de recuperación y la comprueba al volver a abrir.", "Skillglass keeps a recovery copy and checks it when you reopen the app."],
+  ["Todos los filtros", "All filters"],
+  ["Ver tour de 3 pasos", "View 3-step tour"],
   ["Acceso denegado", "Access denied"],
   ["Abrir mi inventario", "Open my inventory"],
+  ["Abrir inventario", "Open inventory"],
   ["Abre una skill y entiende cómo funciona.", "Open a skill and understand how it works."],
   ["Abrir acciones de instalación", "Open install actions"],
   ["Abrir archivo", "Open file"],
@@ -46,6 +90,7 @@ const COPY: ReadonlyArray<readonly [es: string, en: string]> = [
   ["Añade una descripción que explique cuándo debe usarla el agente.", "Add a description that tells the agent when to use this skill."],
   ["Añadida por ti", "Added by you"],
   ["Añadir carpeta", "Add folder"],
+  ["Añadir otra carpeta", "Add another folder"],
   ["Añadir carpeta de skills", "Add skills folder"],
   ["Añadir carpeta…", "Add folder…"],
   ["Añadir proyecto", "Add project"],
@@ -93,6 +138,7 @@ const COPY: ReadonlyArray<readonly [es: string, en: string]> = [
   ["Carpetas Agent Skills", "Agent Skills folders"],
   ["Carpetas de skills", "Skill folders"],
   ["Carpeta local", "Local folder"],
+  ["Carpeta compatible con SKILL.md · Añadida por ti", "SKILL.md-compatible folder · Added by you"],
   ["Cada detalle, a mano", "Every detail at hand"],
   ["Cerrar", "Close"],
   ["Cerrar navegación", "Close navigation"],
@@ -106,6 +152,7 @@ const COPY: ReadonlyArray<readonly [es: string, en: string]> = [
   ["Conflicto", "Conflict"],
   ["Conflicto de actualización", "Update conflict"],
   ["Conflictos", "Conflicts"],
+  ["Copias encontradas:", "Copies found:"],
   ["Conflictos de origen", "Source conflicts"],
   ["Contexto observado", "Observed context"],
   ["Con avisos", "Warnings"],
@@ -166,9 +213,12 @@ const COPY: ReadonlyArray<readonly [es: string, en: string]> = [
   ["El plan ha caducado. Revisa los cambios de nuevo antes de actualizar.", "This plan has expired. Review the changes again before updating."],
   ["El scan no aportó una resolución de ámbito para esta instalación.", "The scan did not provide a scope resolution for this installation."],
   ["Elegir destino de instalación", "Choose install destination"],
+  ["Elegir carpetas", "Choose folders"],
+  ["Elegir cuáles seguir", "Choose which to monitor"],
   ["Elegir mis skills", "Choose my skills"],
   ["Elige una carpeta aprobada con escritura.", "Choose an approved writable folder."],
   ["Elige dónde buscar tus skills", "Choose where to find your skills"],
+  ["Elige las carpetas que Skillglass puede leer y abre tu inventario en unos pasos.", "Choose the folders Skillglass can read and open your inventory in a few steps."],
   ["Elige las skills que quieres seguir de cerca.", "Choose the skills you want to keep an eye on."],
   ["Elige las carpetas mediante el diálogo del sistema. Todo permanece en este dispositivo y Skillglass nunca solicita privilegios de administrador.", "Choose folders in the system dialog. Everything stays on this device, and Skillglass never asks for administrator access."],
   ["En seguimiento", "Monitored"],
@@ -204,6 +254,7 @@ const COPY: ReadonlyArray<readonly [es: string, en: string]> = [
   ["Heredada", "Inherited"],
   ["Herramienta externa", "External tool"],
   ["Historial", "History"],
+  ["Inventario preparado", "Inventory ready"],
   ["Importada por Skillglass", "Imported by Skillglass"],
   ["Idioma de la interfaz", "Interface language"],
   ["Identificador", "Identifier"],
@@ -232,6 +283,7 @@ const COPY: ReadonlyArray<readonly [es: string, en: string]> = [
   ["La instalación ya no está disponible en el inventario.", "This installation is no longer available in inventory."],
   ["La operación respondió con un plan diferente. No se ha actualizado la skill.", "The operation returned a different plan. The skill was not updated."],
   ["La precedencia efectiva no está verificada por el adaptador.", "The adapter has not verified effective precedence."],
+  ["Hay varias copias con este nombre. No se puede confirmar cuál utiliza Codex.", "There are multiple copies with this name. Skillglass cannot confirm which one Codex uses."],
   ["La skill se creó, pero no se pudo abrir desde el inventario.", "The skill was created, but it could not be opened from inventory."],
   ["La validación observada contiene advertencias", "Observed validation contains warnings"],
   ["La validación observada es inválida", "Observed validation is invalid"],
@@ -263,6 +315,8 @@ const COPY: ReadonlyArray<readonly [es: string, en: string]> = [
   ["No hay una carpeta aprobada con escritura para instalar", "There is no approved writable folder available for installation"],
   ["No hay una carpeta aprobada con escritura.", "There is no approved writable folder."],
   ["No observado", "Not observed"],
+  ["No se puede confirmar si Codex la utiliza", "Skillglass cannot confirm whether Codex uses it"],
+  ["No se puede confirmar si el runtime la utiliza", "Skillglass cannot confirm whether the runtime uses it"],
   ["No se han observado skills", "No skills observed yet"],
   ["No se pudieron buscar actualizaciones", "Could not check for updates"],
   ["No se pudieron cargar los pendientes", "Could not load items that need review"],
@@ -424,6 +478,7 @@ const COPY: ReadonlyArray<readonly [es: string, en: string]> = [
   ["Tipo", "Type"],
   ["Todos", "All"],
   ["Ubicación", "Location"],
+  ["Uso en Codex", "Use in Codex"],
   ["Ubicaciones", "Locations"],
   ["Un flujo de trabajo repetido convertido en una nueva skill", "A repeated workflow turned into a new skill"],
   ["Ubicaciones que Skillglass puede observar", "Folders Skillglass can observe"],
@@ -448,6 +503,9 @@ const COPY: ReadonlyArray<readonly [es: string, en: string]> = [
   ["Pasos de introducción", "Introduction steps"],
   ["“Antes de cada release, revisa cambios, riesgos y notas.”", "“Before every release, review changes, risks, and notes.”"],
   ["Vistas del inventario", "Inventory views"],
+  ["Propia de este ámbito", "Owned by this scope"],
+  ["Única copia en este ámbito", "Only copy in this scope"],
+  ["Varias copias sin una ganadora acreditada", "Multiple copies without an evidenced winner"],
   ["Volver a editar", "Back to editing"],
   ["Volver al inventario", "Back to inventory"],
   ["Volviendo a escanear…", "Scanning again…"],
@@ -469,6 +527,7 @@ const COPY: ReadonlyArray<readonly [es: string, en: string]> = [
   ["La fuente seleccionada debe ser una carpeta", "Selected source must be a directory"],
   ["No se admiten enlaces ni junctions", "Links and junctions are not admitted"],
   ["Solo se admiten archivos normales y carpetas", "Only regular files and directories are admitted"],
+  ["Seguir todas y abrir inventario", "Monitor all and open inventory"],
   ["La fuente contiene una colisión de rutas portables", "Source contains a portable path collision"],
   ["La fuente seleccionada ya no coincide con su hash verificado", "The selected source no longer matches its verified hash"],
   ["La fuente seleccionada no contiene un archivo SKILL.md en la raíz", "The selected source has no root SKILL.md"],
@@ -523,6 +582,12 @@ type Pattern = Readonly<{
 }>
 
 const PATTERNS: readonly Pattern[] = [
+  {
+    es: /^Hemos encontrado (\d+) (?:skill|skills)\.$/u,
+    en: /^We found (\d+) (?:skill|skills)\.$/u,
+    toEnglish: (count) => `We found ${count} ${count === "1" ? "skill" : "skills"}.`,
+    toSpanish: (count) => `Hemos encontrado ${count} ${count === "1" ? "skill" : "skills"}.`,
+  },
   {
     es: /^Buscar entre (\d+) skills$/u,
     en: /^Search (\d+) skills$/u,
@@ -797,14 +862,60 @@ export function setActiveLocale(locale: Locale): void {
   activeLocale = locale
 }
 
+export type CountUnit = "installation" | "skill" | "result" | "selected-skill" | "item" | "operation"
+
+const COUNT_FORMS: Record<Locale, Record<CountUnit, readonly [singular: string, plural: string]>> = {
+  es: {
+    installation: ["instalación", "instalaciones"],
+    skill: ["skill", "skills"],
+    result: ["resultado", "resultados"],
+    "selected-skill": ["skill seleccionada", "skills seleccionadas"],
+    item: ["elemento", "elementos"],
+    operation: ["operación registrada", "operaciones registradas"],
+  },
+  en: {
+    installation: ["installation", "installations"],
+    skill: ["skill", "skills"],
+    result: ["result", "results"],
+    "selected-skill": ["skill selected", "skills selected"],
+    item: ["item", "items"],
+    operation: ["operation recorded", "operations recorded"],
+  },
+}
+
+export function formatCount(count: number, unit: CountUnit, locale = activeLocale): string {
+  const forms = COUNT_FORMS[locale][unit]
+  return `${count} ${count === 1 ? forms[0] : forms[1]}`
+}
+
+export function formatCountRange(shown: number, total: number, unit: CountUnit, locale = activeLocale): string {
+  return locale === "es"
+    ? `${shown} de ${formatCount(total, unit, locale)}`
+    : `${shown} of ${formatCount(total, unit, locale)}`
+}
+
+export function localeFromLanguages(languages: readonly string[]): Locale {
+  for (const language of languages) {
+    const primary = language.trim().toLocaleLowerCase().split("-")[0]
+    if (primary === "es" || primary === "en") return primary
+  }
+  return DEFAULT_LOCALE
+}
+
 export function loadSavedLocale(): Locale {
   if (typeof window === "undefined") return DEFAULT_LOCALE
   try {
     const saved = window.localStorage.getItem(LOCALE_STORAGE_KEY)
-    return saved === "en" || saved === "es" ? saved : DEFAULT_LOCALE
+    if (saved === "en" || saved === "es") return saved
   } catch {
-    return DEFAULT_LOCALE
+    // Language detection can continue when storage is blocked.
   }
+  const languages = typeof navigator === "undefined"
+    ? []
+    : navigator.languages.length > 0
+      ? navigator.languages
+      : [navigator.language]
+  return localeFromLanguages(languages)
 }
 
 export function saveLocale(locale: Locale): void {
@@ -834,6 +945,7 @@ function localizeNode(node: ReactNode): ReactNode {
 
 function localizeProps(props: unknown): unknown {
   if (props === null || typeof props !== "object") return props
+  if (VERBATIM_PROPS.has(props)) return props
   const source = props as Record<string, unknown>
   let changed = false
   const next = { ...source }

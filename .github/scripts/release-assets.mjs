@@ -1,13 +1,14 @@
 import { createHash } from "node:crypto"
 import { createReadStream } from "node:fs"
 import { cp, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises"
+import os from "node:os"
 import path from "node:path"
 import process from "node:process"
 
-const RELEASE_EXTENSIONS = Object.freeze({
-  linux: new Set([".deb", ".rpm"]),
-  macos: new Set([".zip"]),
-  windows: new Set([".exe"]),
+const RELEASE_SUFFIXES = Object.freeze({
+  linux: [".deb", ".rpm", ".pkg.tar.zst"],
+  macos: [".zip"],
+  windows: [".exe"],
 })
 
 function fail(message) {
@@ -48,23 +49,56 @@ async function collect() {
   const source = valueAfter("--source")
   const destination = valueAfter("--destination")
   const platform = valueAfter("--platform")
+  const requestedArchitecture = valueAfter("--architecture")
   const tag = valueAfter("--tag")
   const commit = valueAfter("--commit")
   if (source === undefined || destination === undefined || platform === undefined || tag === undefined || commit === undefined) {
     throw new Error("collect requires --source, --destination, --platform, --tag, and --commit")
   }
-  const extensions = RELEASE_EXTENSIONS[platform]
-  if (extensions === undefined) throw new Error(`Unsupported release platform: ${platform}`)
+  const suffixes = RELEASE_SUFFIXES[platform]
+  if (suffixes === undefined) throw new Error(`Unsupported release platform: ${platform}`)
+  const architecture = requestedArchitecture ?? process.arch
+  if (!/^(?:arm64|x64)$/u.test(architecture)) {
+    throw new Error(`Unsupported release architecture: ${architecture}`)
+  }
+  if (architecture !== process.arch) {
+    throw new Error(`Release architecture ${architecture} does not match build process ${process.arch}`)
+  }
   const version = releaseVersion(tag)
-  const candidates = (await regularFiles(source)).filter((candidate) => extensions.has(path.extname(candidate).toLowerCase()))
-  if (candidates.length !== extensions.size) {
-    throw new Error(`Expected ${extensions.size} ${platform} release artifact(s), found ${candidates.length}`)
+  const sourceFiles = await regularFiles(source)
+  let toolchain
+  if (platform === "linux") {
+    const toolchainFiles = sourceFiles.filter((candidate) => path.basename(candidate) === "arch-toolchain.json")
+    if (toolchainFiles.length !== 1) {
+      throw new Error(`Expected one Linux Arch toolchain record, found ${toolchainFiles.length}`)
+    }
+    toolchain = JSON.parse(await readFile(toolchainFiles[0], "utf8"))
+    if (
+      toolchain.schemaVersion !== 1
+      || !/^archlinux:base-devel@sha256:[a-f0-9]{64}$/u.test(toolchain.baseImage)
+      || toolchain.node !== "v24.19.0"
+      || typeof toolchain.pacman !== "string"
+      || toolchain.pacman.length === 0
+      || typeof toolchain.makepkg !== "string"
+      || toolchain.makepkg.length === 0
+    ) {
+      throw new Error("Linux Arch toolchain record is incomplete or invalid")
+    }
+  }
+  const candidates = suffixes.map((suffix) => {
+    const matches = sourceFiles.filter((candidate) => candidate.toLowerCase().endsWith(suffix))
+    if (matches.length !== 1) {
+      throw new Error(`Expected one ${platform} ${suffix} release artifact, found ${matches.length}`)
+    }
+    return { candidate: matches[0], suffix }
+  })
+  if (new Set(candidates.map(({ candidate }) => candidate)).size !== candidates.length) {
+    throw new Error(`Release suffixes overlap for ${platform}`)
   }
   await mkdir(destination, { recursive: true })
   const artifacts = []
-  for (const candidate of candidates) {
-    const extension = path.extname(candidate).toLowerCase()
-    const name = `skillglass-v${version}-${platform}-${process.arch}${extension}`
+  for (const { candidate, suffix } of candidates) {
+    const name = `skillglass-v${version}-${platform}-${architecture}${suffix}`
     const output = path.join(destination, name)
     await cp(candidate, output, { errorOnExist: true, force: false })
     const details = await stat(output)
@@ -73,10 +107,17 @@ async function collect() {
   await writeFile(path.join(destination, `target-${platform}.json`), `${JSON.stringify({
     schemaVersion: 1,
     platform,
-    architecture: process.arch,
+    architecture,
     tag,
     commit,
     node: process.version,
+    environment: {
+      osRelease: os.release(),
+      osVersion: os.version(),
+      runnerImage: process.env.ImageOS,
+      runnerImageVersion: process.env.ImageVersion,
+    },
+    ...(toolchain === undefined ? {} : { toolchain }),
     artifacts,
   }, null, 2)}\n`, "utf8")
 }
@@ -113,7 +154,21 @@ async function manifest() {
     commit,
     workflowRunId: runId,
     electron: packageJson.devDependencies.electron,
-    signing: "no-trusted-publisher-identity-policy-pending",
+    signing: {
+      macos: {
+        integrity: "ad-hoc-after-electron-fuses",
+        trustedPublisherIdentity: false,
+        notarized: false,
+      },
+      windows: {
+        integrity: "unsigned",
+        trustedPublisherIdentity: false,
+      },
+      linux: {
+        integrity: "unsigned",
+        trustedPublisherIdentity: false,
+      },
+    },
     distribution: "github-repository-release-assets-only",
     targets: targets.sort((left, right) => left.platform.localeCompare(right.platform, "en")),
   }, null, 2)}\n`, "utf8")

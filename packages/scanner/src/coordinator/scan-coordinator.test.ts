@@ -85,6 +85,40 @@ describe("ScanCoordinator", () => {
     expect(events.at(-1)).toMatchObject({ kind: "progress", progress: { phase: "completed", completedRoots: 3 } })
   })
 
+  it("enriches adapter findings with the approved root identity and keeps valid observations", async () => {
+    const adapter: ScannableAdapter<number> = {
+      id: "fixture",
+      async *scanRoot(_root, context) {
+        context?.reportFinding({
+          code: "SYMLINK_OUTSIDE_APPROVED_ROOT",
+          severity: "warning",
+          message: "Skipped external link",
+          path: "/tmp/forge-scanner/a/link",
+          targetPath: "/tmp/outside/skill",
+        })
+        yield 1
+      },
+    }
+    const events = await collect(new ScanCoordinator({
+      adapters: [adapter],
+      approvedRoots: [root("a")],
+    }).scan())
+
+    expect(events).toContainEqual({
+      kind: "finding",
+      finding: {
+        code: "SYMLINK_OUTSIDE_APPROVED_ROOT",
+        severity: "warning",
+        message: "Skipped external link",
+        rootId: "a",
+        adapterId: "fixture",
+        path: "/tmp/forge-scanner/a/link",
+        targetPath: "/tmp/outside/skill",
+      },
+    })
+    expect(events.filter(({ kind }) => kind === "observation")).toHaveLength(1)
+  })
+
   it("stops an in-flight scan without converting cancellation into a failure", async () => {
     const adapter: ScannableAdapter<number> = {
       id: "fixture",

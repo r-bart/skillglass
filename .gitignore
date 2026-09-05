@@ -7,6 +7,7 @@ out/
 coverage/
 playwright-report/
 test-results/
+release-candidate/
 *.log
 *.sqlite
 *.sqlite3
@@ -14,4 +15,5 @@ test-results/
 .DS_Store
 .env
 .env.*
+.vercel
 !.env.example

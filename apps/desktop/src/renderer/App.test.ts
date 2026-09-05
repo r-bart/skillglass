@@ -180,6 +180,7 @@ function installMemoryStorage(): void {
 beforeEach(async () => {
   setActiveLocale("es")
   installMemoryStorage()
+  window.localStorage.setItem("skillglass.locale", "es")
   container = document.createElement("div")
   document.body.append(container)
   root = createRoot(container)
@@ -223,7 +224,7 @@ describe("Forge application shell", () => {
     expect(navigation).not.toBeNull()
     expect(inspector).toBeNull()
     expect(appBody?.classList.contains("app-body--without-inspector")).toBe(true)
-    expect(container.textContent).toContain("Skillglass v0.0.0")
+    expect(container.textContent).toContain("Skillglass v1.0.0")
     expect(container.textContent).not.toContain("Sin cuenta ni nube")
     expect(githubLink?.href).toBe("https://github.com/r-bart/skillglass")
     expect(githubLink?.target).toBe("_blank")
@@ -329,15 +330,15 @@ describe("Forge application shell", () => {
     })))
 
     expect(container.querySelector("h1")?.textContent).toBe("Entiende todas las skills que ya tienes.")
-    await act(async () => buttonNamed("Saltar explicación").click())
+    await act(async () => buttonNamed("Elegir carpetas").click())
     expect(container.querySelector("h1")?.textContent).toBe("Elige dónde buscar tus skills")
     expect(container.textContent).toContain("Lectura y escritura")
     expect(container.textContent).toContain("Evidencia: observada")
 
     await act(async () => buttonNamed("Buscar mis skills").click())
     expect(approveRoots).toHaveBeenCalledWith({ candidateIds: [candidate.candidateId] })
-    expect(container.querySelector("h1")?.textContent).toBe("Elige las skills que quieres seguir de cerca.")
-    await act(async () => buttonNamed("Abrir mi inventario").click())
+    expect(container.querySelector("h1")?.textContent).toBe("No hemos encontrado skills todavía.")
+    await act(async () => buttonNamed("Abrir inventario").click())
     expect(save).toHaveBeenCalledWith({ installationIds: [] })
     expect(container.querySelector("h1")?.textContent).toBe("Inventario")
   })
@@ -369,7 +370,7 @@ describe("Forge application shell", () => {
       eventBridge, operationBridge,
     })))
 
-    await act(async () => buttonNamed("Saltar explicación").click())
+    await act(async () => buttonNamed("Elegir carpetas").click())
     await act(async () => buttonNamed("Añadir proyecto Codex…").click())
 
     expect(selectProject).toHaveBeenCalledOnce()
@@ -549,6 +550,73 @@ describe("Forge application shell", () => {
       findings: [{ code: "WATCHER_ERROR", severity: "warning", message: "No se pudo observar una carpeta" }],
     }))
     expect(container.querySelector('[role="alert"]')?.textContent).toContain("No se pudo observar una carpeta")
+  })
+
+  it("explains skipped external links without hiding their exact paths", async () => {
+    let inventoryChanged: Parameters<ForgeBridge["events"]["onInventoryChanged"]>[0] = () => undefined
+    const bridge: ForgeBridge["events"] = {
+      ...eventBridge,
+      onInventoryChanged: (listener) => {
+        inventoryChanged = listener
+        return () => undefined
+      },
+    }
+    await act(async () => root.render(createElement(App, {
+      onboardingBridge: onboardingBridge(completeState), inventoryBridge,
+      monitoringBridge: monitoringBridge(), eventBridge: bridge, operationBridge,
+    })))
+
+    await act(async () => inventoryChanged({
+      installationIds: [],
+      reason: "scan",
+      observedAt: "2026-08-26T10:02:00.000Z",
+      findings: [{
+        code: "SYMLINK_OUTSIDE_APPROVED_ROOT",
+        severity: "warning",
+        message: "A link points outside the approved folder and was skipped",
+        path: "/safe/skills/linked-skill",
+        targetPath: "/outside/linked-skill",
+      }],
+    }))
+
+    const alert = container.querySelector('[role="alert"]')
+    expect(alert?.textContent).toContain("Se ha omitido una ubicación durante el escaneo")
+    expect(alert?.querySelector("summary")?.textContent).toBe("Ver detalles")
+    expect(alert?.textContent).toContain("Añade la carpeta de destino")
+    expect(alert?.textContent).toContain("/safe/skills/linked-skill")
+    expect(alert?.textContent).toContain("/outside/linked-skill")
+  })
+
+  it("localizes an unreadable skill finding while preserving its path", async () => {
+    let inventoryChanged: Parameters<ForgeBridge["events"]["onInventoryChanged"]>[0] = () => undefined
+    const bridge: ForgeBridge["events"] = {
+      ...eventBridge,
+      onInventoryChanged: (listener) => {
+        inventoryChanged = listener
+        return () => undefined
+      },
+    }
+    await act(async () => root.render(createElement(App, {
+      onboardingBridge: onboardingBridge(completeState), inventoryBridge,
+      monitoringBridge: monitoringBridge(), eventBridge: bridge, operationBridge,
+    })))
+
+    await act(async () => inventoryChanged({
+      installationIds: [],
+      reason: "scan",
+      observedAt: "2026-08-26T10:02:00.000Z",
+      findings: [{
+        code: "INSTALLATION_SCAN_FAILED",
+        severity: "warning",
+        message: "A skill directory could not be read and was skipped",
+        path: "/safe/skills/unreadable-skill",
+      }],
+    }))
+
+    const alert = container.querySelector('[role="alert"]')
+    expect(alert?.textContent).toContain("No se ha podido leer una skill de una carpeta autorizada.")
+    expect(alert?.textContent).not.toContain("A skill directory could not be read")
+    expect(alert?.textContent).toContain("/safe/skills/unreadable-skill")
   })
 
   it("restores monitoring for a persisted skill when it reappears during the session", async () => {

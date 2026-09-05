@@ -8,7 +8,7 @@ Forge signing is an artifact-authenticity control. It does not create or change 
 
 - macOS packages receive a deterministic ad-hoc signature after fuses are applied so the final bundle remains structurally valid and its sealed contents can be checked. This is only a bundle-integrity measure: it provides no trusted publisher identity, is not a Developer ID signature, and is not notarization. Gatekeeper may warn or quarantine the artifact.
 - Windows Squirrel artifacts are currently unsigned. SmartScreen may warn until an Authenticode identity and reputation exist.
-- Linux DEB/RPM artifacts are currently unsigned. Repository metadata signing is out of scope because Forge does not operate a package repository.
+- Linux DEB, RPM, and Pacman artifacts are currently unsigned. Repository metadata signing is out of scope because Forge does not operate a package repository.
 - SHA-256 release checksums are required independently of signing. A checksum proves transfer integrity; it is not a substitute for an OS-trusted publisher identity.
 
 The build must not silently use an arbitrary local signing identity. Forge explicitly selects identity `-` for reproducible ad-hoc signing; it never discovers or substitutes a local Developer ID identity. Hardened runtime is disabled for this ad-hoc beta signature because it has no common Team ID with Electron's nested frameworks. A future Developer ID release must enable hardened runtime as part of its separate release gate. An artifact with an unexplained identity is rejected.
@@ -38,7 +38,7 @@ Signing must not add elevation manifests, services, scheduled tasks, or an updat
 
 ## Linux release gate
 
-Forge may distribute native DEB and RPM files directly from repository releases without operating an APT/YUM repository. If package signatures are added, their public key, rotation/revocation process, fingerprint, artifact SHA-256, and native verification commands must be published with the release. Package installation remains user-initiated and Forge never invokes `sudo`, `pkexec`, or an equivalent elevation mechanism.
+Forge may distribute native DEB, RPM, and Pacman files directly from repository releases without operating a package repository. If package signatures are added, their public key, rotation/revocation process, fingerprint, artifact SHA-256, and native verification commands must be published with the release. Package installation remains user-initiated and Forge never invokes `sudo`, `pkexec`, or an equivalent elevation mechanism.
 
 ## Credential and failure policy
 

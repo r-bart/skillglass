@@ -490,6 +490,43 @@
   .history-button__label {
     display: none;
   }
+
+  .history-button,
+  .refresh-button {
+    width: 1.75rem;
+    padding: 0 !important;
+  }
+
+  .refresh-button__label {
+    display: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .app-topbar {
+    padding-inline: 0.625rem;
+  }
+
+  html[data-platform="macos"] .app-topbar {
+    padding-left: 4.5rem;
+  }
+
+  .app-brand__context,
+  .app-brand__separator,
+  .create-skill-button__label,
+  .chrome-action-menu__label {
+    display: none;
+  }
+
+  .language-switch__option[aria-pressed="true"] {
+    display: none;
+  }
+
+  .create-skill-button,
+  .chrome-action-menu__trigger {
+    width: 1.75rem;
+    padding: 0 !important;
+  }
 }
 
 @media (forced-colors: active) and (max-width: 1279px) {

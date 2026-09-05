@@ -28,12 +28,16 @@ test("a project selected from a neutral cwd is persisted and scanned only after 
   expect(await fixture.readScanAudit()).toEqual([])
   await app.page.getByRole("button", { name: "Buscar mis skills" }).click()
 
+  await expect(app.page.getByRole("heading", { name: "Hemos encontrado 1 skill." })).toBeVisible()
+  await app.page.getByRole("button", { name: "Elegir cuáles seguir" }).click()
   await expect(app.page.getByRole("heading", { name: "Elige las skills que quieres seguir de cerca." })).toBeVisible()
   await expect(app.page.getByRole("option", { name: /Acme Web/u })).toBeAttached()
   await expect(app.page.getByText("project-release", { exact: true })).toBeVisible()
   expect(await fixture.readScanAudit()).toEqual([projectSkillsRoot])
 
   await app.restart()
+  await expect(app.page.getByRole("heading", { name: "Hemos encontrado 1 skill." })).toBeVisible()
+  await app.page.getByRole("button", { name: "Elegir cuáles seguir" }).click()
   await expect(app.page.getByRole("heading", { name: "Elige las skills que quieres seguir de cerca." })).toBeVisible()
   await app.page.getByRole("button", { name: "Abrir mi inventario" }).click()
   await expect(app.page.getByRole("heading", { name: "Inventario" })).toBeVisible()

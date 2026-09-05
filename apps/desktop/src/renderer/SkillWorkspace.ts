@@ -13,12 +13,13 @@ import {
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
+  type ReactNode,
   type SyntheticEvent,
 } from "react"
 
 import { AccessibleDialog } from "./AccessibleDialog.js"
 import { CodeEditor } from "./CodeEditor.js"
-import { createElement, getActiveLocale } from "./i18n.js"
+import { createElement, getActiveLocale, verbatim } from "./i18n.js"
 import { OperationPlanDetails } from "./OperationPlanDetails.js"
 import { SafeMarkdown } from "./SafeMarkdown.js"
 import { createTextDiffModel, TextDiff } from "./TextDiff.js"
@@ -55,6 +56,7 @@ export interface SkillWorkspaceProps {
   readonly onBack?: () => void
   readonly onCommitted?: (detail: InstallationDetailDto) => void
   readonly onStatus?: (message: string) => void
+  readonly onCloseStateChange?: (state: "clean" | "dirty" | "busy") => void
 }
 
 type WorkspaceLoadState =
@@ -166,8 +168,8 @@ function isWideWorkspace(): boolean {
 
 function workspaceState(
   className: string,
-  title: string,
-  message: string,
+  title: ReactNode,
+  message: ReactNode,
   role: "alert" | "status",
 ) {
   const titleId = `skill-workspace-${className}-title`
@@ -325,6 +327,17 @@ export function SkillWorkspace(props: SkillWorkspaceProps) {
     return () => { current = false }
   }, [installationId])
 
+  useEffect(() => {
+    if (loadState.status !== "ready") {
+      props.onCloseStateChange?.("clean")
+      return
+    }
+    const session = loadState.session
+    const dirty = session.draft !== session.baseContent
+    const busy = session.planning === true || session.applying === true || session.reloading === true
+    props.onCloseStateChange?.(busy ? "busy" : dirty ? "dirty" : "clean")
+  }, [loadState, props.onCloseStateChange])
+
   if (loadState.status === "loading") {
     return workspaceState("loading", "Editar skill", "Cargando skill…", "status")
   }
@@ -340,7 +353,7 @@ export function SkillWorkspace(props: SkillWorkspaceProps) {
     return workspaceState(
       "error",
       "No se pudo abrir la skill",
-      loadState.message,
+      verbatim(loadState.message),
       "alert",
     )
   }
@@ -348,9 +361,9 @@ export function SkillWorkspace(props: SkillWorkspaceProps) {
     const reasons = loadState.detail.capabilities.unavailableReasons.join(" ")
     return workspaceState(
       "read-only",
-      skillName(loadState.detail),
+      verbatim(skillName(loadState.detail)),
       reasons.length > 0
-        ? `Esta skill es de solo lectura. ${reasons}`
+        ? createElement("span", null, "Esta skill es de solo lectura. ", verbatim(reasons))
         : "Esta skill está gestionada externamente y solo se puede inspeccionar.",
       "status",
     )
@@ -761,11 +774,17 @@ export function SkillWorkspace(props: SkillWorkspaceProps) {
         createElement(
           "div",
           { className: "workspace-identity__copy" },
-          createElement("h1", { id: "skill-workspace-title", ref: workspaceTitleRef, tabIndex: -1 }, name),
+          createElement("h1", { id: "skill-workspace-title", ref: workspaceTitleRef, tabIndex: -1 }, verbatim(name)),
           createElement(
             "p",
             null,
-            `${adapterLabel(detail.installation.adapterId)} · ${scopeLabel(detail.installation.scope)}`,
+            detail.installation.adapterId === "codex" || detail.installation.adapterId === "folder"
+              ? createElement("span", null, adapterLabel(detail.installation.adapterId), " · ", detail.installation.scope.kind === "project"
+                  ? createElement("span", null, "Proyecto · ", verbatim(detail.installation.scope.projectId))
+                  : scopeLabel(detail.installation.scope))
+              : createElement("span", null, verbatim(detail.installation.adapterId), " · ", detail.installation.scope.kind === "project"
+                  ? createElement("span", null, "Proyecto · ", verbatim(detail.installation.scope.projectId))
+                  : scopeLabel(detail.installation.scope)),
           ),
         ),
       ),
@@ -856,12 +875,12 @@ export function SkillWorkspace(props: SkillWorkspaceProps) {
             "header",
             { className: "skill-preview__header" },
             createElement("p", { className: "section-label" }, "Skill instalada"),
-            createElement("h2", null, name),
+            createElement("h2", null, verbatim(name)),
             createElement(
               "p",
               null,
               detail.installation.description.state === "known"
-                ? detail.installation.description.value
+                ? verbatim(detail.installation.description.value)
                 : "Descripción no observada",
             ),
           ),
@@ -887,7 +906,7 @@ export function SkillWorkspace(props: SkillWorkspaceProps) {
               "div",
               null,
               createElement("p", { className: "section-label" }, "Archivo"),
-              createElement("strong", null, detail.entryFile),
+              createElement("strong", null, verbatim(detail.entryFile)),
             ),
             createElement(
               "span",
@@ -1012,7 +1031,7 @@ export function SkillWorkspace(props: SkillWorkspaceProps) {
                         ),
                     visiblePlanError === undefined
                       ? null
-                      : createElement("p", { className: "form-error", role: "alert" }, visiblePlanError),
+                      : createElement("p", { className: "form-error", role: "alert" }, verbatim(visiblePlanError)),
                   ),
                 ),
               ),
@@ -1052,7 +1071,7 @@ export function SkillWorkspace(props: SkillWorkspaceProps) {
           : createElement(
               "div",
               { className: "workspace-error" },
-              createElement("p", { className: "form-error", role: "alert" }, session.error),
+              createElement("p", { className: "form-error", role: "alert" }, verbatim(session.error)),
               session.failureStatus === undefined
                 ? null
                 : createElement(QuietAction, {
@@ -1064,7 +1083,7 @@ export function SkillWorkspace(props: SkillWorkspaceProps) {
       createElement(
         "aside",
         { "aria-labelledby": "skill-workspace-context-title", className: "workspace-context" },
-        createElement("h2", { className: "section-label", id: "skill-workspace-context-title" }, "Contexto observado"),
+        createElement("h2", { className: "section-label", id: "skill-workspace-context-title" }, "Detalles"),
         createElement(
           "details",
           {
@@ -1077,7 +1096,7 @@ export function SkillWorkspace(props: SkillWorkspaceProps) {
           createElement(
             "summary",
             { className: "workspace-disclosure-summary" },
-            createElement("span", null, "Contexto observado"),
+            createElement("span", null, "Detalles técnicos"),
             createElement("span", { "aria-hidden": "true", className: "workspace-disclosure-summary__marker" }),
           ),
           createElement(
@@ -1086,15 +1105,15 @@ export function SkillWorkspace(props: SkillWorkspaceProps) {
             createElement(
               "dl",
               { className: "workspace-context__facts" },
-              createElement("div", null, createElement("dt", null, "Skill"), createElement("dd", null, name)),
-              createElement("div", null, createElement("dt", null, "Ubicación"), createElement("dd", null, path)),
+              createElement("div", null, createElement("dt", null, "Skill"), createElement("dd", null, verbatim(name))),
+              createElement("div", null, createElement("dt", null, "Ubicación"), createElement("dd", null, verbatim(path))),
               createElement("div", null, createElement("dt", null, "Gestión"), createElement("dd", null, managerLabels[detail.provenance.managedBy])),
-              createElement("div", null, createElement("dt", null, "Snapshot"), createElement("dd", null, session.baseSnapshotId)),
+              createElement("div", null, createElement("dt", null, "Snapshot"), createElement("dd", null, verbatim(session.baseSnapshotId))),
             ),
             createElement(
               "p",
               { className: "workspace-context__safety" },
-              "Skillglass prepara un diff exacto antes de escribir y conserva una operación reversible cuando el backend lo acredita.",
+              "Revisa los cambios antes de guardar. Deshacer seguirá disponible mientras el archivo no cambie fuera de Skillglass.",
             ),
           ),
         ),

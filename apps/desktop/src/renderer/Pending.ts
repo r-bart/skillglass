@@ -4,7 +4,7 @@ import type { ForgeBridge, InventoryItemDto, OperationPlanDto } from "@forge/con
 
 import { AccessibleDialog } from "./AccessibleDialog.js"
 import { OperationPlanDetails } from "./OperationPlanDetails.js"
-import { createElement } from "./i18n.js"
+import { createElement, formatCount, getActiveLocale, verbatim, verbatimProps } from "./i18n.js"
 import { loadAllInventoryItems } from "./inventory/load-all.js"
 import {
   CompactSurfaceHeader,
@@ -146,6 +146,7 @@ export function Pending({ inventoryBridge, operationBridge, eventBridge, monitor
   )
   const onlyUpdates = selectedItems.length > 0 && selectedItems.every(({ kind }) => kind === "update")
   const batchLabel = onlyUpdates ? `Actualizar ${selectedItems.length}` : `Resolver ${selectedItems.length} pendientes`
+  const locale = getActiveLocale()
 
   const prepare = async (): Promise<void> => {
     if (!onlyUpdates) {
@@ -214,7 +215,9 @@ export function Pending({ inventoryBridge, operationBridge, eventBridge, monitor
       className: "pending-header",
       title: "Por revisar",
       titleId: "pending-title",
-      description: `${monitoredItems.length} ${monitoredItems.length === 1 ? "elemento pide" : "elementos piden"} atención · agrupados por causa`,
+      description: locale === "es"
+        ? `${formatCount(monitoredItems.length, "item", "es")} ${monitoredItems.length === 1 ? "pide" : "piden"} atención · agrupados por causa`
+        : `${formatCount(monitoredItems.length, "item", "en")} ${monitoredItems.length === 1 ? "needs" : "need"} attention · grouped by cause`,
     }),
     createElement(
       "div",
@@ -224,7 +227,7 @@ export function Pending({ inventoryBridge, operationBridge, eventBridge, monitor
         { className: "pending-note" },
         "Skillglass solo prepara en lote actualizaciones compatibles. Los conflictos y hallazgos de validación se revisan individualmente.",
       ),
-      error === undefined ? null : createElement("p", { className: "form-error", role: "alert" }, error),
+      error === undefined ? null : createElement("p", { className: "form-error", role: "alert" }, verbatim(error)),
       loading || monitoredInstallationIds === undefined
         ? createElement("p", { className: "pending-loading", role: "status" }, "Consultando pendientes…")
         : grouped.length === 0
@@ -256,8 +259,8 @@ export function Pending({ inventoryBridge, operationBridge, eventBridge, monitor
                   createElement(
                     "label",
                     { className: "pending-row__selection" },
-                    createElement("input", {
-                      "aria-label": `Seleccionar ${item.key}`,
+                    createElement("input", verbatimProps({
+                      "aria-label": locale === "es" ? `Seleccionar ${item.key}` : `Select ${item.key}`,
                       checked,
                       className: "pending-row__checkbox",
                       type: "checkbox",
@@ -267,7 +270,7 @@ export function Pending({ inventoryBridge, operationBridge, eventBridge, monitor
                         else next.add(item.installationId)
                         return next
                       }),
-                    }),
+                    })),
                     createElement(SkillTile, {
                       adapterId: item.adapterId,
                       className: "pending-row__tile",
@@ -276,7 +279,7 @@ export function Pending({ inventoryBridge, operationBridge, eventBridge, monitor
                     createElement(
                       "span",
                       { className: "pending-row__copy" },
-                      createElement("strong", { className: "pending-row__name" }, item.key),
+                      createElement("strong", { className: "pending-row__name" }, verbatim(item.key)),
                       createElement("small", { className: "pending-row__reason" }, pendingReason(pending)),
                     ),
                     createElement(StatusPill, { className: "pending-row__badge", tone: badge.tone }, badge.label),
@@ -295,7 +298,7 @@ export function Pending({ inventoryBridge, operationBridge, eventBridge, monitor
         className: glassSelectedRowClassName(true, "pending-batch"),
         "aria-live": "polite",
       },
-      createElement("span", { className: "pending-batch__count" }, `${selectedItems.length} seleccionados`),
+      createElement("span", { className: "pending-batch__count" }, formatCount(selectedItems.length, "selected-skill")),
       createElement("span", { "aria-hidden": "true", className: "pending-batch__divider" }),
       createElement(MetalAction, { disabled: busy, onClick: () => { void prepare() } }, busy ? "Preparando…" : batchLabel),
       createElement(QuietAction, { disabled: busy, onClick: () => setSelected(new Set()) }, "Limpiar selección"),

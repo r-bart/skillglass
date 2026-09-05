@@ -7,7 +7,7 @@ import {
   type ReactNode,
 } from "react"
 import { createPortal } from "react-dom"
-import { createElement, getActiveLocale } from "../i18n.js"
+import { createElement, formatCount, formatCountRange, getActiveLocale, verbatim, verbatimProps } from "../i18n.js"
 
 import type {
   ForgeBridge,
@@ -112,9 +112,16 @@ function ScopeNavigation({
   projects: NonNullable<InventoryPageDto["projects"]>
   onChange: (scope: Scope) => void
 }) {
-  const button = (label: string, value: Scope, accessibleLabel = label) => createElement(
+  const button = (label: string, value: Scope, accessibleLabel = label, observed = false) => createElement(
     "button",
-    {
+    observed ? verbatimProps({
+      key: scopeKey(value),
+      type: "button",
+      className: "navigation-item scope-button",
+      "aria-label": accessibleLabel,
+      "aria-pressed": scopeKey(scope) === scopeKey(value),
+      onClick: () => onChange(value),
+    }) : {
       key: scopeKey(value),
       type: "button",
       className: "navigation-item scope-button",
@@ -123,7 +130,7 @@ function ScopeNavigation({
       onClick: () => onChange(value),
     },
     createElement("span", { "aria-hidden": "true", className: "navigation-dot navigation-dot--scope" }),
-    createElement("span", { className: "navigation-text" }, label),
+    createElement("span", { className: "navigation-text" }, observed ? verbatim(label) : label),
   )
   return createElement(
     "nav",
@@ -133,7 +140,7 @@ function ScopeNavigation({
     ...projects.map((project) => button(project.displayName, {
       kind: "project",
       projectId: project.projectId,
-    })),
+    }, project.displayName, true)),
   )
 }
 
@@ -145,7 +152,7 @@ function FilterSelect({
 }: {
   label: string
   value: string
-  options: readonly Readonly<{ value: string; label: string }>[]
+  options: readonly Readonly<{ value: string; label: string; verbatim?: boolean }>[]
   onChange: (value: string) => void
 }) {
   return createElement(
@@ -159,7 +166,11 @@ function FilterSelect({
         onChange: (event) =>
           onChange((event.currentTarget as HTMLSelectElement).value),
       },
-      ...options.map((option) => createElement("option", { key: option.value, value: option.value }, option.label)),
+      ...options.map((option) => createElement(
+        "option",
+        { key: option.value, value: option.value },
+        option.verbatim === true ? verbatim(option.label) : option.label,
+      )),
     ),
   )
 }
@@ -255,7 +266,7 @@ function InventoryTable({
       rows.push(createElement(
         "tr",
         { className: "inventory-group-row", key: `group:${label}`, role: "row" },
-        createElement("th", { scope: "rowgroup" }, label),
+        createElement("th", { scope: "rowgroup" }, group === undefined ? label : verbatim(label)),
       ))
     }
     for (const item of entries) {
@@ -292,8 +303,10 @@ function InventoryTable({
             }),
             createElement("span", { className: "inventory-row__copy" },
               createElement("span", { className: "inventory-row__identity" },
-                createElement("span", { className: "skill-name" }, item.key),
-                createElement("span", { className: "skill-scope" }, scopeText(item, projectLabels)),
+                createElement("span", { className: "skill-name" }, verbatim(item.key)),
+                createElement("span", { className: "skill-scope" }, item.scope.kind === "project"
+                  ? verbatim(scopeText(item, projectLabels))
+                  : scopeText(item, projectLabels)),
                 monitored
                   ? createElement(StatusPill, {
                       className: "inventory-monitoring-pill",
@@ -304,36 +317,42 @@ function InventoryTable({
               createElement("span", { className: "skill-description" },
                 item.description.state === "unknown"
                   ? "Sin descripción observada"
-                  : item.description.value,
+                  : verbatim(item.description.value),
               ),
             ),
             createElement("span", {
               className: "inventory-row__evidence",
               "aria-label": `Evidencia de la instalación. Validez: ${validityLabels[item.status.validity]}. Origen: ${sourceLabels[item.status.source]}. Actualización: ${updateLabels[item.status.update]}`,
             },
-              createElement(StatusPill, {
-                ariaLabel: `Validez: ${validityLabels[item.status.validity]}`,
-                className: "inventory-evidence-pill inventory-evidence-pill--validity",
-                tone: statusTone("validity", item.status.validity),
-              }, validityLabels[item.status.validity]),
-              createElement(StatusPill, {
-                ariaLabel: `Origen: ${sourceLabels[item.status.source]}`,
-                className: "inventory-evidence-pill inventory-evidence-pill--source",
-                tone: statusTone("source", item.status.source),
-              }, item.status.source === "read-only"
-                ? "Solo lectura · origen observado"
-                : sourceLabels[item.status.source]),
-              createElement(StatusPill, {
-                ariaLabel: `Actualización: ${updateLabels[item.status.update]}`,
-                className: "inventory-evidence-pill inventory-evidence-pill--update",
-                tone: statusTone("update", item.status.update),
-              }, updateLabels[item.status.update]),
+              item.status.validity === "warning" || item.status.validity === "invalid"
+                ? createElement(StatusPill, {
+                    ariaLabel: `Validez: ${validityLabels[item.status.validity]}`,
+                    className: "inventory-evidence-pill inventory-evidence-pill--validity",
+                    tone: statusTone("validity", item.status.validity),
+                  }, validityLabels[item.status.validity])
+                : null,
+              item.status.source === "read-only" || item.status.source === "modified"
+                ? createElement(StatusPill, {
+                    ariaLabel: `Origen: ${sourceLabels[item.status.source]}`,
+                    className: "inventory-evidence-pill inventory-evidence-pill--source",
+                    tone: statusTone("source", item.status.source),
+                  }, item.status.source === "read-only"
+                    ? item.scope.kind === "managed" || item.scope.kind === "system" ? "Gestionada" : "Solo lectura"
+                    : sourceLabels[item.status.source])
+                : null,
+              item.status.update === "available" || item.status.update === "diverged"
+                ? createElement(StatusPill, {
+                    ariaLabel: `Actualización: ${updateLabels[item.status.update]}`,
+                    className: "inventory-evidence-pill inventory-evidence-pill--update",
+                    tone: statusTone("update", item.status.update),
+                  }, updateLabels[item.status.update])
+                : null,
             ),
             item.declaredVersion.state === "known"
-              ? createElement("span", {
+              ? createElement("span", verbatimProps({
                   className: "inventory-row__version",
                   title: `Versión declarada: ${item.declaredVersion.value}`,
-                }, item.declaredVersion.value)
+                }), verbatim(item.declaredVersion.value))
               : null,
           ),
         ),
@@ -380,6 +399,7 @@ export function Inventory({
   scope: controlledScope,
 }: InventoryProps) {
   const searchRef = useRef<HTMLInputElement>(null)
+  const queryGeneration = useRef(0)
   const [internalScope, setInternalScope] = useState<Scope>({ kind: "all" })
   const scope = controlledScope ?? internalScope
   const [search, setSearch] = useState("")
@@ -460,42 +480,51 @@ export function Inventory({
   ])
 
   useEffect(() => {
+    const requestGeneration = ++queryGeneration.current
     let current = true
     setLoading(true)
+    setLoadingMore(false)
     setError(undefined)
     inventoryBridge.list(query).then((nextPage) => {
-      if (!current) return
+      if (!current || requestGeneration !== queryGeneration.current) return
       setPage(nextPage)
       setSelectedId((selection) => nextPage.items.some(({ installationId }) => installationId === selection)
         ? selection
         : undefined)
     }).catch((reason: unknown) => {
-      if (current) setError(reason instanceof Error ? reason.message : "No se pudo consultar el inventario")
+      if (current && requestGeneration === queryGeneration.current) {
+        setError(reason instanceof Error ? reason.message : "No se pudo consultar el inventario")
+      }
     }).finally(() => {
-      if (current) setLoading(false)
+      if (current && requestGeneration === queryGeneration.current) setLoading(false)
     })
     return () => { current = false }
   }, [inventoryBridge, query, revision])
 
   const loadMore = async (): Promise<void> => {
     if (page.nextCursor === null || loadingMore) return
+    const requestGeneration = queryGeneration.current
+    const cursor = page.nextCursor
     setLoadingMore(true)
     setError(undefined)
     try {
       const nextPage = await inventoryBridge.list({
         ...query,
-        cursor: page.nextCursor,
+        cursor,
       })
-      setPage((current) => ({
-        ...nextPage,
-        items: [...current.items, ...nextPage.items],
-      }))
+      if (requestGeneration !== queryGeneration.current) return
+      setPage((current) => current.nextCursor !== cursor ? current : ({
+          ...nextPage,
+          items: [...current.items, ...nextPage.items],
+        }))
     } catch (reason) {
-      setError(reason instanceof Error
-        ? reason.message
-        : "No se pudieron cargar más instalaciones")
+      if (requestGeneration === queryGeneration.current) {
+        setError(reason instanceof Error
+          ? reason.message
+          : "No se pudieron cargar más instalaciones")
+      }
     } finally {
-      setLoadingMore(false)
+      if (requestGeneration === queryGeneration.current) setLoadingMore(false)
     }
   }
 
@@ -539,23 +568,24 @@ export function Inventory({
   const activeFilters: readonly Readonly<{
     clear: () => void
     id: string
-    label: string
+    label: ReactNode
+    removeLabel?: string
   }>[] = [
-    ...(search.trim().length === 0 ? [] : [{ id: "search", label: `Búsqueda: “${search.trim()}”`, clear: () => setSearch("") }]),
+    ...(search.trim().length === 0 ? [] : [{ id: "search", label: createElement("span", null, getActiveLocale() === "en" ? "Search: “" : "Búsqueda: “", verbatim(search.trim()), "”"), removeLabel: "Quitar filtro de búsqueda", clear: () => setSearch("") }]),
     ...(adapter.length === 0 ? [] : [{ id: "adapter", label: `Runtime: ${optionLabel(adapterOptions, adapter)}`, clear: () => setAdapter("") }]),
     ...(validity.length === 0 ? [] : [{ id: "validity", label: `Validez: ${optionLabel(validityOptions, validity)}`, clear: () => setValidity("") }]),
     ...(runtime.length === 0 ? [] : [{ id: "runtime", label: `Harness: ${optionLabel(runtimeOptions, runtime)}`, clear: () => setRuntime("") }]),
     ...(source.length === 0 ? [] : [{ id: "source", label: `Origen: ${optionLabel(sourceOptions, source)}`, clear: () => setSource("") }]),
     ...(provenance.length === 0 ? [] : [{ id: "provenance", label: `Procedencia: ${optionLabel(provenanceOptions, provenance)}`, clear: () => setProvenance("") }]),
     ...(update.length === 0 ? [] : [{ id: "update", label: `Actualización: ${optionLabel(updateOptions, update)}`, clear: () => setUpdate("") }]),
-    ...(author.length === 0 ? [] : [{ id: "author", label: `Autor: ${author}`, clear: () => setAuthor("") }]),
-    ...(packageId.length === 0 ? [] : [{ id: "package", label: `Paquete: ${packageId}`, clear: () => setPackageId("") }]),
+    ...(author.length === 0 ? [] : [{ id: "author", label: createElement("span", null, getActiveLocale() === "en" ? "Author: " : "Autor: ", verbatim(author)), removeLabel: "Quitar filtro de autor", clear: () => setAuthor("") }]),
+    ...(packageId.length === 0 ? [] : [{ id: "package", label: createElement("span", null, getActiveLocale() === "en" ? "Package: " : "Paquete: ", verbatim(packageId)), removeLabel: "Quitar filtro de paquete", clear: () => setPackageId("") }]),
   ]
   const resultSummary = loading
     ? "Consultando inventario…"
     : page.items.length < page.total
-      ? `${page.items.length} de ${page.total} instalaciones`
-      : `${page.total} instalaciones`
+      ? formatCountRange(page.items.length, page.total, "installation")
+      : formatCount(page.total, "installation")
 
   const scopeNavigation = createElement(ScopeNavigation, {
     scope,
@@ -596,7 +626,7 @@ export function Inventory({
       { className: "page-heading inventory-heading" },
       createElement("p", { className: "eyebrow" }, "Skills observadas"),
       createElement("h1", { id: "inventory-title" }, "Inventario"),
-      createElement("p", { className: "page-description" }, "Instalaciones y evidencia observada en los ámbitos aprobados."),
+      createElement("p", { className: "page-description" }, "Las skills de las carpetas que has autorizado."),
       onManageMonitoring === undefined
         ? null
         : createElement("button", {
@@ -636,7 +666,7 @@ export function Inventory({
           },
           createElement("div", { className: "inventory-filter-panel__heading" },
             createElement("strong", null, "Filtrar inventario"),
-            createElement("span", null, "Solo evidencia observada"),
+            createElement("span", null, "Todos los filtros"),
           ),
           createElement("div", { className: "inventory-filter-panel__fields" },
             createElement(FilterSelect, { label: "Runtime", value: adapter, onChange: setAdapter, options: adapterOptions }),
@@ -653,7 +683,7 @@ export function Inventory({
                   options: [
                     { value: "", label: "Todos" },
                     ...[...new Set([author, ...authorOptions].filter(Boolean))]
-                      .map((value) => ({ value, label: value })),
+                      .map((value) => ({ value, label: value, verbatim: true })),
                   ],
                 })
               : null,
@@ -665,7 +695,7 @@ export function Inventory({
                   options: [
                     { value: "", label: "Todos" },
                     ...[...new Set([packageId, ...packageOptions].filter(Boolean))]
-                      .map((value) => ({ value, label: value })),
+                      .map((value) => ({ value, label: value, verbatim: true })),
                   ],
                 })
               : null,
@@ -687,11 +717,12 @@ export function Inventory({
           ...activeFilters.map((filter) => createElement(FilterChip, {
             key: filter.id,
             label: filter.label,
+            ...(filter.removeLabel === undefined ? {} : { removeLabel: filter.removeLabel }),
             onRemove: filter.clear,
           })),
           createElement("span", { className: "inventory-active-filters__summary" }, resultSummary),
         ),
-    error === undefined ? null : createElement("p", { role: "alert", className: "form-error" }, error),
+    error === undefined ? null : createElement("p", { role: "alert", className: "form-error" }, verbatim(error)),
     loading
       ? createElement("p", { "aria-live": "polite", className: "inventory-loading" }, "Consultando inventario…")
       : page.items.length > 0

@@ -1,5 +1,6 @@
 import type { ForgeBridge, OnboardingStateDto, OperationPlanDto, OperationResultDto } from "@forge/contracts"
 import {
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -14,7 +15,7 @@ import { OperationPlanDetails } from "./OperationPlanDetails.js"
 import { SafeMarkdown } from "./SafeMarkdown.js"
 import { createTextDiffModel, TextDiff } from "./TextDiff.js"
 import { DangerAction, QuietAction, SkillTile, StatusPill } from "./VisualPrimitives.js"
-import { createElement, getActiveLocale, type Locale } from "./i18n.js"
+import { createElement, getActiveLocale, verbatim, type Locale } from "./i18n.js"
 
 type WritableRoot = OnboardingStateDto["approvedRoots"][number]
 type CreateMode = "preview" | "code" | "changes"
@@ -25,6 +26,7 @@ export interface CreateSkillWorkspaceProps {
   readonly onBack: () => void
   readonly onCreated: (installationId: string) => void
   readonly onStatus?: (message: string) => void
+  readonly onCloseStateChange?: (state: "clean" | "dirty" | "busy") => void
 }
 
 const skillKeyPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u
@@ -66,16 +68,24 @@ export function CreateSkillWorkspace(props: CreateSkillWorkspaceProps) {
   const [applying, setApplying] = useState(false)
   const [error, setError] = useState<string>()
   const [discardOpen, setDiscardOpen] = useState(false)
+  const initialRootIdRef = useRef(writableRoots[0]?.rootId ?? "")
   const exitTriggerRef = useRef<HTMLElement>(null)
   const codeTabRef = useRef<HTMLButtonElement>(null)
   const previewTabRef = useRef<HTMLButtonElement>(null)
   const changesTabRef = useRef<HTMLButtonElement>(null)
   const selectedRoot = writableRoots.find((root) => root.rootId === rootId)
   const busy = planning || applying
-  const dirty = stage === "authoring" && draft.length > 0
+  const dirty = skillKey !== "" ||
+    description !== "" ||
+    rootId !== initialRootIdRef.current ||
+    draft !== ""
   const diff = useMemo(() => createTextDiffModel("", draft), [draft])
   const changeCount = diff.added + diff.removed
   const planAvailable = plan !== undefined && planCanApply(plan) && plannedDraft === draft && plan.targetRootId === rootId
+
+  useEffect(() => {
+    props.onCloseStateChange?.(busy ? "busy" : dirty ? "dirty" : "clean")
+  }, [busy, description, dirty, draft, props.onCloseStateChange, rootId, skillKey, stage])
 
   const startAuthoring = (event: FormEvent<HTMLFormElement>): void => {
     event.preventDefault()
@@ -200,6 +210,16 @@ export function CreateSkillWorkspace(props: CreateSkillWorkspaceProps) {
     else changeMode(next.mode)
   }
 
+  const discardDialog = discardOpen ? createElement(AccessibleDialog, {
+    describedBy: "discard-create-description", labelledBy: "discard-create-title",
+    onDismiss: () => setDiscardOpen(false), returnFocus: exitTriggerRef,
+  },
+  createElement("h2", { id: "discard-create-title" }, "Descartar nueva skill"),
+  createElement("p", { id: "discard-create-description" }, "El borrador se perderá. No se ha escrito nada en disco."),
+  createElement("div", { className: "inspector-actions" },
+    createElement(QuietAction, { onClick: () => setDiscardOpen(false) }, "Seguir editando"),
+    createElement(DangerAction, { onClick: props.onBack }, "Descartar y salir"))) : null
+
   if (stage === "details") {
     return createElement(
       "section",
@@ -210,7 +230,7 @@ export function CreateSkillWorkspace(props: CreateSkillWorkspaceProps) {
         createElement(QuietAction, {
           "aria-label": "Volver al inventario",
           className: "workspace-back",
-          onClick: props.onBack,
+          onClick: (event: ReactMouseEvent<HTMLButtonElement>) => requestExit(event.currentTarget),
         }, createElement("span", { "aria-hidden": "true" }, "←")),
         createElement(
           "div",
@@ -230,7 +250,7 @@ export function CreateSkillWorkspace(props: CreateSkillWorkspaceProps) {
           { className: "create-setup__form", onSubmit: startAuthoring },
           createElement("p", { className: "section-label" }, "Detalles básicos"),
           createElement("h2", null, "Prepara el borrador"),
-          createElement("p", { className: "create-setup__intro" }, "Nada se escribirá en disco hasta que revises el diff y confirmes la operación."),
+          createElement("p", { className: "create-setup__intro" }, "Revisa los cambios antes de crear la carpeta."),
           createElement("label", { htmlFor: "create-skill-key" }, "Identificador"),
           createElement("input", {
             autoComplete: "off",
@@ -262,12 +282,12 @@ export function CreateSkillWorkspace(props: CreateSkillWorkspaceProps) {
               onChange: (event) => { setRootId((event.currentTarget as HTMLSelectElement).value); setError(undefined) },
               value: rootId,
             },
-            ...writableRoots.map((root) => createElement("option", { key: root.rootId, value: root.rootId }, `${root.displayName} · ${root.displayPath}`)),
+            ...writableRoots.map((root) => createElement("option", { key: root.rootId, value: root.rootId }, verbatim(`${root.displayName} · ${root.displayPath}`))),
           ),
-          error === undefined ? null : createElement("p", { className: "form-error", role: "alert" }, error),
+          error === undefined ? null : createElement("p", { className: "form-error", role: "alert" }, verbatim(error)),
           writableRoots.length > 0 ? null : createElement("p", { className: "form-error", role: "alert" }, "No hay una carpeta aprobada con escritura."),
           createElement("div", { className: "create-setup__actions" },
-            createElement(QuietAction, { onClick: props.onBack }, "Cancelar"),
+            createElement(QuietAction, { onClick: (event: ReactMouseEvent<HTMLButtonElement>) => requestExit(event.currentTarget) }, "Cancelar"),
             createElement("button", { className: "workspace-review", disabled: writableRoots.length === 0, type: "submit" }, "Abrir borrador")),
         ),
         createElement("aside", { className: "create-setup__aside" },
@@ -276,6 +296,7 @@ export function CreateSkillWorkspace(props: CreateSkillWorkspaceProps) {
             createElement("li", null, "Skillglass genera una plantilla editable."),
             createElement("li", null, "Revisas cada línea añadida antes de escribir."),
             createElement("li", null, "La creación queda registrada y se puede deshacer si el contenido no cambia."))),
+        discardDialog,
       ),
     )
   }
@@ -306,7 +327,9 @@ export function CreateSkillWorkspace(props: CreateSkillWorkspaceProps) {
         createElement(SkillTile, { adapterId: selectedRoot?.adapterId ?? "folder", className: "workspace-identity__tile", skillKey }),
         createElement("div", { className: "workspace-identity__copy" },
           createElement("h1", { id: "create-skill-title" }, titleFromKey(skillKey)),
-          createElement("p", null, `${selectedRoot?.displayName ?? "Destino"} · Borrador nuevo`))),
+          createElement("p", null, selectedRoot === undefined
+            ? "Destino · Borrador nuevo"
+            : createElement("span", null, verbatim(selectedRoot.displayName), " · Borrador nuevo")))),
       createElement(StatusPill, { className: "workspace-update-status", tone: "attention" }, "Nueva"),
       createElement(QuietAction, {
         className: "workspace-discard",
@@ -348,15 +371,15 @@ export function CreateSkillWorkspace(props: CreateSkillWorkspaceProps) {
         },
         createElement("header", { className: "skill-preview__header" },
           createElement("p", { className: "section-label" }, "Nueva skill"),
-          createElement("h2", null, titleFromKey(skillKey)),
-          createElement("p", null, description)),
+          createElement("h2", null, verbatim(titleFromKey(skillKey))),
+          createElement("p", null, verbatim(description))),
         createElement("article", { className: "skill-preview__content" }, mode === "preview" ? createElement(SafeMarkdown, { headingOffset: 1, source: draft }) : null)),
         createElement("section", {
           "aria-labelledby": "create-skill-code-tab", className: "code-workbench", hidden: mode !== "code",
           id: "create-skill-code-panel", role: "tabpanel", tabIndex: 0,
         },
         createElement("header", { className: "workspace-editor__meta" },
-          createElement("div", null, createElement("p", { className: "section-label" }, "Archivo"), createElement("strong", null, `${skillKey}/SKILL.md`)),
+          createElement("div", null, createElement("p", { className: "section-label" }, "Archivo"), createElement("strong", null, verbatim(`${skillKey}/SKILL.md`))),
           createElement("span", { className: "workspace-change-state workspace-change-state--dirty" }, "Borrador nuevo")),
         createElement("div", { "aria-disabled": busy, className: "workspace-editor__field", inert: busy },
           createElement(CodeEditor, {
@@ -375,9 +398,9 @@ export function CreateSkillWorkspace(props: CreateSkillWorkspaceProps) {
           createElement("div", { className: "workspace-confirmation__body" },
             createElement("div", { className: "inline-diff" }, mode === "changes" ? createElement(TextDiff, { after: draft, before: "" }) : null),
             createElement("aside", { "aria-label": "Detalles de la creación", className: "workspace-plan" },
-              createElement("p", { className: "inspector-path" }, `${selectedRoot?.displayPath ?? ""}/${skillKey}/SKILL.md`),
+              createElement("p", { className: "inspector-path" }, verbatim(`${selectedRoot?.displayPath ?? ""}/${skillKey}/SKILL.md`)),
               plan === undefined ? null : createElement(OperationPlanDetails, { plan }),
-              error === undefined ? null : createElement("p", { className: "form-error", role: "alert" }, error))),
+              error === undefined ? null : createElement("p", { className: "form-error", role: "alert" }, verbatim(error)))),
           createElement("footer", { className: "diff-actions" },
             createElement("p", null, "La carpeta no existirá hasta confirmar."),
             createElement(QuietAction, { disabled: busy, onClick: () => setMode("code") }, "Volver a editar"),
@@ -385,25 +408,23 @@ export function CreateSkillWorkspace(props: CreateSkillWorkspaceProps) {
               className: "workspace-apply", disabled: !planAvailable || busy,
               onClick: () => { void confirm() }, type: "button",
             }, applying ? "Creando…" : "Crear skill")))),
-        error === undefined || mode === "changes" ? null : createElement("div", { className: "workspace-error" }, createElement("p", { className: "form-error", role: "alert" }, error))),
+        error === undefined || mode === "changes" ? null : createElement("div", { className: "workspace-error" }, createElement("p", { className: "form-error", role: "alert" }, verbatim(error)))),
       createElement("aside", { "aria-labelledby": "create-context-title", className: "workspace-context" },
-        createElement("h2", { className: "section-label", id: "create-context-title" }, "Destino del borrador"),
-        createElement("dl", { className: "workspace-context__facts" },
-          createElement("div", null, createElement("dt", null, "Skill"), createElement("dd", null, skillKey)),
-          createElement("div", null, createElement("dt", null, "Ubicación"), createElement("dd", null, selectedRoot?.displayPath ?? "No disponible")),
-          createElement("div", null, createElement("dt", null, "Archivo"), createElement("dd", null, "SKILL.md"))),
-        createElement("p", { className: "workspace-context__safety" }, "Skillglass comprobará que el destino sigue libre, publicará la carpeta de forma atómica y conservará una acción de deshacer."))),
+        createElement("h2", { className: "section-label", id: "create-context-title" }, "Destino"),
+        createElement("p", { className: "inspector-path" }, selectedRoot === undefined ? "No disponible" : verbatim(selectedRoot.displayPath)),
+        createElement("details", { className: "workspace-context__disclosure" },
+          createElement("summary", { className: "workspace-disclosure-summary" },
+            createElement("span", null, "Detalles técnicos"),
+            createElement("span", { "aria-hidden": "true", className: "workspace-disclosure-summary__marker" })),
+          createElement("div", { className: "workspace-context__disclosure-body" },
+            createElement("dl", { className: "workspace-context__facts" },
+              createElement("div", null, createElement("dt", null, "Skill"), createElement("dd", null, skillKey)),
+              createElement("div", null, createElement("dt", null, "Ubicación"), createElement("dd", null, selectedRoot === undefined ? "No disponible" : verbatim(selectedRoot.displayPath))),
+              createElement("div", null, createElement("dt", null, "Archivo"), createElement("dd", null, "SKILL.md"))),
+            createElement("p", { className: "workspace-context__safety" }, "Skillglass comprueba que el destino sigue libre y mantiene Deshacer mientras el contenido no cambie."))))),
     createElement("footer", { className: "workspace-footer" },
       createElement("p", { "aria-live": "polite", role: "status" }, planning ? "Preparando una revisión segura." : applying ? "Creando la skill." : "Borrador local · todavía no se ha escrito en disco"),
       createElement("kbd", null, "⌘ ↵"), createElement("span", null, "Revisar creación")),
-    discardOpen ? createElement(AccessibleDialog, {
-      describedBy: "discard-create-description", labelledBy: "discard-create-title",
-      onDismiss: () => setDiscardOpen(false), returnFocus: exitTriggerRef,
-    },
-    createElement("h2", { id: "discard-create-title" }, "Descartar nueva skill"),
-    createElement("p", { id: "discard-create-description" }, "El borrador se perderá. No se ha escrito nada en disco."),
-    createElement("div", { className: "inspector-actions" },
-      createElement(QuietAction, { onClick: () => setDiscardOpen(false) }, "Seguir editando"),
-      createElement(DangerAction, { onClick: props.onBack }, "Descartar y salir"))) : null,
+    discardDialog,
   )
 }

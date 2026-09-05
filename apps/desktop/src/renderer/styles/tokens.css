@@ -13,7 +13,7 @@
     -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica,
     system-ui, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  --font-size-field-label: 9.5px;
+  --font-size-field-label: 11px;
   --font-size-mono: 11px;
   --font-size-helper: 11.5px;
   --font-size-label: 12px;
@@ -40,8 +40,8 @@
 
   /* Text */
   --text-primary: #f4f4f6;
-  --text-secondary: rgba(244, 244, 246, 0.5);
-  --text-tertiary: rgba(244, 244, 246, 0.34);
+  --text-secondary: rgba(244, 244, 246, 0.6);
+  --text-tertiary: rgba(244, 244, 246, 0.48);
   --text-disabled: rgba(244, 244, 246, 0.3);
   --text-on-metal: #141417;
 

@@ -3,6 +3,7 @@ import type { SourceRoot } from "@forge/domain"
 import { yieldToEventLoop } from "../workers/index.js"
 import { AsyncEventQueue } from "./async-event-queue.js"
 import type {
+  AdapterScanFinding,
   ScanCoordinatorOptions,
   ScanEvent,
   ScanFinding,
@@ -120,7 +121,17 @@ export class ScanCoordinator<TObservation> {
           return
         }
         try {
-          for await (const observation of adapter.scanRoot(root)) {
+          let adapterFindingCount = 0
+          const reportFinding = (reported: AdapterScanFinding): void => {
+            if (adapterFindingCount >= 128 || this.#state !== "scanning") return
+            adapterFindingCount += 1
+            finding({
+              ...reported,
+              rootId: root.id,
+              adapterId: adapter.id,
+            })
+          }
+          for await (const observation of adapter.scanRoot(root, { reportFinding })) {
             if (this.#state !== "scanning") break
             observationCount += 1
             queue.push({

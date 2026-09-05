@@ -65,7 +65,7 @@ describe("WelcomeCarousel", () => {
     const thirdTitle = container.querySelector("h1")
     expect(thirdTitle?.textContent).toBe("Crea nuevas skills para el trabajo que repites.")
     expect(document.activeElement).toBe(thirdTitle)
-    expect(buttonNamed("Elegir mis skills")).toBeInstanceOf(HTMLButtonElement)
+    expect(buttonNamed("Elegir carpetas")).toBeInstanceOf(HTMLButtonElement)
 
     await act(async () => buttonNamed("Anterior").click())
     expect(container.querySelector("h1")?.textContent)

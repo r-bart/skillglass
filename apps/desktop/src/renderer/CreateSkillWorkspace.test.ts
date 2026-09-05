@@ -1,6 +1,7 @@
 import { act, createElement } from "react"
 import { createRoot, type Root } from "react-dom/client"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { EditorView } from "@codemirror/view"
 
 import type { ForgeBridge, OnboardingStateDto, OperationPlanDto, OperationResultDto } from "@forge/contracts"
 
@@ -84,7 +85,17 @@ function button(name: string): HTMLButtonElement {
   return match
 }
 
+function replaceDraft(content: string): void {
+  const contentElement = container.querySelector<HTMLElement>(".cm-content")
+  const editor = contentElement === null ? null : EditorView.findFromDOM(contentElement)
+  if (editor === null) throw new Error("CodeMirror was not rendered")
+  act(() => editor.dispatch({
+    changes: { from: 0, to: editor.state.doc.length, insert: content },
+  }))
+}
+
 beforeEach(() => {
+  setActiveLocale("es")
   container = document.createElement("div")
   document.body.append(container)
   reactRoot = createRoot(container)
@@ -97,6 +108,30 @@ afterEach(async () => {
 })
 
 describe("CreateSkillWorkspace", () => {
+  it("protects fields entered before authoring and clears the guard when they return to their initial values", async () => {
+    const onBack = vi.fn()
+    const onCloseStateChange = vi.fn()
+    await act(async () => reactRoot.render(createElement(CreateSkillWorkspace, {
+      operationBridge: bridge(), roots: [approvedRoot], onBack, onCreated: vi.fn(), onCloseStateChange,
+    })))
+    expect(onCloseStateChange).toHaveBeenLastCalledWith("clean")
+
+    act(() => setField("#create-skill-key", "contract-review"))
+    expect(onCloseStateChange).toHaveBeenLastCalledWith("dirty")
+    act(() => button("Cancelar").click())
+    const dialog = container.querySelector('[aria-labelledby="discard-create-title"]')
+    expect(dialog).not.toBeNull()
+    expect((container.querySelector("#create-skill-key") as HTMLInputElement).value).toBe("contract-review")
+    expect(onBack).not.toHaveBeenCalled()
+
+    await act(async () => button("Seguir editando").click())
+    expect((container.querySelector("#create-skill-key") as HTMLInputElement).value).toBe("contract-review")
+    act(() => setField("#create-skill-key", ""))
+    expect(onCloseStateChange).toHaveBeenLastCalledWith("clean")
+    act(() => button("Cancelar").click())
+    expect(onBack).toHaveBeenCalledOnce()
+  })
+
   it("builds a first-class draft and uses Changes to plan before creating", async () => {
     const plan = vi.fn(() => Promise.resolve(createPlan()))
     const confirm = vi.fn(() => Promise.resolve(committed()))
@@ -131,6 +166,26 @@ describe("CreateSkillWorkspace", () => {
     expect(onCreated).toHaveBeenCalledWith("installation_created")
   })
 
+  it("stays dirty in authoring when the draft is empty but its identifying fields changed", async () => {
+    const onBack = vi.fn()
+    const onCloseStateChange = vi.fn()
+    await act(async () => reactRoot.render(createElement(CreateSkillWorkspace, {
+      operationBridge: bridge(), roots: [approvedRoot], onBack, onCreated: vi.fn(), onCloseStateChange,
+    })))
+
+    act(() => {
+      setField("#create-skill-key", "contract-review")
+      setField("#create-skill-description", "Review contracts safely")
+      button("Abrir borrador").click()
+    })
+    replaceDraft("")
+
+    expect(onCloseStateChange).toHaveBeenLastCalledWith("dirty")
+    act(() => button("Volver al inventario").click())
+    expect(container.querySelector('[aria-labelledby="discard-create-title"]')).not.toBeNull()
+    expect(onBack).not.toHaveBeenCalled()
+  })
+
   it("does not open a draft with an unsafe key", async () => {
     await act(async () => reactRoot.render(createElement(CreateSkillWorkspace, {
       operationBridge: bridge(), roots: [approvedRoot], onBack: vi.fn(), onCreated: vi.fn(),
@@ -161,5 +216,22 @@ describe("CreateSkillWorkspace", () => {
     expect(plan).toHaveBeenCalledWith(expect.objectContaining({
       content: expect.stringContaining("## When to use this skill"),
     }))
+  })
+
+  it("keeps the new skill title and description verbatim in an English preview", async () => {
+    setActiveLocale("en")
+    await act(async () => reactRoot.render(createElement(CreateSkillWorkspace, {
+      operationBridge: bridge(), roots: [approvedRoot], onBack: vi.fn(), onCreated: vi.fn(),
+    })))
+
+    act(() => {
+      setField("#create-skill-key", "detalles")
+      setField("#create-skill-description", "Carpetas")
+      button("Open draft").click()
+    })
+
+    expect(container.querySelector(".skill-preview__header h2")?.textContent).toBe("Detalles")
+    expect(container.querySelector(".skill-preview__header p:last-child")?.textContent).toBe("Carpetas")
+    expect(container.querySelector(".skill-preview__header")?.textContent).not.toContain("Folders")
   })
 })

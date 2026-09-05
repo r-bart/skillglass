@@ -182,6 +182,35 @@ async function harness(options: HarnessOptions = {}) {
 }
 
 describe("desktop local operation integration", () => {
+  it("reports a confirmed filesystem operation as active until its durable work finishes", async () => {
+    let releaseApplying: (() => void) | undefined
+    let reachedApplying: (() => void) | undefined
+    const applying = new Promise<void>((resolve) => { reachedApplying = resolve })
+    const hold = new Promise<void>((resolve) => { releaseApplying = resolve })
+    const test = await harness({
+      afterPersist: async (persisted) => {
+        if (persisted.state !== "applying") return
+        reachedApplying?.()
+        await hold
+      },
+    })
+    const content = "---\nname: close-safe\ndescription: Close safely\n---\n\n# Close safe\n"
+    const plan = await test.service.plan({
+      kind: "create-skill",
+      targetRootId: test.root.id,
+      skillKey: "close-safe",
+      content,
+    })
+
+    const confirmation = test.service.confirm({ planId: plan.planId })
+    await applying
+    expect(test.service.hasActiveConfirmedOperation()).toBe(true)
+    releaseApplying?.()
+    await expect(confirmation).resolves.toMatchObject({ status: "committed" })
+    expect(test.service.hasActiveConfirmedOperation()).toBe(false)
+    test.store.close()
+  })
+
   it("creates a reviewed SKILL.md atomically, returns the observed installation, and can undo it", async () => {
     const added: string[][] = []
     const test = await harness({ onSkillAdded: (installationIds) => added.push([...installationIds]) })

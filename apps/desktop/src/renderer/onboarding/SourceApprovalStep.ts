@@ -1,7 +1,7 @@
 import type { OnboardingStateDto, RootCandidateDto } from "@forge/contracts"
 import type { ReactNode } from "react"
 
-import { createElement } from "../i18n.js"
+import { createElement, verbatim } from "../i18n.js"
 import {
   CompactSurfaceHeader,
   MetalAction,
@@ -105,8 +105,8 @@ export function SourceApprovalStep({
                   createElement(
                     "span",
                     { className: "root-copy" },
-                    createElement("span", { className: "root-name" }, root.displayName),
-                    createElement("span", { className: "root-path" }, root.displayPath),
+                    createElement("span", { className: "root-name" }, verbatim(root.displayName)),
+                    createElement("span", { className: "root-path" }, verbatim(root.displayPath)),
                     createElement(
                       "span",
                       { className: "root-meta" },
@@ -152,6 +152,6 @@ export function SourceApprovalStep({
             ),
           ),
         ),
-    error === null ? null : createElement("p", { className: "form-error", role: "alert" }, error),
+    error === null ? null : createElement("p", { className: "form-error", role: "alert" }, verbatim(error)),
   )
 }

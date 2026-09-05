@@ -132,6 +132,7 @@ function uniqueProjects(projects: readonly ProjectScope[]): ProjectScope[] {
 
 export interface OnboardingComposition {
   readonly rootService: RootService
+  hasActiveConfirmedOperation(): boolean
   startPersistedScan(): Promise<boolean>
   dispose(): void
 }
@@ -172,7 +173,10 @@ export async function createOnboardingComposition(
   const codexAdapter = new CodexAdapter(
     adminSkillsRoot === undefined ? {} : { adminSkillsRoot },
   )
-  const folderAdapter = new FolderAdapter({ roots: [] })
+  const folderAdapter = new FolderAdapter({
+    roots: [],
+    suggestCompatibleCodexSkillsRoot: true,
+  })
   const send = (channel: string, payload: unknown): void => {
     const window = currentWindow()
     if (window !== undefined && !window.isDestroyed()) window.webContents.send(channel, payload)
@@ -455,6 +459,7 @@ export async function createOnboardingComposition(
 
   return {
     rootService,
+    hasActiveConfirmedOperation: () => operationService.hasActiveConfirmedOperation(),
     startPersistedScan,
     dispose: () => {
       unregisterOperations()

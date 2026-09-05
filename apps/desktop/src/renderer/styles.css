@@ -185,11 +185,6 @@
   text-align: left;
 }
 
-.navigation-item:hover {
-  color: var(--text);
-  background: var(--glass);
-}
-
 .navigation-item:disabled {
   cursor: not-allowed;
   opacity: 0.5;
@@ -552,7 +547,6 @@
   background: transparent;
 }
 
-.scope-button:hover,
 .scope-button[aria-pressed="true"] {
   border-color: var(--border-strong);
   color: var(--text);
@@ -636,9 +630,25 @@
   cursor: pointer;
 }
 
-.inventory-row:hover,
 .inventory-row[aria-selected="true"] {
   background: var(--glass);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .navigation-item:hover {
+    color: var(--text);
+    background: var(--glass);
+  }
+
+  .scope-button:hover {
+    border-color: var(--border-strong);
+    color: var(--text);
+    background: var(--glass-strong);
+  }
+
+  .inventory-row:hover {
+    background: var(--glass);
+  }
 }
 
 .inventory-row:focus-visible {

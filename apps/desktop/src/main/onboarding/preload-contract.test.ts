@@ -31,6 +31,28 @@ function port(responses: ReadonlyMap<string, unknown>) {
 }
 
 describe("validated preload bridge", () => {
+  it("validates lifecycle requests and close-state responses", async () => {
+    const ipc = port(new Map([[IPC_INVOKE_CHANNELS.lifecycleRespondToClose, { ok: true }]]))
+    const bridge = createForgeBridge(ipc.value)
+    const listener = vi.fn()
+    bridge.lifecycle.onCloseRequested(listener)
+    const request = { requestId: `close_${"a".repeat(32)}`, reason: "window" as const }
+    ipc.emit(IPC_EVENT_CHANNELS.lifecycleCloseRequested, request)
+    expect(listener).toHaveBeenCalledWith(request)
+    await expect(bridge.lifecycle.respondToClose({
+      requestId: request.requestId,
+      revision: 3,
+      state: "dirty",
+      locale: "es",
+    })).resolves.toEqual({ ok: true })
+    expect(() => bridge.lifecycle.respondToClose({
+      requestId: "../../close",
+      revision: 3,
+      state: "clean",
+      locale: "es",
+    })).toThrow()
+  })
+
   it("exposes onboarding through allowlisted channels and validates both directions", async () => {
     const state = {
       status: "required", proposedRoots: [candidate], selectedCandidateIds: [], approvedRoots: [],

@@ -143,6 +143,7 @@ export class DesktopOperationService {
   readonly #pending = new Map<string, PendingLocalOperation>()
   readonly #observations = new Map<string, LocalSourceUpdateObservation>()
   readonly #invalidatedPlans = new Map<string, string>()
+  #activeConfirmedOperations = 0
 
   constructor(options: DesktopOperationServiceOptions) {
     this.#selections = options.selections
@@ -234,6 +235,15 @@ export class DesktopOperationService {
   }
 
   async confirm(input: ConfirmOperationInput): Promise<OperationResultDto> {
+    this.#activeConfirmedOperations += 1
+    try {
+      return await this.#confirm(input)
+    } finally {
+      this.#activeConfirmedOperations -= 1
+    }
+  }
+
+  async #confirm(input: ConfirmOperationInput): Promise<OperationResultDto> {
     const invalidation = this.#invalidatedPlans.get(input.planId)
     if (invalidation !== undefined) {
       const plan = await this.#repository.get(input.planId)
@@ -267,21 +277,30 @@ export class DesktopOperationService {
   }
 
   async undo(input: UndoOperationInput): Promise<OperationResultDto> {
-    const existing = await this.#repository.get(input.journalId)
-    const result = await this.#contentUpdates.undo(input.journalId)
-    if (result.status === "committed") {
-      const undo = parseUndo(this.#settings.get<unknown>(`${UPDATE_UNDO_PREFIX}${input.journalId}`))
-      if (undo !== undefined) {
-        this.#provenance.persist(undo.provenanceId, undo.previous)
-        this.#settings.delete(`${UPDATE_UNDO_PREFIX}${input.journalId}`)
+    this.#activeConfirmedOperations += 1
+    try {
+      const existing = await this.#repository.get(input.journalId)
+      const result = await this.#contentUpdates.undo(input.journalId)
+      if (result.status === "committed") {
+        const undo = parseUndo(this.#settings.get<unknown>(`${UPDATE_UNDO_PREFIX}${input.journalId}`))
+        if (undo !== undefined) {
+          this.#provenance.persist(undo.provenanceId, undo.previous)
+          this.#settings.delete(`${UPDATE_UNDO_PREFIX}${input.journalId}`)
+        }
+        for (const installationId of existing?.installationIds ?? []) {
+          if (this.#projections.getInstallation(installationId) === undefined) this.#updateObservations.delete(installationId)
+        }
+        await this.refreshUpdates()
       }
-      for (const installationId of existing?.installationIds ?? []) {
-        if (this.#projections.getInstallation(installationId) === undefined) this.#updateObservations.delete(installationId)
-      }
-      await this.refreshUpdates()
+      this.#onCompleted(result)
+      return result
+    } finally {
+      this.#activeConfirmedOperations -= 1
     }
-    this.#onCompleted(result)
-    return result
+  }
+
+  hasActiveConfirmedOperation(): boolean {
+    return this.#activeConfirmedOperations > 0
   }
 
   history(): Promise<OperationHistoryDto> {

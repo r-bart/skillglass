@@ -228,7 +228,7 @@ export function WelcomeCarousel({
     {
       "aria-label": "Introducción a Skillglass",
       className: "welcome-carousel onboarding-motion-region",
-      "data-motion": "spatial",
+      "data-motion": "appearance",
     },
     createElement(
       "article",
@@ -290,7 +290,7 @@ export function WelcomeCarousel({
           createElement(
             "button",
             { className: "welcome-carousel__next", onClick: next, type: "button" },
-            slide === WELCOME_SLIDE_COUNT - 1 ? "Elegir mis skills" : "Continuar",
+            slide === WELCOME_SLIDE_COUNT - 1 ? "Elegir carpetas" : "Continuar",
           ),
         ),
       ),

@@ -16,6 +16,7 @@ import {
   UndoOperationInputSchema,
 } from "./operations.js"
 import { AckDtoSchema, EmptyInputSchema } from "./primitives.js"
+import { CloseRequestEventSchema, CloseStateResponseSchema } from "./lifecycle.js"
 import {
   ApproveRootsInputSchema,
   ApprovedRootDtoSchema,
@@ -100,6 +101,10 @@ export const IPC_INVOKE_CONTRACTS = {
     input: EmptyInputSchema,
     output: AckDtoSchema,
   },
+  [IPC_INVOKE_CHANNELS.lifecycleRespondToClose]: {
+    input: CloseStateResponseSchema,
+    output: AckDtoSchema,
+  },
 } as const
 
 /** Runtime schemas keyed by the closed event-channel allowlist. */
@@ -108,4 +113,5 @@ export const IPC_EVENT_CONTRACTS = {
   [IPC_EVENT_CHANNELS.inventoryChanged]: InventoryChangedEventSchema,
   [IPC_EVENT_CHANNELS.operationProgress]: OperationProgressEventSchema,
   [IPC_EVENT_CHANNELS.operationCompleted]: OperationCompletedEventSchema,
+  [IPC_EVENT_CHANNELS.lifecycleCloseRequested]: CloseRequestEventSchema,
 } as const

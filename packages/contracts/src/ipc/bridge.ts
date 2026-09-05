@@ -32,11 +32,16 @@ import type {
   RootCandidateDto,
   SelectAdditionalRootInput,
 } from "./roots.js"
+import type { CloseRequestEvent, CloseStateResponse } from "./lifecycle.js"
 
 export type Unsubscribe = () => void
 
 /** The only renderer-facing API. Implementations must validate both sides of IPC. */
 export interface ForgeBridge {
+  lifecycle: {
+    respondToClose(input: CloseStateResponse): Promise<AckDto>
+    onCloseRequested(listener: (event: CloseRequestEvent) => void): Unsubscribe
+  }
   onboarding: {
     state(): Promise<OnboardingStateDto>
     proposedRoots(): Promise<RootCandidateDto[]>

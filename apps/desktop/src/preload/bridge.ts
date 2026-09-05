@@ -32,6 +32,10 @@ function subscribe<T>(
 
 export function createForgeBridge(port: IpcRendererPort): ForgeBridge {
   return {
+    lifecycle: {
+      respondToClose: (input) => invoke(port, IPC_INVOKE_CHANNELS.lifecycleRespondToClose, input) as ReturnType<ForgeBridge["lifecycle"]["respondToClose"]>,
+      onCloseRequested: (listener) => subscribe(port, IPC_EVENT_CHANNELS.lifecycleCloseRequested, listener),
+    },
     onboarding: {
       state: () => invoke(port, IPC_INVOKE_CHANNELS.onboardingState, {}) as ReturnType<ForgeBridge["onboarding"]["state"]>,
       proposedRoots: () => invoke(port, IPC_INVOKE_CHANNELS.onboardingProposedRoots, {}) as ReturnType<ForgeBridge["onboarding"]["proposedRoots"]>,

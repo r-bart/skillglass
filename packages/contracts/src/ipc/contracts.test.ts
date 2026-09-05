@@ -474,6 +474,7 @@ describe("closed channel and event allowlists", () => {
         rootId: "root_global",
         adapterId: "folder",
         path: "/skills",
+        targetPath: "/external/skill",
       }],
     })
     expectJsonRoundTrip(OperationProgressEventSchema, {

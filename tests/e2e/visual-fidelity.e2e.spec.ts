@@ -69,6 +69,9 @@ function volatileSnapshotValues(scenario: RunningForgeVisualScenario): Locator[]
     page.locator("dl > div", {
       has: page.getByText(/^(?:Snapshot|Hash observado)$/u),
     }).locator("dd"),
+    page.locator("dl > div", {
+      has: page.getByText(/^(?:Caducidad|Expires)$/u),
+    }).locator("dd"),
   ]
 
   if (scenario.name === "history") {
@@ -185,6 +188,22 @@ async function expectHeaderOnOneLine(page: Page, minimumVisibleControls = 2): Pr
     if (previous === undefined || current === undefined) continue
     expect(previous.x + previous.width, `topbar controls ${String(index - 1)} and ${String(index)} must not overlap`)
       .toBeLessThanOrEqual(current.x + 0.5)
+  }
+
+  const contentWidths = await header.locator("button, summary").evaluateAll((elements) => elements
+    .filter((element) => {
+      const style = getComputedStyle(element)
+      const box = element.getBoundingClientRect()
+      return style.display !== "none" && style.visibility !== "hidden" && box.width > 0 && box.height > 0
+    })
+    .map((element) => ({
+      name: element.getAttribute("aria-label") ?? element.textContent?.trim() ?? element.tagName,
+      clientWidth: element.clientWidth,
+      scrollWidth: element.scrollWidth,
+    })))
+  for (const control of contentWidths) {
+    expect(control.scrollWidth, `topbar control ${control.name} must contain its visible content`)
+      .toBeLessThanOrEqual(control.clientWidth + 1)
   }
 }
 
@@ -404,6 +423,21 @@ async function expectCompactDiffGeometry(page: Page, compact: boolean): Promise<
 }
 
 test.describe("Forge geometric fidelity", () => {
+  test("keeps every topbar action distinct at 1600px in Spanish and English", async () => {
+    const scenario = await launchForgeVisualScenario("inventory")
+    try {
+      const { page } = scenario.app
+      await resize(page, { width: 1_600, height: 760 })
+      await expectHeaderOnOneLine(page, 6)
+
+      await page.getByRole("button", { name: "Usar inglés" }).click()
+      await expect(page.locator("html")).toHaveAttribute("lang", "en")
+      await expectHeaderOnOneLine(page, 6)
+    } finally {
+      await scenario.close()
+    }
+  })
+
   test("matches the canonical 1420×892 shell contract", async () => {
     const scenario = await launchForgeVisualScenario("inspector")
     try {

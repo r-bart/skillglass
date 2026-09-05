@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm } from "node:fs/promises"
+import { mkdir, mkdtemp, realpath, rm } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
 
@@ -21,7 +21,7 @@ afterEach(async () => {
   if (temporaryRoot.includes(`${path.sep}forge-root-service-`)) await rm(temporaryRoot, { recursive: true, force: true })
 })
 
-function folderAdapter(defaultIncluded = true) {
+function folderAdapter(defaultIncluded = true, suggestCompatibleCodexSkillsRoot = false) {
   return new FolderAdapter({ roots: [{
     candidateId: "candidate_fixture",
     canonicalPath: canonicalPath(temporaryRoot),
@@ -29,7 +29,7 @@ function folderAdapter(defaultIncluded = true) {
     access: "read-write",
     writableWithoutElevation: true,
     defaultIncluded,
-  }] })
+  }], suggestCompatibleCodexSkillsRoot })
 }
 
 function context() {
@@ -79,6 +79,23 @@ describe("approved root onboarding gate", () => {
     expect((await service.state()).status).toBe("complete")
   })
 
+  it("can propose roots when the discovery home is a virtual missing path", async () => {
+    const service = new RootService({
+      adapters: [folderAdapter()],
+      discoveryContext: {
+        ...context(),
+        homeDirectory: canonicalPath(path.join(temporaryRoot, "missing", "home")),
+      },
+      settings: new MemoryRootApprovalSettingsRepository(),
+      picker: { selectDirectory: () => Promise.resolve(null) },
+    })
+
+    await expect(service.state()).resolves.toMatchObject({
+      status: "required",
+      proposedRoots: [expect.objectContaining({ candidateId: "candidate_fixture" })],
+    })
+  })
+
   it("restores persisted approval and permits startup scan after restart", async () => {
     const settings = new MemoryRootApprovalSettingsRepository()
     const first = new RootService({
@@ -95,6 +112,36 @@ describe("approved root onboarding gate", () => {
     expect(await restored.state()).toMatchObject({ status: "complete", selectedCandidateIds: ["candidate_fixture"] })
     expect(await restored.scanPersistedApproval()).toBe(true)
     expect(scans).toBe(1)
+  })
+
+  it("proposes an existing compatible Codex folder without adding it to a persisted approval", async () => {
+    const compatible = path.join(temporaryRoot, ".codex", "skills")
+    await mkdir(compatible, { recursive: true })
+    const settings = new MemoryRootApprovalSettingsRepository()
+    const first = new RootService({
+      adapters: [folderAdapter()], discoveryContext: context(), settings,
+      picker: { selectDirectory: () => Promise.resolve(null) },
+    })
+    await first.approveRoots(["candidate_fixture"])
+    const scans: Array<readonly { canonicalPath: string }[]> = []
+    const restored = new RootService({
+      adapters: [folderAdapter(true, true)],
+      discoveryContext: context(), settings,
+      picker: { selectDirectory: () => Promise.resolve(null) },
+      onApprovalPersisted: (roots) => { scans.push(roots); return Promise.resolve() },
+    })
+
+    const state = await restored.state()
+    expect(state.proposedRoots).toContainEqual(expect.objectContaining({
+      adapterId: "folder",
+      displayName: "Carpeta compatible con SKILL.md · Añadida por ti",
+      displayPath: await realpath(compatible),
+    }))
+    expect(state.selectedCandidateIds).toEqual(["candidate_fixture"])
+    await restored.scanPersistedApproval()
+    expect(scans).toHaveLength(1)
+    expect(scans[0]).toHaveLength(1)
+    expect(scans[0]?.[0]?.canonicalPath).toBe(canonicalPath(temporaryRoot))
   })
 
   it("restores a disappeared approved root as missing without aborting startup", async () => {
@@ -155,6 +202,22 @@ describe("approved root onboarding gate", () => {
     expect(selected?.candidateId).toMatch(/^candidate_[a-f0-9]{32}$/u)
     expect((await service.state()).selectedCandidateIds).toContain(selected?.candidateId)
     await expect(service.selectAdditionalRoot("codex")).rejects.toThrow("native directory selection")
+  })
+
+  it("keeps a manually selected provider plugin folder read-only after canonicalization", async () => {
+    const pluginFolder = path.join(temporaryRoot, ".codex", "plugins", "cache", "example")
+    await mkdir(pluginFolder, { recursive: true })
+    const service = new RootService({
+      adapters: [new FolderAdapter({ roots: [] })], discoveryContext: context(),
+      settings: new MemoryRootApprovalSettingsRepository(),
+      picker: { selectDirectory: () => Promise.resolve(pluginFolder) },
+    })
+
+    await expect(service.selectAdditionalRoot("folder")).resolves.toMatchObject({
+      kind: "managed",
+      access: "read-only",
+      writableWithoutElevation: false,
+    })
   })
 
   it("refreshes project root proposals without scanning when the native project picker persists a project", async () => {

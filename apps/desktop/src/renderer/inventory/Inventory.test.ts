@@ -339,9 +339,7 @@ describe("Inventory", () => {
     expect(globalRow?.textContent).toContain("Global")
     expect(globalRow?.textContent).toContain("Descripción de global-review")
     expect(globalRow?.textContent).toContain("1.4.2")
-    expect(globalRow?.querySelector('[aria-label="Validez: Válida"]')).not.toBeNull()
-    expect(globalRow?.querySelector('[aria-label="Origen: Local"]')).not.toBeNull()
-    expect(globalRow?.querySelector('[aria-label="Actualización: Actualizada"]')).not.toBeNull()
+    expect(globalRow?.querySelectorAll(".inventory-evidence-pill")).toHaveLength(0)
     expect(globalRow?.querySelector(".inventory-evidence-marker--current")?.getAttribute("aria-label"))
       .toBe("Actualización: Actualizada")
     expect(globalRow?.querySelector(".skill-tile")?.getAttribute("data-tile")).toMatch(/blue|green|amber|plum|steel/u)
@@ -357,6 +355,29 @@ describe("Inventory", () => {
     expect(unknownUpdateMarker?.getAttribute("aria-label")).toBe("Actualización: Sin datos")
     expect(rows[2]?.querySelector(".inventory-evidence-marker--available")).toBeNull()
     expect(rows[2]?.querySelector('[aria-label="Origen: Solo lectura"]')).not.toBeNull()
+    expect(rows[2]?.querySelector('[aria-label="Validez: Inválida"]')).not.toBeNull()
+  })
+
+  it("labels managed and system read-only rows as managed while preserving read-only for other roots", async () => {
+    const managed: InventoryItemDto = {
+      ...item("managed_audit", "managed-audit", { kind: "managed" }),
+      status: {
+        ...item("managed_audit", "managed-audit", { kind: "managed" }).status,
+        source: "read-only",
+      },
+    }
+    await act(async () => root.render(createElement(Inventory, {
+      inventoryBridge: bridge(() => Promise.resolve({ ...basePage, items: [managed], total: 1 })),
+    })))
+
+    expect(container.querySelector(".inventory-evidence-pill--source")?.textContent).toBe("Gestionada")
+    expect(container.querySelector(".inventory-row")?.textContent).not.toContain("Solo lectura")
+
+    const system = { ...managed, scope: { kind: "system" as const } }
+    await act(async () => root.render(createElement(Inventory, {
+      inventoryBridge: bridge(() => Promise.resolve({ ...basePage, items: [system], total: 1 })),
+    })))
+    expect(container.querySelector(".inventory-evidence-pill--source")?.textContent).toBe("Gestionada")
   })
 
   it("keeps unmonitored installations visible and badges only monitored rows", async () => {
@@ -401,6 +422,73 @@ describe("Inventory", () => {
     }))
     expect(container.querySelectorAll(".inventory-row")).toHaveLength(2)
     expect(container.textContent).toContain("2 instalaciones")
+  })
+
+  it("ignores a late pagination response after the query changes", async () => {
+    let resolveMore: ((page: InventoryPageDto) => void) | undefined
+    const list = vi.fn((query) => {
+      if (query.cursor !== undefined) {
+        return new Promise<InventoryPageDto>((resolve) => { resolveMore = resolve })
+      }
+      if (query.search !== undefined) {
+        return Promise.resolve({ ...basePage, items: [inventoryItems[2] as InventoryItemDto], nextCursor: null, total: 1 })
+      }
+      return Promise.resolve({
+        ...basePage,
+        items: [inventoryItems[0] as InventoryItemDto],
+        nextCursor: "installation_global_review",
+        total: 2,
+      })
+    })
+    await act(async () => root.render(createElement(Inventory, { inventoryBridge: bridge(list) })))
+
+    act(() => buttonNamed("Cargar más instalaciones").click())
+    const search = container.querySelector<HTMLInputElement>('input[type="search"]')
+    await act(async () => {
+      if (search === null) throw new Error("Search field is missing")
+      inputText(search, "broken")
+    })
+    await settle()
+    expect(container.textContent).toContain("broken-frontmatter")
+
+    await act(async () => resolveMore?.({
+      ...basePage,
+      items: [inventoryItems[1] as InventoryItemDto],
+      nextCursor: null,
+      total: 2,
+    }))
+    expect(container.textContent).not.toContain("project-release")
+  })
+
+  it("keeps observed author and package labels verbatim in English filters and chips", async () => {
+    setActiveLocale("en")
+    const observed: InventoryItemDto = {
+      ...item("observed_labels", "observed-labels", { kind: "global" }, "Detalles"),
+      packageId: { state: "known", value: "Carpetas", evidence: { kind: "observed", source: "SKILL.md" } },
+    }
+    const page = { ...basePage, items: [observed], total: 1 }
+    await act(async () => root.render(createElement(Inventory, {
+      inventoryBridge: bridge(() => Promise.resolve(page)),
+    })))
+
+    act(() => container.querySelector<HTMLDetailsElement>(".inventory-filter-disclosure summary")?.click())
+    const author = selectLabeled("Author")
+    const packageFilter = selectLabeled("Package")
+    expect(author.textContent).toContain("Detalles")
+    expect(author.textContent).not.toContain("Details")
+    expect(packageFilter.textContent).toContain("Carpetas")
+    expect(packageFilter.textContent).not.toContain("Folders")
+
+    await act(async () => {
+      author.value = "Detalles"
+      author.dispatchEvent(new Event("change", { bubbles: true }))
+    })
+    await act(async () => {
+      selectLabeled("Package").value = "Carpetas"
+      selectLabeled("Package").dispatchEvent(new Event("change", { bubbles: true }))
+    })
+    expect(container.querySelector(".inventory-active-filters")?.textContent).toContain("Author: Detalles")
+    expect(container.querySelector(".inventory-active-filters")?.textContent).toContain("Package: Carpetas")
   })
 
   it("renders distinct unfiltered and filtered empty states and clears filters", async () => {

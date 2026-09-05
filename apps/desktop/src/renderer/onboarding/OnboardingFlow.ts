@@ -13,9 +13,9 @@ import {
   type ReactNode,
 } from "react"
 
-import { createElement } from "../i18n.js"
+import { createElement, verbatim } from "../i18n.js"
 import { loadAllInventoryItems } from "../inventory/load-all.js"
-import { QuietAction } from "../VisualPrimitives.js"
+import { MetalAction, QuietAction } from "../VisualPrimitives.js"
 import { SkillSelectionList } from "./SkillSelectionList.js"
 import { SourceApprovalStep } from "./SourceApprovalStep.js"
 import {
@@ -27,8 +27,10 @@ import {
 export type OnboardingPhase =
   | "loading"
   | "intro"
+  | "tour"
   | "sources"
   | "scanning"
+  | "monitoring-summary"
   | "skills"
   | "saving"
   | "complete"
@@ -74,7 +76,7 @@ function BusyStep({ message, error, onRetry }: {
       id: "main-content",
       tabIndex: -1,
     },
-    createElement("p", { role: error === undefined ? "status" : "alert" }, error ?? message),
+    createElement("p", { role: error === undefined ? "status" : "alert" }, error === undefined ? message : verbatim(error)),
     error !== undefined && onRetry !== undefined
       ? createElement(QuietAction, { onClick: onRetry }, "Reintentar")
       : null,
@@ -109,7 +111,7 @@ export function OnboardingFlow({
   const [flowError, setFlowError] = useState<string>()
 
   useEffect(() => {
-    if (phase !== "sources" && phase !== "skills") return
+    if (phase !== "sources" && phase !== "monitoring-summary" && phase !== "skills") return
     const main = phaseMain.current
     if (main === null) return
     main.scrollTop = 0
@@ -144,7 +146,7 @@ export function OnboardingFlow({
           ? items.map(({ installationId }) => installationId)
           : persistedSelection,
       ))
-      setPhase("skills")
+      setPhase("monitoring-summary")
     } catch (reason) {
       setFlowError(reason instanceof Error ? reason.message : "No se pudo cargar el inventario")
     }
@@ -195,16 +197,19 @@ export function OnboardingFlow({
     }
   }
 
-  const saveMonitoring = async (): Promise<void> => {
+  const saveMonitoring = async (
+    nextSelection: ReadonlySet<string> = selection,
+    failurePhase: "monitoring-summary" | "skills" = "skills",
+  ): Promise<void> => {
     setPhase("saving")
     setFlowError(undefined)
     try {
-      const state = await onSaveMonitoring([...selection])
+      const state = await onSaveMonitoring([...nextSelection])
       setPhase("complete")
       onComplete(state)
     } catch (reason) {
       setFlowError(reason instanceof Error ? reason.message : "No se pudo guardar el seguimiento.")
-      setPhase("skills")
+      setPhase(failurePhase)
     }
   }
 
@@ -216,6 +221,36 @@ export function OnboardingFlow({
   }
 
   if (phase === "intro") {
+    return createElement(
+      "main",
+      { className: "onboarding-flow", id: "main-content", tabIndex: -1 },
+      createElement(
+        "section",
+        { "aria-labelledby": "onboarding-welcome-title", className: "onboarding-welcome" },
+        createElement(
+          "span",
+          { "aria-hidden": "true", className: "welcome-carousel__mark" },
+          createElement("i", null),
+          createElement("strong", null, "S"),
+        ),
+        createElement("p", { className: "welcome-carousel__eyebrow" }, "Bienvenido a Skillglass"),
+        createElement("h1", { id: "onboarding-welcome-title" }, "Entiende todas las skills que ya tienes."),
+        createElement(
+          "p",
+          { className: "onboarding-welcome__description" },
+          "Elige las carpetas que Skillglass puede leer y abre tu inventario en unos pasos.",
+        ),
+        createElement(
+          "div",
+          { className: "onboarding-welcome__actions" },
+          createElement(MetalAction, { onClick: continueAfterIntro }, "Elegir carpetas"),
+          createElement(QuietAction, { onClick: () => setPhase("tour") }, "Ver tour de 3 pasos"),
+        ),
+      ),
+    )
+  }
+
+  if (phase === "tour") {
     return createElement(
       "main",
       { className: "onboarding-flow", id: "main-content", tabIndex: -1 },
@@ -259,6 +294,64 @@ export function OnboardingFlow({
     })
   }
 
+  if (phase === "monitoring-summary") {
+    const itemCount = inventory.items.length
+    const allInstallationIds = new Set(inventory.items.map(({ installationId }) => installationId))
+    return createElement(
+      "main",
+      { className: "onboarding-flow", id: "main-content", ref: phaseMain, tabIndex: -1 },
+      createElement(
+        "section",
+        { "aria-labelledby": "monitoring-summary-title", className: "onboarding-follow-up" },
+        createElement("p", { className: "eyebrow" }, "Inventario preparado"),
+        createElement(
+          "h1",
+          { id: "monitoring-summary-title", tabIndex: -1 },
+          itemCount === 0
+            ? "No hemos encontrado skills todavía."
+            : `Hemos encontrado ${itemCount} ${itemCount === 1 ? "skill" : "skills"}.`,
+        ),
+        createElement(
+          "p",
+          null,
+          itemCount === 0
+            ? "Puedes abrir el inventario vacío para crear una skill o añadir otra carpeta ahora."
+            : "Puedes seguirlas todas ahora o revisar la lista y elegir cuáles quieres destacar.",
+        ),
+        flowError === undefined
+          ? null
+          : createElement("p", { className: "form-error", role: "alert" }, verbatim(flowError)),
+        createElement(
+          "div",
+          { className: "onboarding-follow-up__actions" },
+          createElement(
+            MetalAction,
+            {
+              onClick: () => { void saveMonitoring(allInstallationIds, "monitoring-summary") },
+            },
+            itemCount === 0 ? "Abrir inventario" : "Seguir todas y abrir inventario",
+          ),
+          itemCount === 0
+            ? createElement(
+                QuietAction,
+                {
+                  onClick: () => {
+                    onAddFolder()
+                    setPhase("sources")
+                  },
+                },
+                "Añadir otra carpeta",
+              )
+            : createElement(
+                QuietAction,
+                { onClick: () => setPhase("skills") },
+                "Elegir cuáles seguir",
+              ),
+        ),
+      ),
+    )
+  }
+
   return createElement(
     "main",
     { className: "onboarding-flow", id: "main-content", ref: phaseMain, tabIndex: -1 },
@@ -278,7 +371,7 @@ export function OnboardingFlow({
       disabled: phase === "saving",
       footer: flowError === undefined
         ? undefined
-        : createElement("p", { className: "form-error", role: "alert" }, flowError),
+        : createElement("p", { className: "form-error", role: "alert" }, verbatim(flowError)),
       items: inventory.items,
       onComplete: () => { void saveMonitoring() },
       onSelectionChange: setSelection,

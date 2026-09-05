@@ -1,284 +1,181 @@
 ---
 import { getImage } from "astro:assets"
 import brandIcon from "../assets/skillglass-icon.png"
-import productShot from "../assets/product-shot.png"
+import { publishedAssets, skillglassRelease } from "../data/release.js"
 import "../styles/global.css"
 
+type Language = "es" | "en"
+type Props = { language?: Language }
+
+const { language = "en" } = Astro.props as Props
 const repositoryUrl = "https://github.com/r-bart/skillglass"
 const releasesUrl = `${repositoryUrl}/releases`
+const issuesUrl = `${repositoryUrl}/issues`
+const installationUrl = `${repositoryUrl}/blob/main/docs/installation.md`
 const iconSmall = await getImage({ src: brandIcon, width: 72, format: "webp" })
-const shot = await getImage({ src: productShot, width: 2400, format: "webp", quality: 90 })
-const languages = ["es", "en"] as const
+const availableAssets = publishedAssets(skillglassRelease)
+const availableAssetIds = new Set(availableAssets.map(({ id }) => id))
 
 const copy = {
   es: {
-    nav: ["Cómo funciona", "Capacidades", "Seguridad", "FAQ"], download: "Descargar",
+    nav: ["Cómo funciona", "Demostración", "Privacidad", "Preguntas"], download: "Ver descargas",
     hero: {
-      kicker: "Inventario local de agent skills · Open source",
-      title: "Tus agent skills, por fin en un solo sitio.",
-      body: "Están repartidas entre carpetas globales, proyectos, paquetes y cachés de plugins. Dile a Skillglass dónde puede mirar. Te mostrará qué hace cada skill, de dónde salió y cuál toma efecto cuando dos comparten nombre.",
-      primary: "Descargar", secondary: "Ver el código",
-      privacy: "Todo se queda en tu máquina. Sin cuenta, sin cloud y sin telemetría. Skillglass lee por defecto y te enseña cada cambio antes de escribir.",
-      platforms: "macOS · Windows · Linux — solo desde este repositorio",
+      kicker: "App local para skills de Codex",
+      title: "Encuentra y edita tus skills en un solo lugar.",
+      body: "Explora las carpetas que elijas, lee las instrucciones de cada skill y revisa los cambios antes de guardarlos. Funciona con skills de Codex y otras carpetas con archivos SKILL.md.",
+      primary: "Ver descargas", secondary: "Ver el recorrido",
+      privacy: "Sin cuenta ni telemetría. Tus archivos permanecen en tu equipo.",
     },
-    how: { kicker: "Cómo funciona", title: "De carpetas dispersas a un inventario claro en tres pasos.", steps: [
-      ["Elige dónde mirar", "Skillglass propone las raíces de los runtimes que encuentra y etiqueta cada una como escribible, gestionada, de solo lectura o ausente. Tú decides qué se escanea."],
-      ["Escanea sin cambiar nada", "El escaneo solo lee. Obtienes nombre, descripción, ruta canónica, ámbito, procedencia y validez de cada instalación encontrada."],
-      ["Inspecciona primero. Cambia después.", "Abre cualquier skill y mira cómo funciona. Si editas o creas una, Skillglass te enseña el plan y el diff exacto antes de escribir, y guarda un snapshot que puedes deshacer."],
+    how: { kicker: "Cómo funciona", title: "De tus carpetas a un inventario claro.", steps: [
+      ["Elige dónde buscar", "Skillglass propone las ubicaciones habituales y te permite añadir otras. Solo escanea las carpetas que autorizas."],
+      ["Encuentra una skill", "Busca por nombre, descripción o ruta. Ábrela para leer sus instrucciones y ver dónde está guardada."],
+      ["Edita con control", "Revisa el diff antes de guardar. Después puedes deshacer el cambio desde el historial."],
     ] },
-    features: { kicker: "Capacidades", title: "El mapa completo, sin adivinar.", items: [
-      ["Encuentra cualquier skill", "Busca por nombre, descripción, ruta o metadatos. Filtra por runtime, validez, procedencia, origen o actualización. Agrupa solo cuando hay datos reales para hacerlo."],
-      ["Ve cuál toma efecto", "Si dos skills comparten nombre, Skillglass señala el archivo exacto que gana en cada ámbito y las instalaciones que quedan tapadas."],
-      ["Detecta estructuras rotas", "Comprueba SKILL.md y sus recursos locales de forma estática. El contenido importado nunca se ejecuta."],
-      ["Instala sin sorpresas", "Instala desde carpeta o ZIP en raíces aprobadas. Primero ves el plan; después la escritura es atómica y deja un snapshot recuperable."],
-      ["Edita con el diff delante", "Vista previa, Código y Cambios trabajan sobre la misma instalación observada. Ves exactamente qué cambiará antes de aplicarlo."],
-      ["Deshaz incluso después de reiniciar", "El journal persistente recupera operaciones interrumpidas y mantiene disponible el deshacer entre sesiones."],
+    features: { kicker: "Qué puedes hacer", title: "Las herramientas justas para trabajar con tus skills.", items: [
+      ["Busca en tus carpetas", "Consulta skills de Codex y de otras carpetas que hayas añadido."],
+      ["Encuentra nombres repetidos", "Si hay varias copias con el mismo nombre, Skillglass te muestra dónde está cada una."],
+      ["Lee Markdown con claridad", "Títulos, listas, tablas, código y enlaces seguros se muestran sin ejecutar el contenido importado."],
+      ["Detecta problemas", "Una skill incompleta o inválida sigue visible y te indica qué debes corregir."],
+      ["Añade skills locales", "Instala una skill desde una carpeta o un archivo ZIP que ya esté en tu equipo."],
+      ["Guarda y deshaz", "Revisa el cambio exacto antes de guardar y deshazlo mientras los archivos no hayan cambiado fuera de Skillglass."],
     ] },
-    interface: { kicker: "La interfaz", title: "Sin puntuaciones misteriosas. Solo la evidencia.", body: "La validez, la procedencia y el estado de actualización significan cosas distintas, así que Skillglass las mantiene separadas. Si el dato no existe, dice «Sin datos».", legend: "El punto de la izquierda muestra la actualización. Verde: al día. Ámbar: cambios locales. Rojo: actualización disponible. Gris: no hay datos suficientes." },
-    safety: { kicker: "Límites de seguridad", title: "Tus archivos siguen siendo tuyos.", body: "Skillglass es conservador a propósito. Estos son límites del producto, no funciones pendientes de implementar.", items: [
-      "No activa, desactiva ni desinstala skills. Tu harness sigue teniendo el control.",
-      "No pide permisos de administrador, root ni ninguna elevación del sistema.",
-      "Solo escribe en raíces que tú has aprobado y que tu usuario puede modificar. El resto permanece en solo lectura.",
-      "No ejecuta contenido importado. Lo trata como no confiable durante la inspección y la instalación.",
-      "No hay telemetría de uso ni afirmaciones que no pueda demostrar. Si no se observa, no se inventa.",
-      "No hay cloud, cuentas, equipos ni sincronización. El índice y la recuperación viven en los datos locales de la aplicación.",
-    ] },
-    release: {
-      kicker: "Descarga", title: "Un único sitio oficial para descargar Skillglass.",
-      paragraphs: ["GitHub Releases. No hay tiendas, espejos, portales de descarga ni actualizador automático. Si el binario viene de otro sitio, no es oficial.", "Cada release incluye SHA256SUMS.txt y build-metadata.json para que puedas verificarlo antes de ejecutarlo."],
-      notice: "Una advertencia honesta: los builds todavía no tienen una identidad de editor reconocida por el sistema. En macOS usan firma ad-hoc y no están notarizados, así que puedes ver un aviso de desarrollador no verificado.", cta: "Abrir Releases",
-      requirementsKicker: "Plataformas y requisitos", requirementsTitle: "macOS, Windows y Linux. Desde el principio.", requirements: [
-        ["Sistemas", "macOS, Windows y Linux. macOS y Linux arm64 están validados; la matriz nativa de Windows se ejecutará cuando se retome ese trabajo."],
-        ["Runtimes", "Codex y carpetas compatibles con Agent Skills, con un SKILL.md obligatorio. Cada runtime entra por su propio adaptador."],
-        ["Desarrollo", "Node.js 24.19.x y pnpm 11.5.x."],
-        ["Accesibilidad", "Todo el flujo se recorre con teclado. Escalado de pantalla, alto contraste y movimiento reducido están soportados."],
+    demo: {
+      kicker: "Recorrido por la aplicación", title: "Encontrar, editar y deshacer en seis pasos.",
+      body: "Capturas de la aplicación real con skills de ejemplo: desde la búsqueda hasta deshacer un cambio.",
+      steps: [
+        ["1. Encontrar", "Busca una skill dentro de las carpetas autorizadas."],
+        ["2. Abrir", "Lee las instrucciones y comprueba su ubicación."],
+        ["3. Editar", "Modifica SKILL.md dentro del editor local."],
+        ["4. Revisar", "Comprueba el diff exacto antes de guardar."],
+        ["5. Guardar", "Confirma el cambio y vuelve a abrir la skill."],
+        ["6. Deshacer", "Recupera la versión anterior desde el historial."],
       ],
     },
-    faq: { kicker: "Preguntas", title: "Preguntas razonables. Respuestas directas.", items: [
-      ["¿Skillglass cambiará mis archivos por su cuenta?", "No. Leer no cambia nada. Cualquier escritura empieza con un plan que debes aceptar y termina con un snapshot recuperable y una entrada en el journal."],
-      ["¿Deshacer equivale a desinstalar?", "No. El rollback solo sirve para el árbol exacto e intacto creado por una operación registrada. No es un desinstalador general."],
-      ["¿Puedo instalar desde internet?", "No por ahora. El MVP no incluye un registro remoto ni URLs arbitrarias. Instalas desde una carpeta o un ZIP en una raíz aprobada."],
-      ["¿Genera skills con IA?", "No en esta versión. El análisis y la reescritura por agentes vendrán, si llegan, con otro contrato de producto. Hoy tienes un editor claro y el diff exacto."],
-      ["¿Qué guarda en mi máquina?", "Un índice SQLite y el material de recuperación, dentro de los datos de usuario de la aplicación. En POSIX, la carpeta usa 0700 y la base de datos 0600. Nada se sube."],
-      ["¿Cuánto historial conserva?", "Los últimos 30 snapshots por instalación, o todos los de los últimos 90 días: lo que mantenga más historial recuperable. El snapshot actual nunca se elimina."],
+    safety: { kicker: "Privacidad", title: "Tus archivos siguen bajo tu control.", body: "Skillglass funciona en tu equipo y solo escribe después de que confirmes un cambio.", items: [
+      "Solo escanea las carpetas que autorizas.", "No ejecuta el contenido de una skill durante la inspección.",
+      "No pide permisos de administrador ni root.", "No sincroniza archivos ni recopila telemetría de uso.",
     ] },
-    closing: { title: "Open source, Apache 2.0 y construido en público.", body: "Skillglass está en desarrollo activo y el código está abierto. Para proponer un cambio, empieza por CONTRIBUTING. Para informar de una vulnerabilidad, ve a SECURITY.", repo: "Ver el repositorio", contribute: "Contribuir", security: "Seguridad", footer: "Apache License 2.0 · Local-first · Sin telemetría" },
+    release: {
+      kicker: "Descarga", pendingTitle: `Skillglass ${skillglassRelease.version} estará disponible pronto.`,
+      pendingBody: "Estamos terminando de comprobar los instaladores. En cuanto estén listos, podrás descargarlos aquí.",
+      readyTitle: `Descarga Skillglass ${skillglassRelease.version}.`, assetCta: "Descargar", guide: "Instrucciones de instalación", releases: "Abrir GitHub Releases", targets: "Formatos previstos", checksums: "Ver checksums", statusPending: "Próximamente", statusVerified: "Verificado",
+      signing: "Los instaladores aún no están firmados por un editor reconocido. Consulta las instrucciones para instalarlos en cada sistema.",
+    },
+    faq: { kicker: "Preguntas frecuentes", title: "Lo que conviene saber antes de empezar.", items: [
+      ["¿Qué carpetas son compatibles?", "Skillglass reconoce ubicaciones de Codex y permite añadir carpetas que contengan SKILL.md. Solo muestra lo que has autorizado."],
+      ["¿Mis skills salen de mi equipo?", "No. El índice y las copias necesarias para deshacer se guardan en tu equipo. No necesitas cuenta y Skillglass no recopila telemetría."],
+      ["¿Cómo funcionan guardar y deshacer?", "Cada cambio se muestra en un diff antes de guardarlo. Puedes deshacerlo desde el historial mientras los archivos no hayan cambiado fuera de Skillglass."],
+      ["¿Qué queda fuera de esta versión?", "Skillglass no activa, desactiva ni desinstala skills. Tampoco instala desde internet, sincroniza datos, genera contenido con IA ni actualiza la aplicación."],
+    ] },
+    closing: {
+      title: "Una herramienta pequeña, hecha por Roberto.",
+      body: "Creé Skillglass para consultar y editar mis propias skills desde una app local. La comparto con licencia Apache 2.0.",
+      author: "Roberto en GitHub", issues: "Abrir GitHub Issues", source: "Ver el código en GitHub", footer: "Local · Sin cuenta · Sin telemetría",
+    },
   },
   en: {
-    nav: ["How it works", "Capabilities", "Safety", "FAQ"], download: "Download",
+    nav: ["How it works", "Demo", "Privacy", "Questions"], download: "View downloads",
     hero: {
-      kicker: "Local inventory for agent skills · Open source",
-      title: "Your agent skills, finally in one clear place.",
-      body: "They’re scattered across global folders, projects, packages, and plugin caches. Tell Skillglass where it can look. It shows what every skill does, where it came from, and which copy takes effect when two share a name.",
-      primary: "Download", secondary: "View the code",
-      privacy: "Everything stays on your machine. No account, no cloud, no telemetry. Skillglass reads by default and shows you every change before it writes.",
-      platforms: "macOS · Windows · Linux — from this repository only",
+      kicker: "A local app for Codex skills",
+      title: "Find and edit your skills in one place.",
+      body: "Browse the folders you choose, read each skill’s instructions, and review changes before saving. It works with Codex skills and other folders containing SKILL.md files.",
+      primary: "View downloads", secondary: "See the walkthrough",
+      privacy: "No account or telemetry. Your files stay on your computer.",
     },
-    how: { kicker: "How it works", title: "From scattered folders to a clear inventory in three steps.", steps: [
-      ["Choose where to look", "Skillglass proposes roots for the runtimes it finds and labels each one writable, managed, read-only, or missing. You decide what gets scanned."],
-      ["Scan without changing a thing", "The scan only reads. You get the name, description, canonical path, scope, provenance, and validity of every installation it finds."],
-      ["Inspect first. Change when ready.", "Open any skill and see how it works. If you edit or create one, Skillglass shows the plan and exact diff before writing, then keeps a snapshot you can undo."],
+    how: { kicker: "How it works", title: "From your folders to a clear inventory.", steps: [
+      ["Choose where to look", "Skillglass suggests the usual locations and lets you add others. It scans only the folders you approve."],
+      ["Find a skill", "Search by name, description, or path. Open a skill to read its instructions and see where it is stored."],
+      ["Edit with control", "Review the diff before saving. You can undo the change later from History."],
     ] },
-    features: { kicker: "Capabilities", title: "The complete picture, without the guesswork.", items: [
-      ["Find any skill fast", "Search by name, description, path, or metadata. Filter by runtime, validity, provenance, source, or update state. Group only when real data supports it."],
-      ["See what actually takes effect", "When two skills share a name, Skillglass points to the exact file that wins in each scope and the installations left shadowed."],
-      ["Catch broken structure", "Check SKILL.md and its local resources statically. Imported content is never executed."],
-      ["Install without surprises", "Install from a folder or ZIP into an approved root. See the plan first; then Skillglass writes atomically and keeps a recoverable snapshot."],
-      ["Edit with the diff in front of you", "Preview, Code, and Changes work from the same observed installation. You see exactly what will change before applying it."],
-      ["Undo—even after a restart", "The persistent journal recovers interrupted operations and keeps undo available between sessions."],
+    features: { kicker: "What you can do", title: "Just enough to work with your skills.", items: [
+      ["Search your folders", "Browse Codex skills and other folders you have added."],
+      ["Find duplicate names", "If several copies share a name, Skillglass shows you where each one is stored."],
+      ["Read Markdown clearly", "Headings, lists, tables, code, and safe links render without executing imported content."],
+      ["Spot problems", "An incomplete or invalid skill stays visible and tells you what to fix."],
+      ["Add local skills", "Install a skill from a folder or ZIP file that is already on your computer."],
+      ["Save and undo", "Review the exact change before saving and undo it while the files remain unchanged outside Skillglass."],
     ] },
-    interface: { kicker: "The interface", title: "No mystery scores. Just the evidence.", body: "Validity, provenance, and update status mean different things, so Skillglass keeps them separate. If the data is not there, it says “No data.”", legend: "The dot on the left shows update status. Green: current. Amber: local changes. Red: update available. Grey: not enough data." },
-    safety: { kicker: "Safety boundaries", title: "Your files stay yours.", body: "Skillglass is conservative on purpose. These are product boundaries, not features waiting to happen.", items: [
-      "No activating, deactivating, or uninstalling skills. Your harness stays in charge.",
-      "No administrator, root, or operating-system elevation.",
-      "Writes happen only inside approved roots your user can modify. Everything else stays read-only.",
-      "Imported content is never executed. Skillglass treats it as untrusted during inspection and installation.",
-      "No usage telemetry and no claims it cannot prove. If it cannot be observed, it is not invented.",
-      "No cloud, accounts, teams, or sync. The index and recovery material stay in local application data.",
-    ] },
-    release: {
-      kicker: "Download", title: "One official place to download Skillglass.",
-      paragraphs: ["GitHub Releases. No app stores, mirrors, download portals, or automatic updater. If a binary comes from somewhere else, it is not official.", "Every release includes SHA256SUMS.txt and build-metadata.json so you can verify it before running it."],
-      notice: "One honest caveat: builds do not yet carry an OS-trusted publisher identity. macOS bundles use an ad-hoc signature and are not notarized, so you may see an unverified-developer warning.", cta: "Open Releases",
-      requirementsKicker: "Platforms and requirements", requirementsTitle: "macOS, Windows, and Linux. From the start.", requirements: [
-        ["Systems", "macOS, Windows and Linux. macOS and Linux arm64 are validated; the native Windows matrix runs when that work resumes."],
-        ["Runtimes", "Codex and Agent Skills-compatible folders with a required SKILL.md. Every runtime comes in through its own adapter."],
-        ["Development", "Node.js 24.19.x and pnpm 11.5.x."],
-        ["Accessibility", "The whole flow is keyboard-navigable. Display scaling, high contrast and reduced motion are supported."],
+    demo: {
+      kicker: "App walkthrough", title: "Find, edit, and undo in six steps.",
+      body: "Screenshots from the real app using example skills, from finding one to undoing a change.",
+      steps: [
+        ["1. Find", "Search for a skill inside your approved folders."], ["2. Open", "Read its instructions and check its location."],
+        ["3. Edit", "Change SKILL.md in the local editor."], ["4. Review", "Inspect the exact diff before saving."],
+        ["5. Save", "Confirm the change and open the skill again."], ["6. Undo", "Restore the previous version from History."],
       ],
     },
-    faq: { kicker: "Questions", title: "Fair questions. Straight answers.", items: [
-      ["Will Skillglass change my files on its own?", "No. Reading changes nothing. Every write starts with a plan you accept and ends with a recoverable snapshot and journal entry."],
-      ["Does undo uninstall a skill?", "No. Rollback works only for the exact, unchanged tree created by a recorded operation. It is not a general uninstaller."],
-      ["Can I install from the internet?", "Not yet. The MVP has no remote registry or arbitrary URLs. You install from a folder or ZIP into an approved root."],
-      ["Does it generate skills with AI?", "Not in this version. Agent analysis and rewriting, if they arrive, need a different product contract. Today you get a clear editor and the exact diff."],
-      ["What does it store on my machine?", "A SQLite index and recovery material inside your per-user application-data directory. On POSIX, the directory uses 0700 and the database 0600. Nothing is uploaded."],
-      ["How much history does it keep?", "The latest 30 snapshots per installation, or every snapshot from the last 90 days—whichever preserves more recoverable history. The current snapshot is never pruned."],
+    safety: { kicker: "Privacy", title: "Your files remain under your control.", body: "Skillglass runs on your computer and writes only after you confirm a change.", items: [
+      "It scans only the folders you approve.", "It never executes skill content during inspection.",
+      "It does not request administrator or root privileges.", "It does not sync files or collect usage telemetry.",
     ] },
-    closing: { title: "Open source, Apache 2.0, and built in public.", body: "Skillglass is under active development and the code is open. To propose a change, start with CONTRIBUTING. To report a vulnerability, go to SECURITY.", repo: "View the repository", contribute: "Contribute", security: "Security", footer: "Apache License 2.0 · Local-first · No telemetry" },
+    release: {
+      kicker: "Download", pendingTitle: `Skillglass ${skillglassRelease.version} is coming soon.`,
+      pendingBody: "We're finishing the installer checks. Download links will appear here as soon as they're ready.",
+      readyTitle: `Download Skillglass ${skillglassRelease.version}.`, assetCta: "Download", guide: "Installation guide", releases: "Open GitHub Releases", targets: "Planned formats", checksums: "View checksums", statusPending: "Coming soon", statusVerified: "Verified",
+      signing: "The installers are not yet signed by a recognized publisher. See the installation guide for the steps on each operating system.",
+    },
+    faq: { kicker: "Frequently asked questions", title: "What to know before you start.", items: [
+      ["Which folders are supported?", "Skillglass recognizes Codex locations and lets you add folders that contain SKILL.md files. It shows only what you approve."],
+      ["Do my skills leave my computer?", "No. The index and the copies needed for undo stay on your computer. You do not need an account, and Skillglass collects no telemetry."],
+      ["How do save and undo work?", "Every change appears as a diff before you save it. You can undo it from History while the files remain unchanged outside Skillglass."],
+      ["What does this version leave out?", "Skillglass does not activate, deactivate, or uninstall skills. It also has no internet installs, sync, AI generation, or automatic app updates."],
+    ] },
+    closing: {
+      title: "A small tool, built by Roberto.",
+      body: "I built Skillglass to browse and edit my own skills from a local app. I’m sharing it under the Apache 2.0 license.",
+      author: "Roberto on GitHub", issues: "Open GitHub Issues", source: "View source on GitHub", footer: "Local · No account · No telemetry",
+    },
   },
+} as const
+
+const t = copy[language]
+const metadata = {
+  es: { title: "Encuentra y edita tus skills | Skillglass", description: "Consulta y edita skills de Codex y carpetas con SKILL.md desde una aplicación local. Revisa cada cambio antes de guardarlo.", locale: "es_ES", alternateLocale: "en_US", imageAlt: "Skillglass, una app local para encontrar y editar skills" },
+  en: { title: "Find and edit your skills | Skillglass", description: "Browse and edit Codex skills and folders containing SKILL.md files in a local app. Review every change before saving.", locale: "en_US", alternateLocale: "es_ES", imageAlt: "Skillglass, a local app for finding and editing skills" },
+} as const
+const pageMetadata = metadata[language]
+const siteUrl = Astro.site ?? new URL("https://skillglass.dev")
+const canonicalUrl = new URL(language === "es" ? "/es/" : "/", siteUrl)
+const alternateLanguage: Language = language === "es" ? "en" : "es"
+const alternateLanguageUrl = alternateLanguage === "es" ? "/es/" : "/"
+const alternateLanguageLabel = language === "es" ? "Cambiar a inglés" : "Switch to Spanish"
+const productShot = `/demo/product-${language}.webp`
+const demoFrames = t.demo.steps.map((step, index) => ({ alt: step[1], src: `/demo/${language}-${String(index + 1).padStart(2, "0")}.webp`, title: step[0] }))
+const ogImageUrl = new URL("/og-image.png?v=3", siteUrl)
+const structuredData = {
+  "@context": "https://schema.org",
+  "@graph": [
+    { "@type": "SoftwareApplication", "@id": `${siteUrl.origin}/#software`, name: "Skillglass", applicationCategory: "DeveloperApplication", operatingSystem: "macOS, Windows, Linux", softwareVersion: skillglassRelease.version, description: pageMetadata.description, url: canonicalUrl.href, image: ogImageUrl.href, license: "https://www.apache.org/licenses/LICENSE-2.0", codeRepository: repositoryUrl, ...(availableAssets.length > 0 ? { downloadUrl: releasesUrl } : {}) },
+    { "@type": "FAQPage", "@id": `${canonicalUrl.href}#faq-schema`, mainEntity: t.faq.items.map(([name, answer]) => ({ "@type": "Question", name, acceptedAnswer: { "@type": "Answer", text: answer } })) },
+  ],
 }
 ---
 
 <!doctype html>
-<html lang="en" data-lang="en">
+<html lang={language} data-lang={language}>
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width" />
-    <meta name="description" content="A local, open-source inventory for understanding, installing, and safely updating agent skills." />
-    <meta name="theme-color" content="#0b0b0d" />
-    <meta property="og:title" content="Skillglass — Your agent skills, finally in one clear place" />
-    <meta property="og:description" content="See what every skill does, where it came from, and which copy actually takes effect." />
-    <meta property="og:type" content="website" />
-    <meta property="og:locale" content="en_US" />
-    <meta property="og:locale:alternate" content="es_ES" />
-    <meta name="twitter:card" content="summary" />
-    <link rel="preload" as="image" href={shot.src} type="image/webp" />
-    <link rel="icon" href={iconSmall.src} type="image/webp" />
-    <title>Skillglass — Your agent skills, finally in one clear place</title>
-    <script is:inline>
-      try {
-        const saved = localStorage.getItem("skillglass-language")
-        const preferences = navigator.languages?.length ? navigator.languages : [navigator.language]
-        const preferred = preferences.find((language) => /^(es|en)(-|$)/i.test(language))
-        const language = saved === "es" || saved === "en" ? saved : preferred?.toLowerCase().startsWith("es") ? "es" : "en"
-        document.documentElement.dataset.lang = language
-        document.documentElement.lang = language
-      } catch {}
-    </script>
+    <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={pageMetadata.description} /><meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" /><meta name="theme-color" content="#0b0b0d" /><meta name="application-name" content="Skillglass" /><meta name="author" content="Roberto" />
+    <meta property="og:title" content={pageMetadata.title} /><meta property="og:description" content={pageMetadata.description} /><meta property="og:type" content="website" /><meta property="og:site_name" content="Skillglass" /><meta property="og:url" content={canonicalUrl.href} /><meta property="og:locale" content={pageMetadata.locale} /><meta property="og:locale:alternate" content={pageMetadata.alternateLocale} /><meta property="og:image" content={ogImageUrl.href} /><meta property="og:image:width" content="1200" /><meta property="og:image:height" content="630" /><meta property="og:image:alt" content={pageMetadata.imageAlt} />
+    <meta name="twitter:card" content="summary_large_image" /><meta name="twitter:title" content={pageMetadata.title} /><meta name="twitter:description" content={pageMetadata.description} /><meta name="twitter:image" content={ogImageUrl.href} /><meta name="twitter:image:alt" content={pageMetadata.imageAlt} />
+    <link rel="canonical" href={canonicalUrl.href} /><link rel="alternate" hreflang="en" href={new URL("/", siteUrl).href} /><link rel="alternate" hreflang="es" href={new URL("/es/", siteUrl).href} /><link rel="alternate" hreflang="x-default" href={new URL("/", siteUrl).href} /><link rel="preload" as="image" href={productShot} type="image/webp" /><link rel="icon" href="/favicon.png" type="image/png" /><link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" /><link rel="manifest" href="/site.webmanifest" />
+    <title>{pageMetadata.title}</title><script is:inline type="application/ld+json" set:html={JSON.stringify(structuredData)} />
+    <script is:inline>(() => { if (window.location.pathname !== "/") return; const storageKey = "skillglass-language"; let savedLanguage = null; try { savedLanguage = window.localStorage.getItem(storageKey) } catch {}; const preferences = navigator.languages?.length ? navigator.languages : [navigator.language]; const preferredLanguage = preferences.find((preference) => /^(?:es|en)(?:-|$)/i.test(preference)); const browserPrefersSpanish = preferredLanguage?.toLowerCase().startsWith("es") ?? false; if (savedLanguage !== "es" && (savedLanguage === "en" || !browserPrefersSpanish)) return; const destination = new URL("/es/", window.location.origin); destination.search = window.location.search; destination.hash = window.location.hash; window.location.replace(destination) })()</script>
   </head>
   <body>
-    <a class="skip-link" href="#main"><span data-lang="es">Saltar al contenido</span><span data-lang="en">Skip to content</span></a>
-    <header class="site-header">
-      <a class="brand" href="#top" aria-label="Skillglass"><img src={iconSmall.src} width="26" height="26" alt="" decoding="async" /><span>Skillglass</span></a>
-      {languages.map((language) => <nav data-lang={language} aria-label={language === "es" ? "Navegación principal" : "Main navigation"}><a href="#how">{copy[language].nav[0]}</a><a href="#features">{copy[language].nav[1]}</a><a href="#safety">{copy[language].nav[2]}</a><a href="#faq">{copy[language].nav[3]}</a></nav>)}
-      <div class="header-actions"><div class="language-switch" aria-label="Language"><button type="button" data-language="es" aria-pressed="false">ES</button><button type="button" data-language="en" aria-pressed="true">EN</button></div>{languages.map((language) => <a class="button metal header-download" data-lang={language} href={releasesUrl}>{copy[language].download}</a>)}</div>
-    </header>
-
+    <a class="skip-link" href="#main">{language === "es" ? "Saltar al contenido" : "Skip to content"}</a>
+    <header class="site-header"><a class="brand" href="#top" aria-label="Skillglass"><img src={iconSmall.src} width="26" height="26" alt="" /><span>Skillglass</span></a><nav aria-label={language === "es" ? "Navegación principal" : "Main navigation"}><a href="#how">{t.nav[0]}</a><a href="#demo">{t.nav[1]}</a><a href="#safety">{t.nav[2]}</a><a href="#faq">{t.nav[3]}</a></nav><div class="header-actions"><a class="language-switch" href={alternateLanguageUrl} lang={alternateLanguage} hreflang={alternateLanguage} data-language-target={alternateLanguage} aria-label={alternateLanguageLabel}><span>{alternateLanguage.toUpperCase()}</span></a><a class="button metal header-download" href="#download">{t.download}</a></div></header>
     <main id="main">
-      <section class="hero" id="top">
-        <div class="bloom bloom-violet" aria-hidden="true"></div><div class="bloom bloom-orange" aria-hidden="true"></div>
-        <div class="container hero-inner">
-          {languages.map((language) => <div data-lang={language}><p class="kicker">{copy[language].hero.kicker}</p><h1>{copy[language].hero.title}</h1><p class="hero-body">{copy[language].hero.body}</p></div>)}
-          <div class="cta-row">{languages.map((language) => <span class="signature-shell" data-lang={language}><a class="button metal signature" href={releasesUrl}>{copy[language].hero.primary}</a></span>)}{languages.map((language) => <a class="button quiet" data-lang={language} href={repositoryUrl}>{copy[language].hero.secondary}</a>)}</div>
-          {languages.map((language) => <div data-lang={language}><p class="privacy-copy">{copy[language].hero.privacy}</p><p class="platform-line">{copy[language].hero.platforms}</p></div>)}
-        </div>
-        <div class="product-shot container"><div class="product-shot-crop"><img src={shot.src} width="2400" height="1136" alt="Skillglass inventory showing installations, evidence and the inspector" data-i18n-alt data-alt-es="Vista del inventario de Skillglass con instalaciones, evidencia e inspector" data-alt-en="Skillglass inventory showing installations, evidence and the inspector" loading="eager" fetchpriority="high" decoding="async" /></div></div>
-      </section>
-
-      <section class="page-section" id="how"><div class="container">{languages.map((language) => <div data-lang={language}><p class="kicker">{copy[language].how.kicker}</p><h2>{copy[language].how.title}</h2><ol class="step-grid">{copy[language].how.steps.map((step, index) => <li><span class="step-number">{index + 1}</span><h3>{step[0]}</h3><p>{step[1]}</p></li>)}</ol></div>)}</div></section>
-
-      <section class="page-section" id="features"><div class="container">{languages.map((language) => <div data-lang={language}><p class="kicker">{copy[language].features.kicker}</p><h2>{copy[language].features.title}</h2><div class="capability-grid">{copy[language].features.items.map((item) => <article><h3>{item[0]}</h3><p>{item[1]}</p></article>)}</div></div>)}</div></section>
-
-      <section class="page-section" id="shots"><div class="container">
-        {languages.map((language) => <div data-lang={language}><p class="kicker">{copy[language].interface.kicker}</p><h2>{copy[language].interface.title}</h2><p class="section-lead">{copy[language].interface.body}</p></div>)}
-        <div class="anatomy-grid" role="img" aria-label="Example skill list showing update status, provenance, version and an evidence inspector" data-i18n-label data-label-es="Ejemplo de una lista de skills con estado de actualización, procedencia, versión e inspector de evidencia" data-label-en="Example skill list showing update status, provenance, version and an evidence inspector">
-          <div class="row-anatomy"><p class="anatomy-label">Inventario · 6 instalaciones</p>
-            <div class="anatomy-row selected-row"><i class="status-dot red"></i><span class="skill-tile plum">P</span><span class="skill-copy"><strong>pdf-reader</strong><small>Global<br />Extrae texto y tablas de un PDF sin ejecutar nada del archivo.</small></span><span class="evidence-pill amber-pill">Actualización disponible</span><code>2.0.1</code></div>
-            <div class="anatomy-row"><i class="status-dot amber-dot"></i><span class="skill-tile amber-tile">D</span><span class="skill-copy"><strong>design-review</strong><small>api-gateway<br />Revisa capturas de interfaz contra el sistema de diseño del equipo.</small></span><span class="evidence-pill">Cambios locales</span><code>0.3.0</code></div>
-            <div class="anatomy-row"><i class="status-dot grey"></i><span class="skill-tile steel">C</span><span class="skill-copy"><strong>changelog</strong><small>Gestionada<br />Sin descripción observada</small></span><span class="evidence-pill">Sin datos</span><code>—</code></div>
-            {languages.map((language) => <p class="anatomy-legend" data-lang={language}>{copy[language].interface.legend}</p>)}
-          </div>
-          <aside class="mini-inspector"><header><span class="skill-tile plum">P</span><span><strong>pdf-reader</strong><small>Codex · Global</small></span></header><section><p>Ámbito y precedencia</p><strong>Esta instalación toma efecto en el ámbito global. Tapa a web-client/pdf-reader por precedencia de proyecto.</strong><code>Candidatas: codex:global:pdf-reader, codex:web-client:pdf-reader</code></section><dl><p>Procedencia</p><div><dt>Tipo</dt><dd>Paquete</dd></div><div><dt>Fuente</dt><dd>Sin datos</dd></div><div><dt>Release</dt><dd>Sin datos</dd></div></dl></aside>
-        </div>
-      </div></section>
-
-      <section class="page-section" id="safety"><div class="container">{languages.map((language) => <div data-lang={language}><p class="kicker">{copy[language].safety.kicker}</p><h2>{copy[language].safety.title}</h2><p class="section-lead">{copy[language].safety.body}</p><ul class="safety-grid">{copy[language].safety.items.map((item) => <li><i class="status-dot"></i><span>{item}</span></li>)}</ul></div>)}</div></section>
-
-      <section class="page-section" id="download"><div class="container download-grid">
-        {languages.map((language) => <div class="download-card" data-lang={language}><p class="kicker">{copy[language].release.kicker}</p><h2 class="column-title">{copy[language].release.title}</h2>{copy[language].release.paragraphs.map((paragraph) => <p>{paragraph}</p>)}<aside class="unsigned-notice">{copy[language].release.notice}</aside><a class="button metal" href={releasesUrl}>{copy[language].release.cta}</a></div>)}
-        {languages.map((language) => <div class="requirements-card" data-lang={language}><p class="kicker">{copy[language].release.requirementsKicker}</p><h2 class="column-title">{copy[language].release.requirementsTitle}</h2><dl>{copy[language].release.requirements.map((item) => <div><dt>{item[0]}</dt><dd>{item[1]}</dd></div>)}</dl></div>)}
-      </div></section>
-
-      <section class="page-section" id="faq"><div class="container">{languages.map((language) => <div data-lang={language}><p class="kicker">{copy[language].faq.kicker}</p><h2>{copy[language].faq.title}</h2><div class="faq-grid">{copy[language].faq.items.map((item) => <article><h3>{item[0]}</h3><p>{item[1]}</p></article>)}</div></div>)}</div></section>
-
-      <section class="closing-section"><div class="container closing-card"><div class="closing-bloom" aria-hidden="true"></div><img src={iconSmall.src} width="72" height="72" alt="" loading="lazy" decoding="async" />{languages.map((language) => <div data-lang={language}><h2>{copy[language].closing.title}</h2><p>{copy[language].closing.body}</p><div class="cta-row"><a class="button metal" href={repositoryUrl}>{copy[language].closing.repo}</a><a class="button quiet" href={`${repositoryUrl}/blob/main/CONTRIBUTING.md`}>{copy[language].closing.contribute}</a><a class="button quiet" href={`${repositoryUrl}/blob/main/SECURITY.md`}>{copy[language].closing.security}</a></div></div>)}</div></section>
+      <section class="hero" id="top"><div class="bloom bloom-violet" aria-hidden="true"></div><div class="bloom bloom-orange" aria-hidden="true"></div><div class="container hero-inner"><p class="kicker">{t.hero.kicker}</p><h1>{t.hero.title}</h1><p class="hero-body">{t.hero.body}</p><div class="cta-row"><span class="signature-shell"><a class="button metal signature" href="#download">{t.hero.primary}</a></span><a class="button quiet" href="#demo">{t.hero.secondary}</a></div><p class="privacy-copy">{t.hero.privacy}</p></div><div class="product-shot container"><div class="product-shot-crop"><img src={productShot} width="1600" height="1000" alt={language === "es" ? "Inventario de Skillglass en español con skills de ejemplo" : "Skillglass inventory in English with example skills"} loading="eager" fetchpriority="high" decoding="async" /></div></div></section>
+      <section class="page-section" id="demo"><div class="container"><p class="kicker">{t.demo.kicker}</p><h2>{t.demo.title}</h2><p class="section-lead">{t.demo.body}</p><ol class="demo-sequence">{demoFrames.map((frame) => <li><img src={frame.src} width="1600" height="1000" alt={frame.alt} loading="lazy" decoding="async" /><div><h3>{frame.title}</h3><p>{frame.alt}</p></div></li>)}</ol></div></section>
+      <section class="page-section" id="how"><div class="container"><p class="kicker">{t.how.kicker}</p><h2>{t.how.title}</h2><ol class="step-grid">{t.how.steps.map((step, index) => <li><span class="step-number">{index + 1}</span><h3>{step[0]}</h3><p>{step[1]}</p></li>)}</ol></div></section>
+      <section class="page-section" id="features"><div class="container"><p class="kicker">{t.features.kicker}</p><h2>{t.features.title}</h2><div class="capability-grid">{t.features.items.map((item) => <article><h3>{item[0]}</h3><p>{item[1]}</p></article>)}</div></div></section>
+      <section class="page-section" id="safety"><div class="container"><p class="kicker">{t.safety.kicker}</p><h2>{t.safety.title}</h2><p class="section-lead">{t.safety.body}</p><ul class="safety-grid">{t.safety.items.map((item) => <li><i class="status-dot"></i><span>{item}</span></li>)}</ul></div></section>
+      <section class="page-section" id="download"><div class="container download-grid"><div class="download-card"><p class="kicker">{t.release.kicker}</p><h2 class="column-title">{availableAssets.length > 0 ? t.release.readyTitle : t.release.pendingTitle}</h2>{availableAssets.length > 0 ? <div class="release-actions">{availableAssets.map((asset) => <a class="button metal" href={asset.url}>{t.release.assetCta} {asset.platform} · {asset.architecture}</a>)}</div> : <p>{t.release.pendingBody}</p>}<aside class="unsigned-notice">{t.release.signing}</aside><div class="cta-row"><a class="button quiet" href={installationUrl}>{t.release.guide}</a><a class="button quiet" href={releasesUrl}>{t.release.releases}</a>{skillglassRelease.status === "published" ? <a class="button quiet" href={skillglassRelease.checksumsUrl}>{t.release.checksums}</a> : null}</div></div><div class="requirements-card"><p class="kicker">{t.release.targets}</p><h2 class="column-title">{skillglassRelease.tag}</h2><ul class="release-targets">{skillglassRelease.targets.map((target) => <li><span><strong>{target.platform}</strong><small>{target.architecture} · {target.package}</small></span><em>{availableAssetIds.has(target.id) ? t.release.statusVerified : t.release.statusPending}</em></li>)}</ul></div></div></section>
+      <section class="page-section" id="faq"><div class="container"><p class="kicker">{t.faq.kicker}</p><h2>{t.faq.title}</h2><div class="faq-grid">{t.faq.items.map((item) => <article><h3>{item[0]}</h3><p>{item[1]}</p></article>)}</div></div></section>
+      <section class="closing-section"><div class="container closing-card"><div class="closing-bloom" aria-hidden="true"></div><img src={iconSmall.src} width="72" height="72" alt="" loading="lazy" /><h2>{t.closing.title}</h2><p>{t.closing.body}</p><p class="author-line"><a href="https://github.com/r-bart">{t.closing.author} ↗</a></p><div class="cta-row"><a class="button metal" href={issuesUrl}>{t.closing.issues}</a><a class="button quiet" href={repositoryUrl}>{t.closing.source}</a></div></div></section>
     </main>
-
-    <footer><div class="container footer-inner"><a class="brand footer-brand" href="#top"><img src={iconSmall.src} width="20" height="20" alt="" loading="lazy" decoding="async" /><span>Skillglass v0.0.0</span></a>{languages.map((language) => <span class="footer-copy" data-lang={language}>{copy[language].closing.footer}</span>)}<div class="footer-links"><a href={repositoryUrl}>GitHub ↗</a><a href={releasesUrl}>Releases ↗</a></div></div></footer>
-
-    <script>
-      const languageButtons = document.querySelectorAll<HTMLButtonElement>("[data-language]")
-      const alternateImage = document.querySelector<HTMLImageElement>("[data-i18n-alt]")
-      const alternateLabels = document.querySelectorAll<HTMLElement>("[data-i18n-label]")
-      const metadata = {
-        es: { title: "Skillglass — Tus agent skills, por fin en un solo sitio", description: "Un inventario local y open source para entender, instalar y actualizar agent skills con seguridad.", ogDescription: "Mira qué hace cada skill, de dónde salió y cuál toma efecto de verdad.", locale: "es_ES", alternateLocale: "en_US" },
-        en: { title: "Skillglass — Your agent skills, finally in one clear place", description: "A local, open-source inventory for understanding, installing, and safely updating agent skills.", ogDescription: "See what every skill does, where it came from, and which copy actually takes effect.", locale: "en_US", alternateLocale: "es_ES" },
-      }
-      function setLanguage(language: "es" | "en") {
-        document.documentElement.dataset.lang = language
-        document.documentElement.lang = language
-        document.title = metadata[language].title
-        document.querySelector<HTMLMetaElement>('meta[name="description"]')?.setAttribute("content", metadata[language].description)
-        document.querySelector<HTMLMetaElement>('meta[property="og:title"]')?.setAttribute("content", metadata[language].title)
-        document.querySelector<HTMLMetaElement>('meta[property="og:description"]')?.setAttribute("content", metadata[language].ogDescription)
-        document.querySelector<HTMLMetaElement>('meta[property="og:locale"]')?.setAttribute("content", metadata[language].locale)
-        document.querySelector<HTMLMetaElement>('meta[property="og:locale:alternate"]')?.setAttribute("content", metadata[language].alternateLocale)
-        languageButtons.forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.language === language)))
-        if (alternateImage) alternateImage.alt = alternateImage.dataset[language === "es" ? "altEs" : "altEn"] ?? ""
-        alternateLabels.forEach((element) => element.setAttribute("aria-label", element.dataset[language === "es" ? "labelEs" : "labelEn"] ?? ""))
-        try { localStorage.setItem("skillglass-language", language) } catch {}
-      }
-      const initialLanguage = document.documentElement.dataset.lang === "en" ? "en" : "es"
-      setLanguage(initialLanguage)
-      languageButtons.forEach((button) => button.addEventListener("click", () => setLanguage(button.dataset.language === "en" ? "en" : "es")))
-
-      const siteHeader = document.querySelector<HTMLElement>(".site-header")
-      let headerFrame = 0
-      function updateHeaderSurface() {
-        headerFrame = 0
-        siteHeader?.toggleAttribute("data-scrolled", window.scrollY > 12)
-      }
-      updateHeaderSurface()
-      window.addEventListener("scroll", () => {
-        if (headerFrame) return
-        headerFrame = requestAnimationFrame(updateHeaderSurface)
-      }, { passive: true })
-
-      const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)")
-      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)")
-      document.querySelectorAll<HTMLElement>(".signature-shell").forEach((shell) => {
-        const button = shell.querySelector<HTMLElement>(".signature")
-        let frame = 0
-        let latestEvent: PointerEvent | undefined
-        let promotionTimer = 0
-
-        function resetGlow() {
-          if (frame) cancelAnimationFrame(frame)
-          frame = 0
-          latestEvent = undefined
-          shell.style.removeProperty("--spot-x")
-          shell.style.removeProperty("--spot-y")
-          window.clearTimeout(promotionTimer)
-          promotionTimer = window.setTimeout(() => shell.removeAttribute("data-pointer-glow"), 140)
-        }
-
-        function positionGlow(event: PointerEvent) {
-          if (!button || !finePointer.matches || reducedMotion.matches) return
-          latestEvent = event
-          if (frame) return
-          frame = requestAnimationFrame(() => {
-            frame = 0
-            if (!latestEvent) return
-            const bounds = button.getBoundingClientRect()
-            const normalizedX = Math.max(-1, Math.min(1, ((latestEvent.clientX - bounds.left) / bounds.width) * 2 - 1))
-            const normalizedY = Math.max(-1, Math.min(1, ((latestEvent.clientY - bounds.top) / bounds.height) * 2 - 1))
-            shell.style.setProperty("--spot-x", `${(normalizedX * bounds.width * .42).toFixed(2)}px`)
-            shell.style.setProperty("--spot-y", `${(normalizedY * bounds.height * .34).toFixed(2)}px`)
-          })
-        }
-
-        shell.addEventListener("pointerenter", (event) => {
-          if (!finePointer.matches || reducedMotion.matches) return
-          window.clearTimeout(promotionTimer)
-          shell.setAttribute("data-pointer-glow", "")
-          positionGlow(event)
-        })
-        shell.addEventListener("pointermove", positionGlow)
-        shell.addEventListener("pointerleave", resetGlow)
-        reducedMotion.addEventListener("change", resetGlow)
-        finePointer.addEventListener("change", resetGlow)
-      })
-    </script>
+    <footer><div class="container footer-inner"><a class="brand footer-brand" href="#top"><img src={iconSmall.src} width="20" height="20" alt="" /><span>Skillglass {skillglassRelease.status === "pending" ? `${skillglassRelease.tag} · ${t.release.statusPending}` : skillglassRelease.tag}</span></a><span class="footer-copy">{t.closing.footer}</span><div class="footer-links"><a href="https://github.com/r-bart">{language === "es" ? "Roberto en GitHub" : "Roberto on GitHub"} ↗</a><a href={issuesUrl}>GitHub Issues ↗</a></div></div></footer>
+    <script>const languageSwitch = document.querySelector<HTMLAnchorElement>("[data-language-target]"); languageSwitch?.addEventListener("click", () => { try { window.localStorage.setItem("skillglass-language", languageSwitch.dataset.languageTarget ?? "en") } catch {} }); const siteHeader = document.querySelector<HTMLElement>(".site-header"); let headerFrame = 0; function updateHeaderSurface() { headerFrame = 0; siteHeader?.toggleAttribute("data-scrolled", window.scrollY > 12) }; updateHeaderSurface(); window.addEventListener("scroll", () => { if (headerFrame) return; headerFrame = requestAnimationFrame(updateHeaderSurface) }, { passive: true })</script>
   </body>
 </html>

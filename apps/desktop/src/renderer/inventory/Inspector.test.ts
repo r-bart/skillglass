@@ -8,6 +8,7 @@ import type {
 } from "@forge/contracts"
 
 import { Inspector } from "./Inspector.js"
+import { setActiveLocale } from "../i18n.js"
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
@@ -164,6 +165,7 @@ let container: HTMLDivElement
 let root: Root
 
 beforeEach(() => {
+  setActiveLocale("es")
   container = document.createElement("div")
   document.body.append(container)
   root = createRoot(container)
@@ -171,6 +173,7 @@ beforeEach(() => {
 
 afterEach(() => {
   act(() => root.unmount())
+  setActiveLocale("es")
   container.remove()
 })
 
@@ -203,9 +206,10 @@ describe("Inspector", () => {
     expect([...container.querySelectorAll("*")]
       .filter(({ textContent, children }) => textContent === "Codex" && children.length === 0))
       .toHaveLength(1)
-    expect(container.textContent).toContain("Only candidate in the effective scope")
+    expect(container.textContent).toContain("Única copia en este ámbito")
+    expect(container.textContent).not.toContain("Only candidate in the effective scope")
     expect(container.textContent).toContain("candidate-set")
-    expect(container.textContent).toContain("Dependencias no observadas")
+    expect(container.textContent).toContain("No se han encontrado requisitos declarados")
     expect(container.textContent).not.toContain("Evidencia de precedencia desconocida")
     expect(container.textContent).not.toContain("Ningún requisito declarado")
     expect([...container.querySelectorAll("*")]
@@ -214,10 +218,16 @@ describe("Inspector", () => {
     expect([...container.querySelectorAll("*")]
       .filter(({ textContent, children }) => textContent === "Sin datos" && children.length === 0))
       .toHaveLength(1)
+    expect(container.textContent).toContain("No se puede confirmar si Codex la utiliza")
     expect(buttonNamed("Editar")).toBeInstanceOf(HTMLButtonElement)
     expect(container.querySelector(".inspector-detail__header .skill-tile")).not.toBeNull()
-    expect(container.querySelector(".inspector-detail__description")?.textContent).toBe("Review global")
+    expect(container.querySelector(".inspector-description")?.textContent).toBe("Review global")
     expect(container.querySelector(".inspector-detail__scroll")).not.toBeNull()
+    const instructions = container.querySelector(".source-section")
+    const technical = container.querySelector<HTMLDetailsElement>(".inspector-technical")
+    if (instructions === null || technical === null) throw new Error("Inspector hierarchy is incomplete")
+    expect(instructions.compareDocumentPosition(technical) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0)
+    expect(technical?.open).toBe(false)
     expect(container.querySelector(".inspector-footer")?.contains(buttonNamed("Abrir archivo") ?? null)).toBe(true)
     expect(container.querySelector(".inspector-footer")?.contains(buttonNamed("Editar") ?? null)).toBe(true)
 
@@ -225,6 +235,119 @@ describe("Inspector", () => {
     expect(openEntry).toHaveBeenCalledWith({
       installationId: value.installation.installationId,
     })
+  })
+
+  it("keeps observed names, descriptions, and paths verbatim in English", async () => {
+    setActiveLocale("en")
+    const base = detail()
+    const value: InstallationDetailDto = {
+      ...base,
+      installation: {
+        ...base.installation,
+        key: "Detalles",
+        name: { state: "known", value: "Detalles", evidence: { kind: "observed", source: "Detalles" } },
+        description: { state: "known", value: "Detalles", evidence: { kind: "observed", source: "Detalles" } },
+      },
+      locationLabel: "Detalles",
+    }
+
+    await act(async () => root.render(createElement(Inspector, {
+      installationId: value.installation.installationId,
+      inventoryBridge: bridge(value),
+    })))
+
+    expect(container.querySelector(".inspector-skill-name")?.textContent).toBe("Detalles")
+    expect(container.querySelector(".inspector-description")?.textContent).toBe("Detalles")
+    expect([...container.querySelectorAll(".inspector-metadata dd")].some(({ textContent }) => textContent === "Detalles")).toBe(true)
+    expect(container.textContent).not.toContain("Details/SKILL.md")
+  })
+
+  it("shows duplicate locations without claiming an unproven winner", async () => {
+    const first = detail()
+    const second: InstallationDetailDto = {
+      ...first,
+      installation: {
+        ...first.installation,
+        installationId: "installation_project_review",
+        scope: { kind: "project", projectId: "project_fixture" },
+      },
+      locationLabel: "/safe/project/.agents/skills/global-review",
+      scopeBinding: {
+        ...first.scopeBinding!,
+        installationId: "installation_project_review",
+        targetScope: { projectId: "project_fixture" },
+      },
+    }
+    const precedence = {
+      adapterId: "codex",
+      targetScope: { projectId: "project_fixture" } as const,
+      key: "global-review",
+      candidateInstallationIds: [
+        first.installation.installationId,
+        second.installation.installationId,
+      ],
+      reason: {
+        state: "known" as const,
+        value: "Multiple candidates and no evidenced precedence winner",
+        evidence: { kind: "derived" as const, source: "candidate-set" },
+      },
+      status: "conflict" as const,
+    }
+    const values = new Map([
+      [first.installation.installationId, { ...first, precedence }],
+      [second.installation.installationId, { ...second, precedence }],
+    ])
+    const inventory = {
+      ...bridge(first),
+      inspect: ({ installationId }: { installationId: string }) => {
+        const value = values.get(installationId)
+        return value === undefined ? Promise.reject(new Error("missing")) : Promise.resolve(value)
+      },
+    }
+
+    await act(async () => root.render(createElement(Inspector, {
+      installationId: first.installation.installationId,
+      inventoryBridge: inventory,
+    })))
+
+    expect(container.textContent).toContain("Hay varias copias con este nombre")
+    expect(container.textContent).toContain("/safe/global-review/SKILL.md")
+    expect(container.textContent).toContain("/safe/project/.agents/skills/global-review/SKILL.md")
+    expect(container.textContent).not.toContain("candidata efectiva")
+    expect(container.textContent).not.toContain("Oculta por precedencia")
+  })
+
+  it("bounds duplicate detail requests and reports an incomplete list", async () => {
+    const value = detail()
+    const candidateInstallationIds = Array.from({ length: 30 }, (_, index) => `installation_duplicate_${String(index)}`)
+    const conflict: InstallationDetailDto = {
+      ...value,
+      precedence: {
+        adapterId: "codex",
+        targetScope: "global",
+        key: value.installation.key,
+        candidateInstallationIds,
+        reason: {
+          state: "known",
+          value: "Multiple candidates and no evidenced precedence winner",
+          evidence: { kind: "derived", source: "candidate-set" },
+        },
+        status: "conflict",
+      },
+    }
+    const inspect = vi.fn(({ installationId }: { installationId: string }) => Promise.resolve(
+      installationId === value.installation.installationId
+        ? conflict
+        : { ...value, installation: { ...value.installation, installationId } },
+    ))
+
+    await act(async () => root.render(createElement(Inspector, {
+      installationId: value.installation.installationId,
+      inventoryBridge: { ...bridge(conflict), inspect },
+    })))
+    await vi.waitFor(() => expect(inspect).toHaveBeenCalledTimes(26))
+
+    expect(container.textContent).toContain("No se han podido cargar todos los detalles de las copias.")
   })
 
   it("keeps malformed managed skills inspectable and removes edit capability", async () => {
@@ -243,6 +366,20 @@ describe("Inspector", () => {
     expect(buttonNamed("Abrir archivo")).toBeInstanceOf(HTMLButtonElement)
     expect(buttonNamed("Editar")).toBeUndefined()
     expect(container.querySelector(".inspector-read-only-note")?.textContent).toBe("Solo inspección")
+  })
+
+  it("shows the runtime beside the title without duplicating it in hidden technical details", async () => {
+    const value = detail()
+    await act(async () => root.render(createElement(Inspector, {
+      installationId: value.installation.installationId,
+      inventoryBridge: bridge(value),
+    })))
+
+    const exactCodex = [...container.querySelectorAll("*")]
+      .filter(({ children, textContent }) => children.length === 0 && textContent === "Codex")
+    expect(exactCodex).toHaveLength(1)
+    expect(exactCodex[0]?.closest(".inspector-skill-context")).not.toBeNull()
+    expect(container.querySelector(".inspector-technical")?.textContent).not.toContain("RuntimeCodex")
   })
 
   it("keeps long Windows paths, file names, snapshot ids, and hashes inside the inspector data regions", async () => {

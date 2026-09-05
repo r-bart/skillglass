@@ -17,6 +17,7 @@ export const IPC_INVOKE_CHANNELS = {
   operationsUndo: "forge:operations:undo",
   operationsHistory: "forge:operations:history",
   operationsRefreshUpdates: "forge:operations:refresh-updates",
+  lifecycleRespondToClose: "forge:lifecycle:respond-to-close",
 } as const
 
 export const IPC_EVENT_CHANNELS = {
@@ -24,6 +25,7 @@ export const IPC_EVENT_CHANNELS = {
   inventoryChanged: "forge:event:inventory-changed",
   operationProgress: "forge:event:operation-progress",
   operationCompleted: "forge:event:operation-completed",
+  lifecycleCloseRequested: "forge:event:lifecycle-close-requested",
 } as const
 
 export const IPC_INVOKE_CHANNEL_ALLOWLIST = Object.freeze(

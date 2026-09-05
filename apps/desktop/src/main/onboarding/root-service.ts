@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto"
 import { access, lstat } from "node:fs/promises"
 import { constants as fsConstants } from "node:fs"
+import path from "node:path"
 
 import type { DiscoveryContext, RootCandidate, SkillRuntimeAdapter } from "@forge/adapter-api"
 import type {
@@ -15,7 +16,7 @@ import {
   type RootAccess,
   type SourceRoot,
 } from "@forge/domain"
-import { resolveCanonicalPath } from "@forge/scanner"
+import { isPathContained, resolveCanonicalPath } from "@forge/scanner"
 
 import type {
   RootApprovalDocument,
@@ -62,13 +63,20 @@ function dto(record: StoredRootCandidate): RootCandidateDto {
   return {
     candidateId: record.candidateId,
     adapterId: record.adapterId,
-    displayName: `${record.adapterDisplayName} · ${kindLabel(record.kind)}`,
+    displayName: candidateDisplayName(record),
     displayPath: record.displayPath,
     kind: record.kind,
     access: record.access,
     writableWithoutElevation: record.writableWithoutElevation,
     discovery: record.discovery,
   }
+}
+
+function candidateDisplayName(record: StoredRootCandidate): string {
+  if (record.discovery.source === "compatible-codex-skills-folder") {
+    return "Carpeta compatible con SKILL.md · Añadida por ti"
+  }
+  return `${record.adapterDisplayName} · ${kindLabel(record.kind)}`
 }
 
 function sourceRoot(record: StoredRootCandidate): SourceRoot {
@@ -88,7 +96,7 @@ function approvedDto(record: StoredRootCandidate): ApprovedRootDto {
   return {
     rootId: root.id,
     adapterId: root.adapterId,
-    displayName: `${record.adapterDisplayName} · ${kindLabel(record.kind)}`,
+    displayName: candidateDisplayName(record),
     displayPath: record.displayPath,
     kind: root.kind,
     access: root.access,
@@ -122,6 +130,10 @@ async function observedAccess(candidate: string, immutable: boolean): Promise<Re
 function filesystemErrorCode(error: unknown): string | undefined {
   if (typeof error !== "object" || error === null || !("code" in error)) return undefined
   return typeof error.code === "string" ? error.code : undefined
+}
+
+function isManagedProviderFolder(homeDirectory: string, candidate: string): boolean {
+  return isPathContained(path.join(homeDirectory, ".codex", "plugins"), candidate)
 }
 
 async function revalidateStoredCandidate(record: StoredRootCandidate): Promise<StoredRootCandidate> {
@@ -197,7 +209,10 @@ export class RootService {
     if (adapterId !== FOLDER_ADAPTER_ID) throw new TypeError("Only the explicit folder adapter accepts native directory selection")
     const selected = await this.#picker.selectDirectory()
     if (selected === null) return null
-    const access = await observedAccess(selected, false)
+    const canonicalHome = (await resolveCanonicalPath(this.#context().homeDirectory, { allowMissing: true })).canonicalPath
+    const selectedCanonical = (await resolveCanonicalPath(selected)).canonicalPath
+    const managed = isManagedProviderFolder(canonicalHome, selectedCanonical)
+    const access = await observedAccess(selectedCanonical, managed)
     const existing = [...this.#candidates.values()].find(({ canonicalPath: candidate }) => candidate === access.canonicalPath)
     if (existing !== undefined) return dto(existing)
     const record: StoredRootCandidate = {
@@ -206,7 +221,7 @@ export class RootService {
       adapterDisplayName: this.#adapterNames.get(FOLDER_ADAPTER_ID) ?? "Agent Skills folder",
       canonicalPath: access.canonicalPath,
       displayPath: access.canonicalPath,
-      kind: "user-added",
+      kind: managed ? "managed" : "user-added",
       access: access.access,
       writableWithoutElevation: access.writableWithoutElevation,
       discovery: observed({ source: "native-directory-selection", observedAt: this.#now().toISOString() }),
@@ -272,14 +287,25 @@ export class RootService {
       this.#loaded = true
     }
 
+    const context = this.#context()
+    const canonicalHome = (await resolveCanonicalPath(context.homeDirectory, { allowMissing: true })).canonicalPath
     for (const [candidateId, candidate] of this.#candidates) {
-      this.#candidates.set(candidateId, await revalidateStoredCandidate(candidate))
+      const revalidated = await revalidateStoredCandidate(candidate)
+      this.#candidates.set(candidateId,
+        revalidated.adapterId === FOLDER_ADAPTER_ID && isManagedProviderFolder(canonicalHome, revalidated.canonicalPath)
+          ? { ...revalidated, kind: "managed", access: "read-only", writableWithoutElevation: false }
+          : revalidated,
+      )
     }
 
-    const context = this.#context()
     for (const adapter of this.#adapters) {
       const proposed = await adapter.discoverRoots(context)
-      for (const candidate of proposed) this.#candidates.set(candidate.candidateId, this.#record(adapter, candidate, context))
+      for (const candidate of proposed) {
+        const duplicate = [...this.#candidates.values()].find((current) =>
+          current.candidateId !== candidate.candidateId && current.canonicalPath === candidate.canonicalPath,
+        )
+        if (duplicate === undefined) this.#candidates.set(candidate.candidateId, this.#record(adapter, candidate, context))
+      }
     }
     for (const candidate of this.#candidates.values()) {
       if (!this.#persisted && candidate.defaultIncluded) this.#selected.add(candidate.candidateId)

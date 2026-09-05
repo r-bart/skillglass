@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 
 import type {
   ForgeBridge,
@@ -9,6 +9,7 @@ import type {
   OnboardingStateDto,
   OperationProgressEvent,
   OperationPlanDto,
+  ScanFindingDto,
 } from "@forge/contracts"
 
 import { AccessibleDialog } from "./AccessibleDialog.js"
@@ -20,11 +21,12 @@ import {
   type Surface,
 } from "./AppChrome.js"
 import { Inspector, Inventory } from "./inventory/index.js"
-import { createElement, loadSavedLocale, saveLocale, setActiveLocale, type Locale } from "./i18n.js"
+import { createElement, formatCount, loadSavedLocale, saveLocale, setActiveLocale, verbatim, type Locale } from "./i18n.js"
 import { MonitoringManagerDialog, OnboardingFlow, SourceApprovalStep } from "./onboarding/index.js"
 import { OperationPlanDetails } from "./OperationPlanDetails.js"
 import { Pending } from "./Pending.js"
 import { SkillWorkspace } from "./SkillWorkspace.js"
+import { useWorkspaceCloseGuard, type ReportedWorkspaceCloseState } from "./useWorkspaceCloseGuard.js"
 import {
   MetalAction,
   QuietAction,
@@ -79,23 +81,92 @@ function PageContent({ activeSurface, onboarding, inventory, pending }: { active
   return activeSurface === "pending" ? pending : inventory
 }
 
+function scanFindingText(finding: ScanFindingDto, locale: Locale): ReactNode {
+  const messages: Record<string, readonly [es: string, en: string]> = {
+    SYMLINK_OUTSIDE_APPROVED_ROOT: [
+      "Este enlace sale de una carpeta aprobada. Añade la carpeta de destino si quieres incluirla.",
+      "This link points outside an approved folder. Add the target folder if you want to include it.",
+    ],
+    SYMLINK_TARGET_INACCESSIBLE: [
+      "No se ha podido leer el destino de este enlace.",
+      "This link target could not be read.",
+    ],
+    ROOT_MISSING: [
+      "Una carpeta autorizada ya no existe.",
+      "An approved folder no longer exists.",
+    ],
+    ROOT_DENIED: [
+      "Skillglass ya no tiene acceso a una carpeta autorizada.",
+      "Skillglass can no longer access an approved folder.",
+    ],
+    ADAPTER_NOT_FOUND: [
+      "No se ha encontrado el lector compatible con esta carpeta.",
+      "The compatible reader for this folder is unavailable.",
+    ],
+    ROOT_SCAN_FAILED: [
+      "No se ha podido revisar una carpeta autorizada.",
+      "An approved folder could not be scanned.",
+    ],
+    INSTALLATION_SCAN_FAILED: [
+      "No se ha podido leer una skill de una carpeta autorizada.",
+      "A skill in an approved folder could not be read.",
+    ],
+    WATCHER_ERROR: [
+      "No se pudo observar una carpeta.",
+      "A folder could not be watched.",
+    ],
+  }
+  const message = messages[finding.code]
+  return message === undefined ? verbatim(finding.message) : message[locale === "es" ? 0 : 1]
+}
+
+function ScanNotice({ findings, locale }: { findings: readonly ScanFindingDto[]; locale: Locale }) {
+  const summary = locale === "es"
+    ? findings.length === 1 ? "Se ha omitido una ubicación durante el escaneo." : `Se han omitido ${findings.length} ubicaciones durante el escaneo.`
+    : findings.length === 1 ? "One location was skipped during the scan." : `${findings.length} locations were skipped during the scan.`
+  return createElement(
+    "div",
+    { className: "form-error scan-notice", role: "alert" },
+    createElement("p", null, summary),
+    createElement(
+          "details",
+          null,
+          createElement("summary", null, locale === "es" ? "Ver detalles" : "View details"),
+          createElement(
+            "ul",
+            null,
+            ...findings.map((finding, index) => createElement(
+              "li",
+              { key: `${finding.code}:${finding.path ?? index}` },
+              createElement("span", null, scanFindingText(finding, locale)),
+              finding.path === undefined ? null : createElement("code", null, verbatim(finding.path)),
+              finding.targetPath === undefined ? null : createElement("code", null, " → ", verbatim(finding.targetPath)),
+            )),
+          ),
+        ),
+  )
+}
+
 export function App({
   onboardingBridge: suppliedOnboardingBridge,
   inventoryBridge: suppliedInventoryBridge,
   monitoringBridge: suppliedMonitoringBridge,
   eventBridge: suppliedEventBridge,
+  lifecycleBridge: suppliedLifecycleBridge,
   operationBridge: suppliedOperationBridge,
 }: {
   onboardingBridge?: ForgeBridge["onboarding"]
   inventoryBridge?: ForgeBridge["inventory"]
   monitoringBridge?: ForgeBridge["monitoring"]
   eventBridge?: ForgeBridge["events"]
+  lifecycleBridge?: ForgeBridge["lifecycle"]
   operationBridge?: ForgeBridge["operations"]
 }) {
   const onboardingBridge = suppliedOnboardingBridge ?? window.forge.onboarding
   const inventoryBridge = suppliedInventoryBridge ?? window.forge.inventory
   const monitoringBridge = suppliedMonitoringBridge ?? window.forge.monitoring
   const eventBridge = suppliedEventBridge ?? window.forge.events
+  const lifecycleBridge = suppliedLifecycleBridge ?? (typeof window.forge === "undefined" ? undefined : window.forge.lifecycle)
   const operationBridge = suppliedOperationBridge ?? window.forge.operations
   const [locale, setLocale] = useState<Locale>(loadSavedLocale)
   setActiveLocale(locale)
@@ -109,7 +180,7 @@ export function App({
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [scanNotice, setScanNotice] = useState<string>()
+  const [scanNotice, setScanNotice] = useState<readonly ScanFindingDto[]>()
   const [inventoryRevision, setInventoryRevision] = useState(0)
   const [focusInventoryTitle, setFocusInventoryTitle] = useState(false)
   const [inventoryProjects, setInventoryProjects] = useState<NonNullable<InventoryPageDto["projects"]>>([])
@@ -127,6 +198,13 @@ export function App({
   const [installPlan, setInstallPlan] = useState<OperationPlanDto>()
   const [pendingInstallSource, setPendingInstallSource] = useState<LocalSourceSelectionDto>()
   const [pendingInstallTargetId, setPendingInstallTargetId] = useState<string>()
+  const [workspaceCloseState, setWorkspaceCloseState] = useState<ReportedWorkspaceCloseState>({ state: "clean", revision: 0 })
+
+  useWorkspaceCloseGuard(lifecycleBridge, workspaceCloseState, locale)
+
+  const reportWorkspaceCloseState = useCallback((state: ReportedWorkspaceCloseState["state"]): void => {
+    setWorkspaceCloseState((current) => ({ state, revision: current.revision + 1 }))
+  }, [])
 
   const writableInstallTargets = onboardingState?.approvedRoots.filter((root) => root.access === "read-write") ?? []
   const monitoredInstallationIds = useMemo<ReadonlySet<string> | undefined>(
@@ -296,19 +374,21 @@ export function App({
         if (current) setMonitoringState(state)
       }).catch((reason: unknown) => {
         if (current) {
-          setScanNotice(
-            reason instanceof Error
+          setScanNotice([{
+            code: "MONITORING_REFRESH_FAILED",
+            severity: "warning",
+            message: reason instanceof Error
               ? reason.message
               : "No se pudo actualizar el seguimiento",
-          )
+          }])
         }
       })
       const findings = event.findings ?? []
       if (findings.length === 0) {
-        if (event.reason === "watcher" || event.reason === "root-approval") setScanNotice(undefined)
+        if (event.reason === "scan" || event.reason === "watcher" || event.reason === "root-approval") setScanNotice(undefined)
         return
       }
-      setScanNotice(findings.map(({ message }) => message).join(" · "))
+      setScanNotice(findings)
     })
     const stopProgress = eventBridge.onOperationProgress((event) => {
       setOperationStatus(event.message)
@@ -335,11 +415,13 @@ export function App({
   const workspaceNavigation = {
     open: (route: SkillWorkspaceRoute): void => {
       workspaceReturnFocusRef.current = undefined
+      setWorkspaceCloseState((current) => ({ state: "clean", revision: current.revision + 1 }))
       setSkillWorkspaceRoute(route)
       setMobileNavigationOpen(false)
     },
     close: (): void => {
       workspaceReturnFocusRef.current = skillWorkspaceRoute?.returnFocus
+      setWorkspaceCloseState((current) => ({ state: "clean", revision: current.revision + 1 }))
       setSkillWorkspaceRoute(undefined)
     },
   }
@@ -553,19 +635,19 @@ export function App({
     }),
     operationError === undefined
       ? null
-      : createElement("p", { className: "operation-error", role: "alert" }, operationError),
+      : createElement("p", { className: "operation-error", role: "alert" }, verbatim(operationError)),
     operationStatus === undefined
       ? null
       : createElement(
           "div",
           { className: "operation-status", role: "status", "aria-live": "polite" },
           createElement("strong", null, operationProgress === undefined ? "Operación" : `Etapa: ${operationProgress.stage}`),
-          createElement("span", null, operationStatus),
+          createElement("span", null, verbatim(operationStatus)),
           operationProgress === undefined
             ? null
             : createElement("small", null, operationProgress.stage === "rolling-back"
               ? "Recuperación en curso; la operación no se puede cancelar."
-              : "No cancelable durante la escritura; si se interrumpe, Skillglass recuperará el journal al reiniciar."),
+              : "La escritura ya ha empezado y no se puede cancelar. Si se interrumpe, Skillglass la recuperará al volver a abrir."),
         ),
     historyOpen
       ? createElement(
@@ -583,13 +665,13 @@ export function App({
               createElement(
                 "p",
                 { id: "history-dialog-description" },
-                "Registro persistente de operaciones locales y de las acciones de deshacer que siguen disponibles.",
+                "Cambios realizados en este dispositivo y acciones de Deshacer que siguen disponibles.",
               ),
             ),
             createElement(
               "div",
               { className: "history-sheet__body" },
-              historyError === undefined ? null : createElement("p", { role: "alert", className: "form-error" }, historyError),
+              historyError === undefined ? null : createElement("p", { role: "alert", className: "form-error" }, verbatim(historyError)),
               history === undefined
                 ? createElement("p", { className: "sheet-state", role: "status" }, "Cargando historial…")
                 : history.items.length === 0
@@ -610,7 +692,12 @@ export function App({
                             null,
                             new Intl.DateTimeFormat(locale === "es" ? "es-ES" : "en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(item.createdAt)),
                           ),
-                          createElement("small", { className: "history-entry__id" }, item.journalId),
+                          createElement(
+                            "details",
+                            { className: "history-entry__technical" },
+                            createElement("summary", null, "Detalles técnicos"),
+                            createElement("code", null, verbatim(item.journalId)),
+                          ),
                         ),
                         createElement(
                           StatusPill,
@@ -633,8 +720,8 @@ export function App({
                 "p",
                 null,
                 history === undefined
-                  ? "Consultando el journal local…"
-                  : `${history.items.length} ${history.items.length === 1 ? "operación registrada" : "operaciones registradas"}`,
+                  ? "Consultando el historial local…"
+                  : formatCount(history.items.length, "operation"),
               ),
               createElement(MetalAction, { onClick: () => setHistoryOpen(false) }, "Cerrar"),
             ),
@@ -672,7 +759,7 @@ export function App({
               ...writableInstallTargets.map((root) => createElement(
                 "option",
                 { key: root.rootId, value: root.rootId },
-                `${root.displayName} · ${root.displayPath}`,
+                verbatim(`${root.displayName} · ${root.displayPath}`),
               )),
             ),
             createElement(
@@ -744,7 +831,7 @@ export function App({
           { className: "main-content", id: workspaceOpen ? undefined : "main-content", ref: mainContentRef, tabIndex: -1 },
           scanNotice === undefined
             ? null
-            : createElement("p", { className: "form-error", role: "alert" }, scanNotice),
+            : createElement(ScanNotice, { findings: scanNotice, locale }),
           createElement(PageContent, { activeSurface, onboarding, inventory, pending }),
         ),
         inspectorVisible
@@ -787,6 +874,7 @@ export function App({
                     })
                   },
                   onStatus: setOperationStatus,
+                  onCloseStateChange: reportWorkspaceCloseState,
                   operationBridge,
                   roots: writableInstallTargets,
                 })
@@ -801,6 +889,7 @@ export function App({
                     setInventoryRevision((current) => current + 1)
                   },
                   onStatus: setOperationStatus,
+                  onCloseStateChange: reportWorkspaceCloseState,
                   operationBridge,
                 }),
           ),

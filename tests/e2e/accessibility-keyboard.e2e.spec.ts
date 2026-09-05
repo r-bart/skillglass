@@ -76,6 +76,7 @@ test.describe("Forge keyboard and accessibility acceptance", () => {
     expect(focusStyle.outlineStyle).toBe("solid")
     expect(focusStyle.outlineWidth).toBeGreaterThanOrEqual(2)
     const continueButton = app.page.getByRole("button", { name: "Continuar" })
+    await app.page.getByRole("button", { name: "Ver tour de 3 pasos" }).click()
     await continueButton.focus()
     await continueButton.press("Enter")
     await expect(app.page.getByRole("heading", { name: "Abre una skill y entiende cómo funciona." })).toBeFocused()
@@ -97,8 +98,8 @@ test.describe("Forge keyboard and accessibility acceptance", () => {
     const approve = app.page.getByRole("button", { name: "Buscar mis skills" })
     await approve.focus()
     await approve.press("Enter")
-    await expect(app.page.getByRole("heading", { name: "Elige las skills que quieres seguir de cerca." })).toBeVisible()
-    const finish = app.page.getByRole("button", { name: "Abrir mi inventario" })
+    await expect(app.page.getByRole("heading", { name: /Hemos encontrado \d+ skills?\./u })).toBeVisible()
+    const finish = app.page.getByRole("button", { name: "Seguir todas y abrir inventario" })
     await finish.focus()
     await finish.press("Enter")
     await expect(app.page.getByRole("heading", { name: "Inventario" })).toBeVisible()
@@ -143,6 +144,26 @@ test.describe("Forge keyboard and accessibility acceptance", () => {
       expect(controls.length).toBeGreaterThan(0)
       for (const control of controls) {
         expect(control.height, `${control.name} must expose a 44px narrow target`).toBeGreaterThanOrEqual(44)
+      }
+      const topbarControls = await app.page.locator(".app-topbar button:visible, .app-topbar summary:visible")
+        .evaluateAll((elements) => elements.map((element) => {
+          const box = element.getBoundingClientRect()
+          return {
+            clientWidth: element.clientWidth,
+            name: element.getAttribute("aria-label") ?? element.textContent?.trim() ?? element.tagName,
+            scrollWidth: element.scrollWidth,
+            x: box.x,
+            width: box.width,
+          }
+        }).sort((left, right) => left.x - right.x))
+      for (const [index, control] of topbarControls.entries()) {
+        expect(control.scrollWidth, `${control.name} must contain its visible content at 200% zoom`)
+          .toBeLessThanOrEqual(control.clientWidth + 1)
+        const next = topbarControls[index + 1]
+        if (next !== undefined) {
+          expect(control.x + control.width, `${control.name} must not overlap ${next.name} at 200% zoom`)
+            .toBeLessThanOrEqual(next.x + 0.5)
+        }
       }
     } finally {
       await app.close()

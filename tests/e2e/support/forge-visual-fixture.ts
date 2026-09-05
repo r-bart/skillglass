@@ -275,6 +275,7 @@ export async function launchForgeVisualScenario(
         break
       }
       case "onboarding-selection": {
+        await app.page.getByRole("button", { name: "Elegir cuáles seguir" }).click()
         const global = app.page.getByRole("button", { name: /Global/u })
         const geometry = await global.evaluate((element) => {
           const main = element.closest("main")

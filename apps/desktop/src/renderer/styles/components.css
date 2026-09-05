@@ -67,21 +67,6 @@
   box-shadow: var(--danger-shadow);
 }
 
-.visual-action:hover:not(:disabled, [aria-disabled="true"]),
-.primary-action:hover:not(:disabled),
-.secondary-action:hover:not(:disabled),
-.quiet-action:hover:not(:disabled),
-.danger-action:hover:not(:disabled) {
-  filter: brightness(1.08);
-}
-
-.visual-action--quiet:hover:not(:disabled, [aria-disabled="true"]),
-.secondary-action:hover:not(:disabled),
-.quiet-action:hover:not(:disabled) {
-  background: var(--quiet-background-hover);
-  filter: none;
-}
-
 .visual-action:active:not(:disabled, [aria-disabled="true"]),
 .primary-action:active:not(:disabled),
 .secondary-action:active:not(:disabled),
@@ -125,7 +110,7 @@
   border-radius: var(--radius-pill);
   color: var(--text-secondary);
   background: rgba(244, 244, 246, 0.05);
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 500;
   line-height: 1.4;
   white-space: nowrap;
@@ -173,10 +158,6 @@ button.status-pill {
   transition: background var(--duration-hover) var(--ease-standard);
 }
 
-.status-pill--interactive:hover:not(:disabled) {
-  background: rgba(244, 244, 246, 0.11);
-}
-
 .filter-chip {
   gap: 7px;
   padding-right: 4px;
@@ -200,11 +181,6 @@ button.status-pill {
   background: rgba(255, 255, 255, 0.07);
   font: 500 12px/1 var(--font-ui);
   cursor: pointer;
-}
-
-.filter-chip__remove:hover:not(:disabled) {
-  color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.14);
 }
 
 .filter-chip--disabled {
@@ -280,10 +256,6 @@ button.status-pill {
     background var(--duration-state) var(--ease-standard),
     border-color var(--duration-state) var(--ease-standard),
     box-shadow var(--duration-state) var(--ease-standard);
-}
-
-.glass-selectable-row:hover:not(.is-glass-selected) {
-  background: rgba(255, 255, 255, 0.035);
 }
 
 .glass-selectable-row.is-glass-selected,
@@ -466,7 +438,7 @@ button.status-pill {
 
 .root-evidence {
   color: var(--text-tertiary);
-  font-size: 10.5px;
+  font-size: 11px;
 }
 
 .onboarding-card__footer {
@@ -761,6 +733,22 @@ button.status-pill {
 .operation-plan-section code {
   display: block;
   margin-top: 2px;
+}
+
+.operation-technical {
+  border-top: var(--hairline) solid var(--border-subtle);
+}
+
+.operation-technical > summary,
+.history-entry__technical > summary {
+  width: fit-content;
+  padding: 8px 0;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.operation-technical .operation-facts {
+  margin-top: 4px;
 }
 
 .operation-warnings {
@@ -1141,11 +1129,6 @@ button.status-pill {
   background: transparent;
 }
 
-.workspace-back.visual-action:hover:not(:disabled) {
-  color: var(--text-primary);
-  background: var(--quiet-background);
-}
-
 .workspace-back > span {
   font-size: 18px;
   font-weight: 400;
@@ -1221,11 +1204,6 @@ button.status-pill {
   cursor: pointer;
 }
 
-.workspace-review:hover:not(:disabled),
-.workspace-apply:hover:not(:disabled) {
-  filter: brightness(1.05);
-}
-
 .workspace-review:active:not(:disabled),
 .workspace-apply:active:not(:disabled) {
   transform: translateY(1px);
@@ -1292,10 +1270,6 @@ button.status-pill {
   border-radius: var(--radius-pill) var(--radius-pill) 0 0;
   background: transparent;
   content: "";
-}
-
-.workspace-tabs [role="tab"]:hover:not(:disabled) {
-  color: rgba(244, 244, 246, 0.78);
 }
 
 .workspace-tabs [role="tab"][aria-selected="true"] {
@@ -1416,7 +1390,7 @@ button.status-pill {
   line-height: 1.75;
 }
 
-.skill-preview__content .safe-markdown :where(h1, h2, h3, h4, h5, h6, p, ul, pre) {
+.skill-preview__content .safe-markdown :where(h1, h2, h3, h4, h5, h6, p, ul, ol, pre, blockquote, hr, table) {
   margin: 0;
 }
 
@@ -1437,7 +1411,7 @@ button.status-pill {
   letter-spacing: -0.015em;
 }
 
-.skill-preview__content .safe-markdown ul {
+.skill-preview__content .safe-markdown :where(ul, ol) {
   display: grid;
   gap: 8px;
   padding-left: 22px;
@@ -1459,6 +1433,60 @@ button.status-pill {
   line-height: 1.65;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+.safe-markdown :where(code, a, .safe-markdown__inert-link, .safe-markdown__inert-image) {
+  overflow-wrap: anywhere;
+}
+
+.safe-markdown :not(pre) > code,
+.safe-markdown__raw-html {
+  padding: 0.08em 0.32em;
+  border-radius: 4px;
+  color: var(--text-primary);
+  background: rgba(244, 244, 246, 0.08);
+  font-family: var(--font-mono);
+}
+
+.safe-markdown blockquote {
+  padding-left: 14px;
+  border-left: 2px solid var(--border-strongest);
+  color: var(--text-secondary);
+}
+
+.safe-markdown hr {
+  width: 100%;
+  border: 0;
+  border-top: var(--hairline) solid var(--border-default);
+}
+
+.safe-markdown__table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.safe-markdown table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.safe-markdown td {
+  padding: 7px 9px;
+  border: var(--hairline) solid var(--border-default);
+  text-align: left;
+}
+
+.safe-markdown__code-language {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--text-tertiary);
+  font: 600 var(--font-size-field-label)/1.4 var(--font-mono);
+}
+
+.safe-markdown__inert-link,
+.safe-markdown__inert-image,
+.safe-markdown__raw-html {
+  color: var(--text-secondary);
 }
 
 .code-workbench {
@@ -1800,7 +1828,7 @@ button.status-pill {
 
 .workspace-context__facts dt {
   color: var(--text-secondary);
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 500;
   line-height: 1.35;
 }
@@ -1809,7 +1837,7 @@ button.status-pill {
   min-width: 0;
   margin: 0;
   color: rgba(244, 244, 246, 0.66);
-  font: 400 10.5px/1.55 var(--font-mono);
+  font: 400 11px/1.55 var(--font-mono);
   overflow-wrap: anywhere;
   word-break: break-word;
   user-select: text;
@@ -1845,7 +1873,7 @@ button.status-pill {
   flex: 1;
   margin: 0;
   overflow: hidden;
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1866,7 +1894,7 @@ button.status-pill {
 .workspace-footer > span {
   flex: none;
   color: var(--text-tertiary);
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .history-sheet.operation-dialog {
@@ -2162,7 +2190,7 @@ button.status-pill {
 
 .inventory-filter-panel__heading span {
   color: var(--text-tertiary);
-  font-size: 10.5px;
+  font-size: 11px;
 }
 
 .inventory-filter-panel__fields {
@@ -2237,10 +2265,6 @@ button.status-pill {
     background var(--duration-state) var(--ease-standard),
     border-color var(--duration-state) var(--ease-standard),
     box-shadow var(--duration-state) var(--ease-standard);
-}
-
-.inventory-row:hover:not([aria-selected="true"]) > th {
-  background: rgba(255, 255, 255, 0.035);
 }
 
 .inventory-row[aria-selected="true"] > th {
@@ -2353,7 +2377,7 @@ button.status-pill {
   min-height: 21px;
   gap: 5px;
   padding: 2px 7px;
-  font-size: 9.5px;
+  font-size: 11px;
 }
 
 .inventory-evidence-pill .status-pill__dot {
@@ -2523,7 +2547,7 @@ button.status-pill {
   min-height: 21px;
   flex: none;
   padding: 2px 7px;
-  font-size: 9.5px;
+  font-size: 11px;
 }
 
 .inspector-evidence-pill .status-pill__label {
@@ -2571,6 +2595,25 @@ button.status-pill {
   border-bottom: var(--hairline) solid var(--border-subtle);
 }
 
+.inspector-technical {
+  border-top: var(--hairline) solid var(--border-subtle);
+}
+
+.inspector-technical > summary {
+  padding: 13px 0;
+}
+
+.inspector-technical__body {
+  display: grid;
+  gap: 0;
+}
+
+.history-entry__technical code {
+  display: block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
 .inspector-detail__scroll .inspector-section > h3 {
   margin: 0;
   padding: 13px 18px 7px;
@@ -2613,6 +2656,7 @@ button.status-pill {
 .inspector-detail__scroll .inspector-metadata,
 .inspector-detail__scroll .inspector-status-grid {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   margin: 0;
 }
 
@@ -2620,7 +2664,7 @@ button.status-pill {
 .inspector-detail__scroll .inspector-status-grid > div {
   display: grid;
   min-width: 0;
-  grid-template-columns: 82px minmax(0, 1fr);
+  grid-template-columns: 96px minmax(0, 1fr);
   gap: 10px;
   padding: 9px 18px;
   border: 0;
@@ -2713,6 +2757,53 @@ button.status-pill {
   color: var(--text-secondary);
   font-size: 11.5px;
   line-height: 1.5;
+}
+
+/* Hover is an enhancement for devices that can actually hover. */
+
+@media (hover: hover) and (pointer: fine) {
+  .visual-action:hover:not(:disabled, [aria-disabled="true"]),
+  .primary-action:hover:not(:disabled),
+  .secondary-action:hover:not(:disabled),
+  .quiet-action:hover:not(:disabled),
+  .danger-action:hover:not(:disabled) {
+    filter: brightness(1.08);
+  }
+
+  .visual-action--quiet:hover:not(:disabled, [aria-disabled="true"]),
+  .secondary-action:hover:not(:disabled),
+  .quiet-action:hover:not(:disabled) {
+    background: var(--quiet-background-hover);
+    filter: none;
+  }
+
+  .status-pill--interactive:hover:not(:disabled) {
+    background: rgba(244, 244, 246, 0.11);
+  }
+
+  .filter-chip__remove:hover:not(:disabled) {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.14);
+  }
+
+  .glass-selectable-row:hover:not(.is-glass-selected),
+  .inventory-row:hover:not([aria-selected="true"]) > th {
+    background: rgba(255, 255, 255, 0.035);
+  }
+
+  .workspace-back.visual-action:hover:not(:disabled) {
+    color: var(--text-primary);
+    background: var(--quiet-background);
+  }
+
+  .workspace-review:hover:not(:disabled),
+  .workspace-apply:hover:not(:disabled) {
+    filter: brightness(1.05);
+  }
+
+  .workspace-tabs [role="tab"]:hover:not(:disabled) {
+    color: rgba(244, 244, 246, 0.78);
+  }
 }
 
 /* Component-level accessibility variants ------------------------------- */

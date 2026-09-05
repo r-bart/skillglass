@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Skillglass
+GenericName=Agent skill manager
+Comment=Discover, inspect, install, and safely update agent skills
+Exec=/usr/bin/skillglass
+Icon=skillglass
+Terminal=false
+Categories=Development;
+Keywords=agents;skills;Codex;
+StartupWMClass=Skillglass

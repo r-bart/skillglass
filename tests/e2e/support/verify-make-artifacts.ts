@@ -21,7 +21,7 @@ const platformExtensions: Readonly<Record<NodeJS.Platform, readonly string[] | u
   darwin: [".zip"],
   freebsd: undefined,
   haiku: undefined,
-  linux: [".deb", ".rpm"],
+  linux: [".deb", ".rpm", ".pkg.tar.zst"],
   openbsd: undefined,
   sunos: undefined,
   win32: [".exe", ".nupkg"],
@@ -42,10 +42,17 @@ const foreign = distributables.filter((artifact) => !matched.includes(artifact))
 if (foreign.length > 0) {
   throw new Error(`Forge make emitted stale or misnamed distributables: ${foreign.join(", ")}`)
 }
-if (matched.length === 0) {
-  throw new Error(`Forge make produced no ${expected.join("/")} artifacts below ${makeRoot}`)
+const exactMatches = expected.map((extension) => {
+  const extensionMatches = matched.filter((artifact) =>
+    artifact.toLocaleLowerCase("en-US").endsWith(extension))
+  if (extensionMatches.length !== 1) {
+    throw new Error(
+      `Forge make must emit exactly one ${extension} artifact, received ${extensionMatches.length}: ${extensionMatches.join(", ")}`,
+    )
+  }
+  return extensionMatches[0]!
+})
+if (new Set(exactMatches).size !== exactMatches.length) {
+  throw new Error(`Forge make artifact suffixes overlap: ${exactMatches.join(", ")}`)
 }
-if (process.platform === "darwin" && matched.length !== 1) {
-  throw new Error(`Forge macOS make must emit one ZIP, received: ${matched.join(", ")}`)
-}
-process.stdout.write(`${matched.map((artifact) => path.relative(repositoryRoot, artifact)).join("\n")}\n`)
+process.stdout.write(`${exactMatches.map((artifact) => path.relative(repositoryRoot, artifact)).join("\n")}\n`)

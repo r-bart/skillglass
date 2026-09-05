@@ -16,6 +16,7 @@ import {
   type InstallationObservation,
   type ResolutionInput,
   type RootCandidate,
+  type ScanRootContext,
   type SkillObservation,
   type SkillRuntimeAdapter,
 } from "@forge/adapter-api"
@@ -165,6 +166,38 @@ function relativeDisplay(root: SourceRoot, candidate: string): string | undefine
   return relative.split(path.sep).join("/")
 }
 
+function filesystemErrorCode(error: unknown): string | undefined {
+  if (typeof error !== "object" || error === null || !("code" in error)) return undefined
+  return typeof error.code === "string" ? error.code : undefined
+}
+
+function reportRootScanFailure(context: ScanRootContext | undefined, error: unknown, rootPath: string): void {
+  if (context === undefined) throw error
+  const causeCode = filesystemErrorCode(error)
+  const missing = causeCode === "ENOENT" || causeCode === "ENOTDIR"
+  const denied = causeCode === "EACCES" || causeCode === "EPERM"
+  context.reportFinding({
+    code: missing ? "ROOT_MISSING" : denied ? "ROOT_DENIED" : "ROOT_SCAN_FAILED",
+    severity: missing || denied ? "warning" : "error",
+    message: missing
+      ? "The approved folder disappeared before it could be scanned"
+      : denied
+        ? "The approved folder became unreadable before it could be scanned"
+        : "The approved folder could not be scanned",
+    path: rootPath,
+    ...(causeCode === undefined ? {} : { causeCode }),
+  })
+}
+
+function reportEntryScanFailure(
+  context: ScanRootContext | undefined,
+  error: unknown,
+  finding: Parameters<ScanRootContext["reportFinding"]>[0],
+): void {
+  if (context === undefined) throw error
+  context.reportFinding(finding)
+}
+
 export class CodexAdapter implements SkillRuntimeAdapter {
   readonly id = "codex"
   readonly displayName = "Codex"
@@ -247,19 +280,21 @@ export class CodexAdapter implements SkillRuntimeAdapter {
     return candidates
   }
 
-  async *scanRoot(root: SourceRoot): AsyncIterable<InstallationObservation> {
+  async *scanRoot(root: SourceRoot, context?: ScanRootContext): AsyncIterable<InstallationObservation> {
     if (root.adapterId !== this.id) return
     let canonicalRoot: string
     try {
       canonicalRoot = await realpath(root.canonicalPath)
-    } catch {
+    } catch (error) {
+      reportRootScanFailure(context, error, root.canonicalPath)
       return
     }
     const entries = []
     try {
       const directory = await opendir(canonicalRoot)
       for await (const entry of directory) entries.push(entry)
-    } catch {
+    } catch (error) {
+      reportRootScanFailure(context, error, canonicalRoot)
       return
     }
     entries.sort((left, right) => Buffer.compare(Buffer.from(left.name), Buffer.from(right.name)))
@@ -271,12 +306,53 @@ export class CodexAdapter implements SkillRuntimeAdapter {
         if (!entry.isDirectory() && !entry.isSymbolicLink()) continue
         target = await realpath(logicalPath)
         const stats = await lstat(target)
-        if (!stats.isDirectory() || !isPathContained(canonicalRoot, target) || seenTargets.has(target)) continue
-      } catch {
+        if (!stats.isDirectory()) continue
+        if (!isPathContained(canonicalRoot, target)) {
+          context?.reportFinding({
+            code: "SYMLINK_OUTSIDE_APPROVED_ROOT",
+            severity: "warning",
+            message: "A link points outside the approved folder and was skipped",
+            path: logicalPath,
+            targetPath: target,
+          })
+          continue
+        }
+        if (seenTargets.has(target)) continue
+      } catch (error) {
+        const code = filesystemErrorCode(error)
+        if (entry.isSymbolicLink()) {
+          reportEntryScanFailure(context, error, {
+            code: "SYMLINK_TARGET_INACCESSIBLE",
+            severity: "warning",
+            message: "A link target could not be read and was skipped",
+            path: logicalPath,
+            ...(code === undefined ? {} : { causeCode: code }),
+          })
+        } else {
+          reportEntryScanFailure(context, error, {
+            code: "INSTALLATION_SCAN_FAILED",
+            severity: "warning",
+            message: "A skill directory could not be read and was skipped",
+            path: logicalPath,
+            ...(code === undefined ? {} : { causeCode: code }),
+          })
+        }
         continue
       }
       seenTargets.add(target)
-      yield await this.#observeInstallation(root, canonicalPath(target))
+      try {
+        yield await this.#observeInstallation(root, canonicalPath(target))
+      } catch (error) {
+        const code = filesystemErrorCode(error)
+        if (code === undefined) throw error
+        reportEntryScanFailure(context, error, {
+          code: "INSTALLATION_SCAN_FAILED",
+          severity: "warning",
+          message: "A skill directory could not be read and was skipped",
+          path: logicalPath,
+          ...(code === undefined ? {} : { causeCode: code }),
+        })
+      }
     }
   }
 

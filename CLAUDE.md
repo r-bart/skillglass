@@ -8,3 +8,5 @@
 - Revalidate `expectedBefore` immediately before any replacement. Never overwrite an external edit or remove a tree without an exact ownership/hash match.
 - Runtime scope, precedence, and state come from adapters with evidence. Do not infer inheritance in storage or renderer code.
 - Forge may read, install, and update in approved user-writable roots. Do not add activation/deactivation, harness configuration mutation, uninstall/delete/move, privilege elevation, an updater, or non-repository binary distribution.
+- Linux releases must contain exactly one DEB, one RPM, and one x86-64 Pacman `.pkg.tar.zst`, all derived from the same tested Electron bundle. Preserve the root-owned `4755` Chromium sandbox helper in the Pacman package.
+- Build Pacman artifacts in the digest-pinned Arch image with Node 24.19.0, record the Arch toolchain in release metadata, and do not claim Omarchy support until the exact release artifact passes the native Hyprland/Wayland checklist.

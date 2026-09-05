@@ -27,13 +27,14 @@ test.describe("onboarding and monitoring acceptance", () => {
     const tour = await launchForge(tourFixture, { onboardingPhase: "intro" })
     try {
       await expect(tour.page.getByRole("heading", { name: FIRST_SLIDE })).toBeVisible()
+      await tour.page.getByRole("button", { name: "Ver tour de 3 pasos" }).click()
       await expect(tour.page.getByText("Explicación 1 de 3", { exact: true })).toBeVisible()
 
       await tour.page.getByRole("button", { name: "Continuar" }).click()
       await expect(tour.page.getByRole("heading", { name: "Abre una skill y entiende cómo funciona." })).toBeFocused()
       await tour.page.getByRole("button", { name: "Continuar" }).click()
       await expect(tour.page.getByRole("heading", { name: "Crea nuevas skills para el trabajo que repites." })).toBeFocused()
-      await tour.page.getByRole("button", { name: "Elegir mis skills" }).click()
+      await tour.page.getByRole("button", { name: "Elegir carpetas" }).click()
       await expect(tour.page.getByRole("heading", { name: SOURCE_STEP })).toBeVisible()
     } finally {
       await tour.close()
@@ -42,6 +43,7 @@ test.describe("onboarding and monitoring acceptance", () => {
     const skipFixture = await createForgeBusinessFixture()
     const skip = await launchForge(skipFixture, { onboardingPhase: "intro" })
     try {
+      await skip.page.getByRole("button", { name: "Ver tour de 3 pasos" }).click()
       await skip.page.getByRole("button", { name: "Saltar explicación" }).click()
       await expect(skip.page.getByRole("heading", { name: SOURCE_STEP })).toBeVisible()
       expect(await skipFixture.readScanAudit()).toEqual([])
@@ -55,6 +57,8 @@ test.describe("onboarding and monitoring acceptance", () => {
     const app = await launchForge(fixture, { onboardingPhase: "skills" })
     try {
       await app.page.setViewportSize({ width: 1_420, height: 892 })
+      await expect(app.page.getByRole("heading", { name: /Hemos encontrado \d+ skills?\./u })).toBeVisible()
+      await app.page.getByRole("button", { name: "Elegir cuáles seguir" }).click()
       const selection = app.page.getByRole("region", { name: "Seleccionar skills bajo seguimiento" })
       const selectionHeading = app.page.getByRole("heading", { name: SELECTION_STEP })
       await expect(selectionHeading).toBeVisible()
@@ -129,6 +133,7 @@ test.describe("onboarding and monitoring acceptance", () => {
       expect(await app.page.evaluate(() => matchMedia("(prefers-reduced-motion: reduce)").matches)).toBe(true)
 
       const next = app.page.getByRole("button", { name: "Continuar" })
+      await app.page.getByRole("button", { name: "Ver tour de 3 pasos" }).click()
       await next.focus()
       await next.press("Enter")
       await expect(app.page.getByRole("heading", { name: "Abre una skill y entiende cómo funciona." })).toBeFocused()
@@ -144,10 +149,10 @@ test.describe("onboarding and monitoring acceptance", () => {
       const submit = app.page.getByRole("button", { name: "Buscar mis skills" })
       await submit.focus()
       await submit.press("Enter")
-      await expect(app.page.getByRole("heading", { name: SELECTION_STEP })).toBeVisible()
+      await expect(app.page.getByRole("heading", { name: /Hemos encontrado \d+ skills?\./u })).toBeVisible()
       await expectDocumentContained(app.page)
 
-      const finish = app.page.getByRole("button", { name: "Abrir mi inventario" })
+      const finish = app.page.getByRole("button", { name: "Seguir todas y abrir inventario" })
       await finish.focus()
       await finish.press("Enter")
       await expect(app.page.getByRole("heading", { name: "Inventario" })).toBeFocused()
@@ -161,7 +166,7 @@ test.describe("onboarding and monitoring acceptance", () => {
     const fixture = await createForgeBusinessFixture()
     const app = await launchForge(fixture, { onboardingPhase: "skills" })
     try {
-      await expect(app.page.getByRole("heading", { name: SELECTION_STEP })).toBeVisible()
+      await expect(app.page.getByRole("heading", { name: /Hemos encontrado \d+ skills?\./u })).toBeVisible()
       await app.restartAsLegacyInstallation()
       await expect(app.page.getByRole("heading", { name: "Inventario" })).toBeVisible()
       await expect(app.page.getByRole("row", { name: /global-review.*En seguimiento/u })).toBeVisible()

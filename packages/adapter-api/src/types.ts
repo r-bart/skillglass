@@ -17,6 +17,7 @@ import type {
   ApprovedRootPolicy,
   LocalSourceManifestV1,
   ParsedSkillSource,
+  ScanRootContext,
   SkillDirectoryValidation,
 } from "@forge/scanner"
 
@@ -147,7 +148,7 @@ export interface SkillRuntimeAdapter {
   capabilities(): Promise<AdapterCapabilities>
   capabilityEvidence(): Promise<readonly CapabilityEvidence[]>
   discoverRoots(context: DiscoveryContext): Promise<readonly RootCandidate[]>
-  scanRoot(root: SourceRoot): AsyncIterable<InstallationObservation>
+  scanRoot(root: SourceRoot, context?: ScanRootContext): AsyncIterable<InstallationObservation>
   parseInstallation(path: CanonicalPath): Promise<SkillObservation>
   validate(snapshot: SkillSnapshot): Promise<readonly ValidationFinding[]>
   resolveScope(input: ResolutionInput): Promise<readonly EffectiveSkill[]>

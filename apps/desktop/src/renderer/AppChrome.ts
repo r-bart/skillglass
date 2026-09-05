@@ -4,7 +4,7 @@ import type { InventoryPageDto, InventoryQuery } from "@forge/contracts"
 
 import desktopPackage from "../../package.json" with { type: "json" }
 import { MetalAction, QuietAction, SectionLabel } from "./VisualPrimitives.js"
-import { createElement, type Locale } from "./i18n.js"
+import { createElement, verbatim, verbatimProps, type Locale } from "./i18n.js"
 
 const SKILLGLASS_GITHUB_URL = "https://github.com/r-bart/skillglass"
 
@@ -126,7 +126,7 @@ export function AppTopbar({
               onClick: (event: ReactMouseEvent<HTMLButtonElement>) => onCreateSkill(event.currentTarget),
             },
             createElement("span", { "aria-hidden": "true", className: "create-skill-button__icon" }, "+"),
-            createElement("span", null, "Crear skill"),
+            createElement("span", { className: "create-skill-button__label" }, "Crear skill"),
           )
         : null,
       operationsVisible
@@ -136,7 +136,7 @@ export function AppTopbar({
             createElement(
               "summary",
               { "aria-label": "Abrir acciones de instalación", className: "visual-action visual-action--quiet chrome-action-menu__trigger" },
-              "Instalar",
+              createElement("span", { className: "chrome-action-menu__label" }, "Instalar"),
               createElement("span", { "aria-hidden": "true", className: "chrome-action-menu__chevron" }, "▾"),
             ),
             createElement(
@@ -169,8 +169,10 @@ export function AppTopbar({
               className: "refresh-button",
               disabled: operationBusy,
               onClick: onRefreshUpdates,
+              title: "Compara con las carpetas locales de origen",
             },
             createElement("span", { "aria-hidden": "true", className: "refresh-button__icon" }, "↻"),
+            createElement("span", { "aria-hidden": "true", className: "refresh-button__label" }, "Comprobar cambios"),
           )
         : null,
       createElement(
@@ -262,9 +264,18 @@ export function PrimaryNavigation({
     scope: InventoryQuery["scope"],
     icon: NavigationIconName,
     accessibleLabel = label,
+    observed = false,
   ) => createElement(
     "button",
-    {
+    observed ? verbatimProps({
+      "aria-label": accessibleLabel,
+      "aria-current": activeSurface === "inventory" && scopeKey(inventoryScope) === scopeKey(scope) ? "page" : undefined,
+      className: "navigation-item scope-button",
+      disabled: onboardingRequired,
+      key: scopeKey(scope),
+      onClick: () => onInventoryScopeChange(scope),
+      type: "button",
+    }) : {
       "aria-label": accessibleLabel,
       "aria-current": activeSurface === "inventory" && scopeKey(inventoryScope) === scopeKey(scope) ? "page" : undefined,
       className: "navigation-item scope-button",
@@ -274,7 +285,7 @@ export function PrimaryNavigation({
       type: "button",
     },
     createElement(NavigationIcon, { name: icon }),
-    createElement("span", { className: "navigation-text" }, label),
+    createElement("span", { className: "navigation-text" }, observed ? verbatim(label) : label),
   )
 
   const management: readonly [Surface, string, NavigationIconName][] = [
@@ -299,7 +310,7 @@ export function PrimaryNavigation({
       ...inventoryProjects.map((project) => inventoryDestination(project.displayName, {
         kind: "project",
         projectId: project.projectId,
-      }, "project")),
+      }, "project", project.displayName, true)),
     ),
     createElement(SectionLabel, { as: "h2", className: "navigation-label navigation-label--management" }, "Gestionar"),
     createElement(

@@ -14,7 +14,7 @@ Do not put exploit details, private skill contents, local filesystem paths, or o
 
 The only official binary-distribution channel is this repository's [Releases page](../../releases). Skillglass does not publish binaries to app stores, mirrors, package registries, standalone download sites, or automatic-update endpoints.
 
-Release assets include SHA-256 checksums and build metadata. Builds do not yet carry an OS-trusted publisher identity; the macOS ad-hoc signature protects bundle integrity but is neither a Developer ID signature nor notarization. An operating-system trust warning is therefore expected and must not be bypassed by weakening system security settings. Never treat a binary from another source as official.
+Release assets include SHA-256 checksums and build metadata. Builds do not yet carry an OS-trusted publisher identity; the macOS ad-hoc signature protects bundle integrity but is neither a Developer ID signature nor notarization, and the Windows and Linux packages are unsigned. An operating-system trust warning is therefore expected and must not be bypassed by weakening system security settings. Never treat a binary from another source as official.
 
 ## Security boundaries
 

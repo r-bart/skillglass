@@ -91,10 +91,13 @@ jobs:
         include:
           - os: macos-latest
             platform: macos
+            architecture: arm64
           - os: windows-latest
             platform: windows
+            architecture: x64
           - os: ubuntu-latest
             platform: linux
+            architecture: x64
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -132,6 +135,9 @@ jobs:
         env:
           FORGE_E2E_SKIP_PACKAGE: "1"
         run: xvfb-run --auto-servernum --server-args="-screen 0 1280x960x24" pnpm test:e2e
+      - name: Build Arch and Omarchy Pacman release candidate
+        if: runner.os == 'Linux'
+        run: packaging/arch/build-in-container.sh
       - name: Verify native maker artifacts
         run: node --experimental-strip-types tests/e2e/support/verify-make-artifacts.ts
       - name: Select public release assets
@@ -140,11 +146,13 @@ jobs:
           RELEASE_TAG: ${{ inputs.tag }}
           RELEASE_COMMIT: ${{ needs.validate.outputs.commit }}
           RELEASE_PLATFORM: ${{ matrix.platform }}
+          RELEASE_ARCHITECTURE: ${{ matrix.architecture }}
         run: >-
           node .github/scripts/release-assets.mjs collect
           --source apps/desktop/out/make
           --destination release-assets
           --platform "$RELEASE_PLATFORM"
+          --architecture "$RELEASE_ARCHITECTURE"
           --tag "$RELEASE_TAG"
           --commit "$RELEASE_COMMIT"
       - name: Attach native assets to the draft release

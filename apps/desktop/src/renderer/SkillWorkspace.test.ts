@@ -11,6 +11,7 @@ import type {
 } from "@forge/contracts"
 
 import { SkillWorkspace } from "./SkillWorkspace.js"
+import { setActiveLocale } from "./i18n.js"
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
@@ -190,6 +191,7 @@ async function renderWorkspace(options: {
   readonly onCommitted?: (next: InstallationDetailDto) => void
   readonly onStatus?: (message: string) => void
   readonly operations?: ForgeBridge["operations"]
+  readonly onCloseStateChange?: (state: "clean" | "dirty" | "busy") => void
 } = {}): Promise<void> {
   const inspect = options.inspect ?? (() => Promise.resolve(detail()))
   await act(async () => root.render(createElement(SkillWorkspace, {
@@ -199,6 +201,7 @@ async function renderWorkspace(options: {
     ...(options.onBack === undefined ? {} : { onBack: options.onBack }),
     ...(options.onCommitted === undefined ? {} : { onCommitted: options.onCommitted }),
     ...(options.onStatus === undefined ? {} : { onStatus: options.onStatus }),
+    ...(options.onCloseStateChange === undefined ? {} : { onCloseStateChange: options.onCloseStateChange }),
   })))
 }
 
@@ -206,6 +209,7 @@ let container: HTMLDivElement
 let root: Root
 
 beforeEach(() => {
+  setActiveLocale("es")
   container = document.createElement("div")
   document.body.append(container)
   root = createRoot(container)
@@ -213,10 +217,41 @@ beforeEach(() => {
 
 afterEach(() => {
   act(() => root.unmount())
+  setActiveLocale("es")
   container.remove()
 })
 
 describe("SkillWorkspace", () => {
+  it("keeps an observed skill name verbatim in the English workspace header", async () => {
+    setActiveLocale("en")
+    const base = detail()
+    await renderWorkspace({
+      inspect: () => Promise.resolve({
+        ...base,
+        installation: {
+          ...base.installation,
+          key: "Detalles",
+          name: { state: "known", value: "Detalles", evidence: { kind: "observed", source: "Detalles" } },
+        },
+        locationLabel: "Detalles",
+      }),
+    })
+
+    expect(container.querySelector("#skill-workspace-title")?.textContent).toBe("Detalles")
+    expect(container.textContent).not.toContain("Details/SKILL.md")
+  })
+
+  it("reports exact draft changes and becomes clean when the editor returns to the loaded content", async () => {
+    const onCloseStateChange = vi.fn()
+    await renderWorkspace({ onCloseStateChange })
+    expect(onCloseStateChange).toHaveBeenLastCalledWith("clean")
+
+    replaceDraft(DRAFT_CONTENT)
+    expect(onCloseStateChange).toHaveBeenLastCalledWith("dirty")
+    replaceDraft(BASE_CONTENT)
+    expect(onCloseStateChange).toHaveBeenLastCalledWith("clean")
+  })
+
   it("shows loading, then keeps Preview, Code, and Changes mounted in one workspace", async () => {
     let finishInspect: ((value: InstallationDetailDto) => void) | undefined
     const inspect = vi.fn(() => new Promise<InstallationDetailDto>((resolve) => { finishInspect = resolve }))
@@ -442,8 +477,9 @@ describe("SkillWorkspace", () => {
     async (status) => {
       const inspect = vi.fn(() => Promise.resolve(detail()))
       const onCommitted = vi.fn()
+      const onCloseStateChange = vi.fn()
       const confirm = vi.fn(() => Promise.resolve(operationResult(status)))
-      await renderWorkspace({ inspect, onCommitted, operations: operationBridge({ confirm }) })
+      await renderWorkspace({ inspect, onCommitted, onCloseStateChange, operations: operationBridge({ confirm }) })
       replaceDraft(DRAFT_CONTENT)
       await act(async () => buttonNamed("Revisar cambios").click())
 
@@ -458,6 +494,7 @@ describe("SkillWorkspace", () => {
       expect(buttonNamed("Recargar desde disco")).toBeInstanceOf(HTMLButtonElement)
       expect(inspect).toHaveBeenCalledTimes(1)
       expect(onCommitted).not.toHaveBeenCalled()
+      expect(onCloseStateChange).toHaveBeenLastCalledWith("dirty")
     },
   )
 

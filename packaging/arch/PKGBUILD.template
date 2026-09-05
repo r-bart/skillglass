@@ -1,0 +1,50 @@
+pkgname=skillglass
+pkgver=@PKGVER@
+pkgrel=1
+pkgdesc="Local-first inventory and safe updater for agent skills"
+arch=('x86_64')
+url="https://github.com/r-bart/skillglass"
+license=('Apache-2.0')
+depends=(
+  'alsa-lib'
+  'at-spi2-core'
+  'gtk3'
+  'libcups'
+  'libdrm'
+  'libxkbcommon'
+  'libxss'
+  'mesa'
+  'nss'
+  'xdg-utils'
+)
+options=('!debug' '!strip')
+source=(
+  'skillglass-bundle.tar.zst'
+  'skillglass.desktop'
+  'skillglass.png'
+  'LICENSE'
+)
+sha256sums=(
+  '@BUNDLE_SHA256@'
+  '@DESKTOP_SHA256@'
+  '@ICON_SHA256@'
+  '@LICENSE_SHA256@'
+)
+
+package() {
+  install -d "$pkgdir/opt/skillglass"
+  cp -a "$srcdir/Skillglass-linux-x64/." "$pkgdir/opt/skillglass/"
+
+  # Electron's setuid helper is what keeps the Chromium sandbox enabled on
+  # Linux. pacman installs the package as root and preserves this mode.
+  chmod 4755 "$pkgdir/opt/skillglass/chrome-sandbox"
+
+  install -Dm644 "$srcdir/skillglass.desktop" \
+    "$pkgdir/usr/share/applications/skillglass.desktop"
+  install -Dm644 "$srcdir/skillglass.png" \
+    "$pkgdir/usr/share/icons/hicolor/1024x1024/apps/skillglass.png"
+  install -Dm644 "$srcdir/LICENSE" \
+    "$pkgdir/usr/share/licenses/skillglass/LICENSE"
+  install -d "$pkgdir/usr/bin"
+  ln -s /opt/skillglass/skillglass "$pkgdir/usr/bin/skillglass"
+}

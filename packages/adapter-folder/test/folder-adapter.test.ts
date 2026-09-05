@@ -1,4 +1,4 @@
-import { cp, mkdir, mkdtemp, readdir, realpath, rm } from "node:fs/promises"
+import { cp, mkdir, mkdtemp, readdir, realpath, rm, symlink, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
@@ -157,6 +157,54 @@ describe("generic Agent Skills folder discovery", () => {
       kind: "project",
       projectPath,
     }))
+  })
+
+  it("suggests an existing ~/.codex/skills only when compatible discovery is enabled", async () => {
+    const home = path.join(await mkdtemp(path.join(tmpdir(), "forge-folder-home-")), "home")
+    temporaryDirectories.push(path.dirname(home))
+    const compatible = path.join(home, ".codex", "skills")
+    await mkdir(compatible, { recursive: true })
+    const adapter = new FolderAdapter({ roots: [], suggestCompatibleCodexSkillsRoot: true })
+
+    await expect(adapter.discoverRoots({
+      ...discoveryContext,
+      homeDirectory: canonicalPath(home),
+    })).resolves.toEqual([expect.objectContaining({
+      adapterId: "folder",
+      canonicalPath: canonicalPath(await realpath(compatible)),
+      kind: "user-added",
+      defaultIncluded: true,
+      evidence: expect.objectContaining({ source: "compatible-codex-skills-folder" }),
+    })])
+    await expect(new FolderAdapter({ roots: [] }).discoverRoots({
+      ...discoveryContext,
+      homeDirectory: canonicalPath(home),
+    })).resolves.toEqual([])
+  })
+
+  it("reports external and inaccessible links without reading them and keeps valid skills", async () => {
+    const rootPath = await temporaryRoot()
+    const outside = path.join(path.dirname(rootPath), "outside-skill")
+    await mkdir(outside)
+    await writeFile(path.join(outside, "SKILL.md"), "---\nname: outside\ndescription: Outside\n---\n")
+    await symlink(outside, path.join(rootPath, "external-link"), process.platform === "win32" ? "junction" : "dir")
+    await symlink(path.join(path.dirname(rootPath), "missing-skill"), path.join(rootPath, "broken-link"), process.platform === "win32" ? "junction" : "dir")
+    const internalLink = path.join(rootPath, "internal-link")
+    await symlink(path.join(rootPath, "alpha"), internalLink, process.platform === "win32" ? "junction" : "dir")
+    const adapter = new FolderAdapter({ roots: [configuration(rootPath)], now: () => NOW })
+    const findings: Array<{ code: string; path: string; targetPath?: string }> = []
+    const values = []
+    for await (const value of adapter.scanRoot(approvedRoot(rootPath), {
+      reportFinding: (finding) => findings.push(finding),
+    })) values.push(value)
+
+    expect(values.some(({ snapshot }) => snapshot.name.value === "outside")).toBe(false)
+    expect(values.some(({ snapshot }) => snapshot.name.value === "alpha")).toBe(true)
+    expect(findings).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "SYMLINK_OUTSIDE_APPROVED_ROOT", targetPath: await realpath(outside) }),
+      expect.objectContaining({ code: "SYMLINK_TARGET_INACCESSIBLE", path: path.join(rootPath, "broken-link") }),
+    ]))
+    expect(findings.some(({ path: findingPath }) => findingPath === internalLink)).toBe(false)
   })
 
   it("keeps valid and invalid installations, resources, raw source, identities and hashes", async () => {

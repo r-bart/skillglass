@@ -1,4 +1,4 @@
-import { cp, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises"
+import { chmod, cp, mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
 
@@ -134,6 +134,124 @@ describe("Codex verified root discovery", () => {
 })
 
 describe("Codex inventory semantics", () => {
+  it("reports a root that disappears after discovery instead of treating it as empty", async () => {
+    const instance = adapter()
+    const candidates = await instance.discoverRoots(context())
+    const user = candidates.find(({ kind }) => kind === "global")
+    if (user === undefined) throw new Error("user root was not discovered")
+    await rm(user.canonicalPath, { recursive: true })
+    const findings: Array<{ code: string; path: string; causeCode?: string }> = []
+    const values = []
+
+    for await (const value of instance.scanRoot(sourceRoot(user), {
+      reportFinding: (finding) => findings.push(finding),
+    })) values.push(value)
+
+    expect(values).toEqual([])
+    expect(findings).toEqual([expect.objectContaining({
+      code: "ROOT_MISSING",
+      path: user.canonicalPath,
+      causeCode: "ENOENT",
+    })])
+  })
+
+  it.skipIf(process.platform === "win32")("reports a root that becomes unreadable after discovery", async () => {
+    const instance = adapter()
+    const candidates = await instance.discoverRoots(context())
+    const user = candidates.find(({ kind }) => kind === "global")
+    if (user === undefined) throw new Error("user root was not discovered")
+    const findings: Array<{ code: string; path: string; causeCode?: string }> = []
+    const values = []
+    await chmod(user.canonicalPath, 0o000)
+    try {
+      for await (const value of instance.scanRoot(sourceRoot(user), {
+        reportFinding: (finding) => findings.push(finding),
+      })) {
+        values.push(value)
+      }
+    } finally {
+      await chmod(user.canonicalPath, 0o700)
+    }
+
+    expect(values).toEqual([])
+    expect(findings).toEqual([expect.objectContaining({
+      code: "ROOT_DENIED",
+      path: user.canonicalPath,
+      causeCode: expect.stringMatching(/^(?:EACCES|EPERM)$/u),
+    })])
+  })
+
+  it.skipIf(process.platform === "win32")("reports an unexpected root resolution failure", async () => {
+    const first = path.join(fixtureRoot, "root-cycle-a")
+    const second = path.join(fixtureRoot, "root-cycle-b")
+    await symlink(second, first, "dir")
+    await symlink(first, second, "dir")
+    const findings: Array<{ code: string; path: string; causeCode?: string }> = []
+    const values = []
+
+    for await (const value of adapter().scanRoot({
+      id: "root_cycle",
+      adapterId: "codex",
+      canonicalPath: canonicalPath(first),
+      kind: "global",
+      access: "read-write",
+      discovery: { kind: "observed", source: "fixture" },
+    }, { reportFinding: (finding) => findings.push(finding) })) {
+      values.push(value)
+    }
+
+    expect(values).toEqual([])
+    expect(findings).toEqual([expect.objectContaining({
+      code: "ROOT_SCAN_FAILED",
+      path: first,
+      causeCode: "ELOOP",
+    })])
+  })
+
+  it("reports external and inaccessible links while continuing the approved root scan", async () => {
+    const instance = adapter()
+    const candidates = await instance.discoverRoots(context())
+    const user = candidates.find(({ kind }) => kind === "global")
+    if (user === undefined) throw new Error("user root was not discovered")
+    const outside = path.join(fixtureRoot, "outside-skill")
+    await mkdir(outside)
+    await writeFile(path.join(outside, "SKILL.md"), "---\nname: outside\ndescription: Outside\n---\n")
+    await symlink(outside, path.join(user.canonicalPath, "external-link"), process.platform === "win32" ? "junction" : "dir")
+    await symlink(path.join(fixtureRoot, "missing-skill"), path.join(user.canonicalPath, "broken-link"), process.platform === "win32" ? "junction" : "dir")
+    const findings: Array<{ code: string; path: string; targetPath?: string }> = []
+    const values = []
+    for await (const value of instance.scanRoot(sourceRoot(user), {
+      reportFinding: (finding) => findings.push(finding),
+    })) values.push(value)
+
+    expect(values.some(({ snapshot }) => snapshot.name.value === "outside")).toBe(false)
+    expect(values.some(({ snapshot }) => snapshot.name.value === "personal-skill")).toBe(true)
+    expect(findings).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "SYMLINK_OUTSIDE_APPROVED_ROOT", targetPath: await realpath(outside) }),
+      expect.objectContaining({ code: "SYMLINK_TARGET_INACCESSIBLE" }),
+    ]))
+  })
+
+  it("throws an inaccessible entry when the caller omits diagnostic context", async () => {
+    const instance = adapter()
+    const candidates = await instance.discoverRoots(context())
+    const user = candidates.find(({ kind }) => kind === "global")
+    if (user === undefined) throw new Error("user root was not discovered")
+    await symlink(
+      path.join(fixtureRoot, "missing-without-context"),
+      path.join(user.canonicalPath, "broken-without-context"),
+      process.platform === "win32" ? "junction" : "dir",
+    )
+
+    const consume = async (): Promise<void> => {
+      for await (const value of instance.scanRoot(sourceRoot(user))) {
+        // Consuming the iterator must surface the first unreportable entry error.
+        void value
+      }
+    }
+    await expect(consume()).rejects.toMatchObject({ code: "ENOENT" })
+  })
+
   it("matches all ten golden installation observations", async () => {
     const { observations } = await rootsAndObservations()
     const actual = observations.map((observation) => ({

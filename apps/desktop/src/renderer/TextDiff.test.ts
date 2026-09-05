@@ -3,6 +3,7 @@ import { createRoot, type Root } from "react-dom/client"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
 import { TextDiff, createTextDiffModel } from "./TextDiff.js"
+import { setActiveLocale } from "./i18n.js"
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
@@ -10,6 +11,7 @@ let container: HTMLDivElement
 let root: Root
 
 beforeEach(() => {
+  setActiveLocale("es")
   container = document.createElement("div")
   document.body.append(container)
   root = createRoot(container)
@@ -17,6 +19,7 @@ beforeEach(() => {
 
 afterEach(() => {
   act(() => root.unmount())
+  setActiveLocale("es")
   container.remove()
 })
 

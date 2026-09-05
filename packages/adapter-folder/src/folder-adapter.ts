@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto"
-import { lstat, opendir } from "node:fs/promises"
+import { access, lstat, opendir, realpath } from "node:fs/promises"
+import { constants as fsConstants } from "node:fs"
 import path from "node:path"
 
 import {
@@ -14,6 +15,7 @@ import {
   type InstallationObservation,
   type ResolutionInput,
   type RootCandidate,
+  type ScanRootContext,
   type SkillObservation,
   type SkillRuntimeAdapter,
 } from "@forge/adapter-api"
@@ -41,6 +43,7 @@ import {
   hashFile,
   validatePortableRelativePath,
   validateSkillDirectory,
+  isPathContained,
   type LocalSourceManifestV1,
   type ScannerFinding,
 } from "@forge/scanner"
@@ -89,6 +92,11 @@ function assertConfiguration(configuration: FolderRootConfiguration): void {
 
 function samePath(left: string, right: string): boolean {
   return path.resolve(left) === path.resolve(right)
+}
+
+function filesystemErrorCode(error: unknown): string | undefined {
+  if (typeof error !== "object" || error === null || !("code" in error)) return undefined
+  return typeof error.code === "string" ? error.code : undefined
 }
 
 function scopeFromRoot(root: SourceRoot): InstallationScope {
@@ -193,6 +201,7 @@ export class FolderAdapter implements SkillRuntimeAdapter {
   readonly id = ADAPTER_ID
   readonly displayName = "Agent Skills folder"
   readonly #roots: readonly FolderRootConfiguration[]
+  readonly #suggestCompatibleCodexSkillsRoot: boolean
   readonly #now: () => Date
 
   constructor(options: FolderAdapterOptions) {
@@ -207,6 +216,7 @@ export class FolderAdapter implements SkillRuntimeAdapter {
       paths.add(resolved)
     }
     this.#roots = Object.freeze([...options.roots])
+    this.#suggestCompatibleCodexSkillsRoot = options.suggestCompatibleCodexSkillsRoot ?? false
     this.#now = options.now ?? (() => new Date())
   }
 
@@ -218,9 +228,8 @@ export class FolderAdapter implements SkillRuntimeAdapter {
     return Promise.resolve(FOLDER_ADAPTER_CAPABILITY_EVIDENCE)
   }
 
-  discoverRoots(_context: DiscoveryContext): Promise<readonly RootCandidate[]> {
-    void _context
-    return Promise.resolve(this.#roots.map((configuration) => ({
+  async discoverRoots(context: DiscoveryContext): Promise<readonly RootCandidate[]> {
+    const configured: RootCandidate[] = this.#roots.map((configuration) => ({
       candidateId: configuration.candidateId,
       adapterId: this.id,
       canonicalPath: configuration.canonicalPath,
@@ -232,18 +241,77 @@ export class FolderAdapter implements SkillRuntimeAdapter {
       writableWithoutElevation: configuration.writableWithoutElevation,
       evidence: observed({ source: "explicit-folder-configuration" }),
       defaultIncluded: configuration.defaultIncluded ?? false,
-    })))
+    }))
+    if (!this.#suggestCompatibleCodexSkillsRoot) return configured
+
+    const logicalPath = path.join(context.homeDirectory, ".codex", "skills")
+    try {
+      const canonical = canonicalPath(await realpath(logicalPath))
+      if (!(await lstat(canonical)).isDirectory()) return configured
+      await access(canonical, fsConstants.R_OK)
+      let writable = true
+      try {
+        await access(canonical, fsConstants.W_OK)
+      } catch {
+        writable = false
+      }
+      if (configured.some(({ canonicalPath: candidate }) => samePath(candidate, canonical))) return configured
+      return [...configured, {
+        candidateId: opaqueId("candidate", `compatible-codex-skills:${canonical}`),
+        adapterId: this.id,
+        canonicalPath: canonical,
+        kind: "user-added",
+        access: writable ? "read-write" : "read-only",
+        writableWithoutElevation: writable,
+        evidence: observed({ source: "compatible-codex-skills-folder" }),
+        defaultIncluded: true,
+      }]
+    } catch {
+      return configured
+    }
   }
 
-  async *scanRoot(root: SourceRoot): AsyncIterable<InstallationObservation> {
+  async *scanRoot(root: SourceRoot, context?: ScanRootContext): AsyncIterable<InstallationObservation> {
     this.#configuredRoot(root)
     let handle
     try {
-      handle = await opendir(root.canonicalPath)
+      const canonicalRoot = await realpath(root.canonicalPath)
+      handle = await opendir(canonicalRoot)
+      const seenTargets = new Set<string>()
       for await (const entry of handle) {
         if (!entry.isDirectory() && !entry.isSymbolicLink()) continue
-        const installationPath = canonicalPath(path.join(root.canonicalPath, entry.name))
-        yield await this.#observeInstallation(root, installationPath)
+        const logicalPath = path.join(canonicalRoot, entry.name)
+        let target: string
+        try {
+          target = await realpath(logicalPath)
+          const stats = await lstat(target)
+          if (!stats.isDirectory()) continue
+          if (!isPathContained(canonicalRoot, target)) {
+            context?.reportFinding({
+              code: "SYMLINK_OUTSIDE_APPROVED_ROOT",
+              severity: "warning",
+              message: "A link points outside the approved folder and was skipped",
+              path: logicalPath,
+              targetPath: target,
+            })
+            continue
+          }
+          if (seenTargets.has(target)) continue
+        } catch (error) {
+          if (entry.isSymbolicLink()) {
+            const code = filesystemErrorCode(error)
+            context?.reportFinding({
+              code: "SYMLINK_TARGET_INACCESSIBLE",
+              severity: "warning",
+              message: "A link target could not be read and was skipped",
+              path: logicalPath,
+              ...(code === undefined ? {} : { causeCode: code }),
+            })
+          }
+          continue
+        }
+        seenTargets.add(target)
+        yield await this.#observeInstallation(root, canonicalPath(target))
       }
     } catch (error) {
       throw new FolderAdapterError("ROOT_NOT_CONFIGURED", "The configured folder root could not be scanned", { cause: error })

@@ -6,7 +6,7 @@ import {
   type ReactNode,
 } from "react"
 
-import { createElement } from "../i18n.js"
+import { createElement, formatCount, getActiveLocale, verbatim, verbatimProps } from "../i18n.js"
 import {
   MetalAction,
   QuietAction,
@@ -85,9 +85,12 @@ function searchPlaceholder(
 ): string {
   if (scope.kind === "global") return "Buscar en Global"
   if (scope.kind === "project") {
-    return `Buscar en ${projectNames.get(scope.projectId) ?? "Proyecto"}`
+    const projectName = projectNames.get(scope.projectId) ?? (getActiveLocale() === "es" ? "Proyecto" : "Project")
+    return getActiveLocale() === "es" ? `Buscar en ${projectName}` : `Search ${projectName}`
   }
-  return `Buscar entre ${itemCount} skills`
+  return getActiveLocale() === "es"
+    ? `Buscar entre ${formatCount(itemCount, "skill", "es")}`
+    : `Search ${formatCount(itemCount, "skill", "en")}`
 }
 
 /**
@@ -206,7 +209,7 @@ export function SkillSelectionList({
             ...projects.map((project) => createElement(
               "option",
               { key: project.projectId, value: project.projectId },
-              `${project.displayName} · ${countProjectItems(items, project.projectId)}`,
+              verbatim(`${project.displayName} · ${countProjectItems(items, project.projectId)}`),
             )),
           ),
         ),
@@ -216,14 +219,14 @@ export function SkillSelectionList({
         { className: "skill-selection__search", htmlFor: searchId },
         createElement("span", { className: "visually-hidden" }, "Buscar skills"),
         createElement("span", { "aria-hidden": "true", className: "skill-selection__search-icon" }),
-        createElement("input", {
+        createElement("input", verbatimProps({
           disabled,
           id: searchId,
           onChange: (event) => setSearch(event.currentTarget.value),
           placeholder: searchPlaceholder(activeScope, items.length, projectNames),
           type: "search",
           value: search,
-        }),
+        })),
       ),
       createElement(
         QuietAction,
@@ -272,23 +275,23 @@ export function SkillSelectionList({
                   createElement(
                     "span",
                     { className: "skill-selection__copy" },
-                    createElement("strong", { className: "skill-selection__name" }, title),
-                    createElement("span", { className: "skill-selection__description" }, itemDescription(item)),
+                    createElement("strong", { className: "skill-selection__name" }, verbatim(title)),
+                    createElement("span", { className: "skill-selection__description" }, item.description.state === "known" ? verbatim(itemDescription(item)) : itemDescription(item)),
                     createElement(
                       "span",
                       { className: "skill-selection__origin" },
-                      createElement("span", null, scopeLabel(item, projectNames)),
+                      createElement("span", null, item.scope.kind === "project" ? verbatim(scopeLabel(item, projectNames)) : scopeLabel(item, projectNames)),
                       createElement("span", { "aria-hidden": "true" }, "·"),
-                      createElement("span", { className: "skill-selection__path", title: path }, path),
+                      createElement("span", verbatimProps({ className: "skill-selection__path", title: path }), verbatim(path)),
                     ),
                   ),
-                  createElement("input", {
-                    "aria-label": `Seleccionar ${title}`,
+                  createElement("input", verbatimProps({
+                    "aria-label": getActiveLocale() === "es" ? `Seleccionar ${title}` : `Select ${title}`,
                     checked: selected,
                     disabled,
                     onChange: () => toggleItem(item.installationId),
                     type: "checkbox",
-                  }),
+                  })),
                 ),
               )
             }),

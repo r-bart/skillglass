@@ -20,6 +20,8 @@ export interface FolderRootConfiguration {
 
 export interface FolderAdapterOptions {
   readonly roots: readonly FolderRootConfiguration[]
+  /** Suggest an existing ~/.codex/skills as a generic SKILL.md folder. */
+  readonly suggestCompatibleCodexSkillsRoot?: boolean
   readonly now?: () => Date
 }
 

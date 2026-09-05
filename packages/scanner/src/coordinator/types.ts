@@ -2,7 +2,30 @@ import type { SourceRoot } from "@forge/domain"
 
 export interface ScannableAdapter<TObservation> {
   readonly id: string
-  scanRoot(root: SourceRoot): AsyncIterable<TObservation>
+  scanRoot(root: SourceRoot, context?: ScanRootContext): AsyncIterable<TObservation>
+}
+
+/**
+ * A root-local omission reported by an adapter while it keeps scanning.
+ * The coordinator supplies root and adapter identity before publishing it.
+ */
+export interface AdapterScanFinding {
+  readonly code:
+    | "ROOT_DENIED"
+    | "ROOT_MISSING"
+    | "ROOT_SCAN_FAILED"
+    | "INSTALLATION_SCAN_FAILED"
+    | "SYMLINK_OUTSIDE_APPROVED_ROOT"
+    | "SYMLINK_TARGET_INACCESSIBLE"
+  readonly severity: "warning" | "error"
+  readonly message: string
+  readonly path: string
+  readonly targetPath?: string
+  readonly causeCode?: string
+}
+
+export interface ScanRootContext {
+  reportFinding(finding: AdapterScanFinding): void
 }
 
 export interface ScanFinding {
@@ -11,11 +34,13 @@ export interface ScanFinding {
     | "ROOT_DENIED"
     | "ROOT_MISSING"
     | "ROOT_SCAN_FAILED"
+    | AdapterScanFinding["code"]
   readonly severity: "warning" | "error"
   readonly message: string
   readonly rootId: string
   readonly adapterId: string
   readonly path: string
+  readonly targetPath?: string
   readonly causeCode?: string
 }
 

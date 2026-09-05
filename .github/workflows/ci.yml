@@ -103,6 +103,10 @@ jobs:
       - name: Make native distributables
         run: pnpm make
 
+      - name: Build Arch and Omarchy Pacman release candidate
+        if: runner.os == 'Linux'
+        run: packaging/arch/build-in-container.sh
+
       - name: Verify native maker artifacts
         run: node --experimental-strip-types tests/e2e/support/verify-make-artifacts.ts
 

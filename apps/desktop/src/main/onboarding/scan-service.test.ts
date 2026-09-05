@@ -132,4 +132,32 @@ describe("approved-root scan integration", () => {
     }))
     store.close()
   })
+
+  it("forwards structured adapter omissions through the inventory event", async () => {
+    const adapter = {
+      ...emptyAdapter,
+      async *scanRoot(_root: SourceRoot, context?: { reportFinding(finding: { code: "SYMLINK_OUTSIDE_APPROVED_ROOT"; severity: "warning"; message: string; path: string; targetPath: string }): void }) {
+        context?.reportFinding({
+          code: "SYMLINK_OUTSIDE_APPROVED_ROOT",
+          severity: "warning",
+          message: "Skipped external link",
+          path: "/virtual/.agents/skills/link",
+          targetPath: "/virtual/external/skill",
+        })
+        yield* []
+      },
+    } as unknown as SkillRuntimeAdapter
+    const store = openForgeStore({ path: ":memory:" })
+    const onInventoryChanged = vi.fn()
+    await new ApprovedRootScanService({ codexAdapter: adapter, projects: [], store, onInventoryChanged }).scan([root])
+
+    expect(onInventoryChanged).toHaveBeenCalledWith(expect.objectContaining({
+      findings: [expect.objectContaining({
+        code: "SYMLINK_OUTSIDE_APPROVED_ROOT",
+        rootId: root.id,
+        targetPath: "/virtual/external/skill",
+      })],
+    }))
+    store.close()
+  })
 })

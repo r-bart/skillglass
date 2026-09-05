@@ -125,7 +125,7 @@ describe("OnboardingFlow", () => {
     expect(container.querySelector("h1")?.textContent)
       .toBe("Entiende todas las skills que ya tienes.")
 
-    await act(async () => buttonNamed("Saltar explicación").click())
+    await act(async () => buttonNamed("Elegir carpetas").click())
     expect(container.querySelector("h1")?.textContent).toBe("Elige dónde buscar tus skills")
     expect(container.querySelector("h1")).toBe(document.activeElement)
 
@@ -153,7 +153,7 @@ describe("OnboardingFlow", () => {
       onComplete: vi.fn(),
     })))
 
-    await act(async () => buttonNamed("Saltar explicación").click())
+    await act(async () => buttonNamed("Elegir carpetas").click())
     const sourceMain = container.querySelector<HTMLElement>("main")
     if (sourceMain === null) throw new Error("Source main is missing")
     sourceMain.scrollTop = 240
@@ -161,8 +161,13 @@ describe("OnboardingFlow", () => {
     await act(async () => buttonNamed("Buscar mis skills").click())
 
     const selectionMain = container.querySelector<HTMLElement>("main")
-    const title = container.querySelector("h1")
+    let title = container.querySelector("h1")
     expect(selectionMain?.scrollTop).toBe(0)
+    expect(title?.textContent).toBe("Hemos encontrado 1 skill.")
+    expect(title).toBe(document.activeElement)
+
+    await act(async () => buttonNamed("Elegir cuáles seguir").click())
+    title = container.querySelector("h1")
     expect(title?.textContent).toBe("Elige las skills que quieres seguir de cerca.")
     expect(title).toBe(document.activeElement)
   })
@@ -194,8 +199,10 @@ describe("OnboardingFlow", () => {
     })))
 
     expect(container.textContent).not.toContain("Bienvenido a Skillglass")
-    expect(container.querySelector("h1")?.textContent)
-      .toBe("Elige las skills que quieres seguir de cerca.")
+    expect(container.querySelector("h1")?.textContent).toBe("Hemos encontrado 1 skill.")
+
+    await act(async () => buttonNamed("Elegir cuáles seguir").click())
+    expect(container.querySelector("h1")?.textContent).toBe("Elige las skills que quieres seguir de cerca.")
     expect(container.querySelector<HTMLInputElement>('input[type="checkbox"]')?.checked).toBe(true)
 
     await act(async () => buttonNamed("Abrir mi inventario").click())
@@ -237,9 +244,62 @@ describe("OnboardingFlow", () => {
       onComplete,
     })))
 
-    expect(container.textContent).toContain("No se han observado skills")
-    await act(async () => buttonNamed("Abrir mi inventario").click())
+    expect(container.textContent).toContain("No hemos encontrado skills todavía.")
+    await act(async () => buttonNamed("Abrir inventario").click())
     expect(save).toHaveBeenCalledWith([])
     expect(onComplete).toHaveBeenCalledOnce()
+  })
+
+  it("offers the tour without putting it in the short path", async () => {
+    await act(async () => root.render(createElement(OnboardingFlow, {
+      roots: requiredRoots,
+      monitoring: requiredMonitoring,
+      inventoryBridge: inventoryBridge([]),
+      selectedCandidateIds: new Set([candidate.candidateId]),
+      sourceBusy: false,
+      sourceError: null,
+      onToggleRoot: vi.fn(),
+      onAddFolder: vi.fn(),
+      onAddProject: vi.fn(),
+      onApproveRoots: () => Promise.resolve(completeRoots),
+      onSaveMonitoring: () => Promise.reject(new Error("not reached")),
+      onComplete: vi.fn(),
+    })))
+
+    expect(container.textContent).not.toContain("Explicación 1 de 3")
+    await act(async () => buttonNamed("Ver tour de 3 pasos").click())
+    expect(container.textContent).toContain("Explicación 1 de 3")
+    await act(async () => buttonNamed("Continuar").click())
+    expect(container.querySelector("h1")?.textContent).toBe("Abre una skill y entiende cómo funciona.")
+    await act(async () => buttonNamed("Saltar explicación").click())
+    expect(container.querySelector("h1")?.textContent).toBe("Elige dónde buscar tus skills")
+  })
+
+  it("persists every observed skill from the quick path", async () => {
+    const first = inventoryItem("release-checklist")
+    const second = inventoryItem("accessibility-audit")
+    const save = vi.fn(() => Promise.resolve({
+      status: "complete" as const,
+      selectedInstallationIds: [first.installationId, second.installationId],
+      completedAt: "2026-08-27T10:00:00.000Z",
+    }))
+
+    await act(async () => root.render(createElement(OnboardingFlow, {
+      roots: completeRoots,
+      monitoring: requiredMonitoring,
+      inventoryBridge: inventoryBridge([first, second]),
+      selectedCandidateIds: new Set([candidate.candidateId]),
+      sourceBusy: false,
+      sourceError: null,
+      onToggleRoot: vi.fn(),
+      onAddFolder: vi.fn(),
+      onAddProject: vi.fn(),
+      onApproveRoots: () => Promise.resolve(completeRoots),
+      onSaveMonitoring: save,
+      onComplete: vi.fn(),
+    })))
+
+    await act(async () => buttonNamed("Seguir todas y abrir inventario").click())
+    expect(save).toHaveBeenCalledWith([first.installationId, second.installationId])
   })
 })

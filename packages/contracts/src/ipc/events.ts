@@ -17,6 +17,7 @@ export const ScanFindingDtoSchema = z.object({
   rootId: RootIdSchema.optional(),
   adapterId: z.string().min(1).max(128).optional(),
   path: z.string().min(1).max(4_096).optional(),
+  targetPath: z.string().min(1).max(4_096).optional(),
   causeCode: z.string().min(1).max(128).optional(),
 }).strict()
 

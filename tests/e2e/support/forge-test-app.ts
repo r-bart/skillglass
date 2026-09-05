@@ -73,6 +73,7 @@ export interface LaunchForgeOptions {
 export interface ForgeTestApplication {
   readonly page: Page
   close(): Promise<void>
+  requestNativeClose(choice: "stay" | "discard", reason?: "window" | "quit"): Promise<void>
   restart(): Promise<void>
   restartAsLegacyInstallation(): Promise<void>
   setZoomFactor(factor: number): Promise<void>
@@ -402,6 +403,71 @@ async function injectNativeSelection(application: ElectronApplication, selectedP
   }, selectedPath)
 }
 
+async function waitForElectronExit(
+  application: ElectronApplication,
+  timeoutMs: number,
+): Promise<boolean> {
+  const child = application.process()
+  if (child.exitCode !== null || child.signalCode !== null) return true
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      child.off("exit", onExit)
+      resolve(false)
+    }, timeoutMs)
+    const onExit = (): void => {
+      clearTimeout(timer)
+      resolve(true)
+    }
+    child.once("exit", onExit)
+  })
+}
+
+/** Test teardown bypasses user-facing close protection after assertions finish. */
+async function forceExitElectron(application: ElectronApplication): Promise<void> {
+  void application.evaluate(({ app }) => app.exit(0)).catch(() => {
+    // A successful app.exit closes the inspector transport before evaluate can reply.
+  })
+  if (await waitForElectronExit(application, 1_000)) return
+
+  const child = application.process()
+  try {
+    if (process.platform === "win32" || child.pid === undefined) child.kill("SIGKILL")
+    else process.kill(-child.pid, "SIGKILL")
+  } catch {
+    // Fall back to the main process when the process group has already disappeared.
+    if (child.exitCode === null && child.signalCode === null) {
+      try {
+        child.kill("SIGKILL")
+      } catch {
+        // The process can exit between the status check and the fallback signal.
+      }
+    }
+  }
+  if (!await waitForElectronExit(application, 5_000)) {
+    throw new Error("Forge E2E process did not exit during forced test teardown")
+  }
+}
+
+/** Restarts exercise the production quit guard and wait for its clean close. */
+async function quitElectronGracefully(
+  application: ElectronApplication,
+  page: Page,
+): Promise<void> {
+  const closed = page.waitForEvent("close", { timeout: 10_000 })
+  void application.evaluate(({ app }) => app.quit()).catch(() => {
+    // The inspector transport normally closes before evaluate can reply.
+  })
+  try {
+    await closed
+  } catch {
+    await forceExitElectron(application)
+    return
+  }
+  if (!await waitForElectronExit(application, 5_000)) {
+    await forceExitElectron(application)
+  }
+}
+
 async function firstVisible(locators: readonly Locator[]): Promise<Locator | undefined> {
   for (const locator of locators) {
     if (await locator.count() > 0 && await locator.first().isVisible()) return locator.first()
@@ -457,13 +523,33 @@ class RunningForge implements ForgeTestApplication {
   async close(): Promise<void> {
     if (this.#closed) return
     this.#closed = true
-    await this.#application.close()
-    await this.#fixture.dispose()
+    try {
+      await forceExitElectron(this.#application)
+    } finally {
+      await this.#fixture.dispose()
+    }
+  }
+
+  async requestNativeClose(choice: "stay" | "discard", reason: "window" | "quit" = "window"): Promise<void> {
+    const closed = choice === "discard" ? this.#page.waitForEvent("close") : undefined
+    await this.#application.evaluate(({ app, BrowserWindow, dialog }, request) => {
+      dialog.showMessageBox = () => Promise.resolve({
+        response: request.choice === "discard" ? 1 : 0,
+        checkboxChecked: false,
+      })
+      if (request.reason === "quit") app.quit()
+      else {
+        const window = BrowserWindow.getAllWindows()[0]
+        if (window === undefined) throw new Error("Forge window is missing")
+        window.close()
+      }
+    }, { choice, reason })
+    if (closed !== undefined) await closed
   }
 
   async restart(): Promise<void> {
     if (this.#closed) throw new Error("Cannot restart a closed Forge test application")
-    await this.#application.close()
+    await quitElectronGracefully(this.#application, this.#page)
     const launched = await launchElectron(this.#fixture, this.#workingDirectory)
     this.#application = launched.application
     this.#page = launched.page
@@ -472,7 +558,7 @@ class RunningForge implements ForgeTestApplication {
 
   async restartAsLegacyInstallation(): Promise<void> {
     if (this.#closed) throw new Error("Cannot restart a closed Forge test application")
-    await this.#application.close()
+    await quitElectronGracefully(this.#application, this.#page)
     const store = openForgeStore({
       path: path.join(this.#fixture.userData, "forge.sqlite"),
       privateDirectory: true,
@@ -560,9 +646,14 @@ async function launchElectron(fixture: ForgeBusinessFixture, workingDirectory: s
       `--user-data-dir=${fixture.userData}`,
     ],
   })
-  const page = await application.firstWindow()
-  page.setDefaultTimeout(10_000)
-  return { application, page }
+  try {
+    const page = await application.firstWindow()
+    page.setDefaultTimeout(10_000)
+    return { application, page }
+  } catch (reason) {
+    await forceExitElectron(application).catch(() => undefined)
+    throw reason
+  }
 }
 
 export async function launchForge(
@@ -601,48 +692,61 @@ export async function launchForge(
     await rename(projectSkills, hiddenProjectSkills)
     await rename(fixture.managedSkillsRoot, hiddenManagedSkills)
   }
-  let launched: Awaited<ReturnType<typeof launchElectron>>
+  let launched: Awaited<ReturnType<typeof launchElectron>> | undefined
+  let launchError: unknown
   try {
     launched = await launchElectron(fixture, workingDirectory)
     await launched.page.getByRole("heading", { name: "Entiende todas las skills que ya tienes." }).waitFor()
+  } catch (reason) {
+    launchError = reason
   } finally {
     if (!needsObservedSkills && options.keepUnapprovedRootsHidden !== true) {
       await rename(hiddenProjectSkills, projectSkills)
       await rename(hiddenManagedSkills, fixture.managedSkillsRoot)
     }
   }
+  if (launched === undefined || launchError !== undefined) {
+    if (launched !== undefined) await forceExitElectron(launched.application).catch(() => undefined)
+    await fixture.dispose().catch(() => undefined)
+    throw launchError ?? new Error("Forge E2E launch did not return an application")
+  }
   const app = new RunningForge(fixture, launched.application, launched.page, workingDirectory)
 
-  if (onboardingPhase !== "intro" || options.onboarded === true) {
-    await launched.page.getByRole("button", { name: "Saltar explicación" }).click()
-    await launched.page.getByRole("heading", { name: "Elige dónde buscar tus skills" }).waitFor()
-  }
+  try {
+    if (onboardingPhase !== "intro" || options.onboarded === true) {
+      await launched.page.getByRole("button", { name: "Elegir carpetas" }).click()
+      await launched.page.getByRole("heading", { name: "Elige dónde buscar tus skills" }).waitFor()
+    }
 
-  if (needsObservedSkills) {
-    const submit = launched.page.getByRole("button", { name: "Buscar mis skills" })
-    await submit.click()
-    await launched.page.getByRole("heading", { name: "Elige las skills que quieres seguir de cerca." }).waitFor()
-    if (options.onboarded === true) {
-      await launched.page.getByRole("button", { name: "Abrir mi inventario" }).click()
-      await launched.page.getByRole("heading", { name: "Inventario" }).waitFor()
-      // Most acceptance fixtures represent an already-onboarded launch, not
-      // the transient success announcement emitted by the completion click.
-      await app.restart()
-      await app.page.getByRole("heading", { name: "Inventario" }).waitFor()
+    if (needsObservedSkills) {
+      const submit = launched.page.getByRole("button", { name: "Buscar mis skills" })
+      await submit.click()
+      await launched.page.getByRole("heading", { name: /Hemos encontrado \d+ skills?\./u }).waitFor()
+      if (options.onboarded === true) {
+        await launched.page.getByRole("button", { name: "Seguir todas y abrir inventario" }).click()
+        await launched.page.getByRole("heading", { name: "Inventario" }).waitFor()
+        // Most acceptance fixtures represent an already-onboarded launch, not
+        // the transient success announcement emitted by the completion click.
+        await app.restart()
+        await app.page.getByRole("heading", { name: "Inventario" }).waitFor()
+      }
+    } else if (onboardingPhase === "sources") {
+      const checkboxes = launched.page.getByRole("checkbox")
+      await checkboxes.first().waitFor()
+      for (let index = 0; index < await checkboxes.count(); index += 1) {
+        const checkbox = checkboxes.nth(index)
+        if (await checkbox.isChecked()) await checkbox.uncheck()
+      }
+      if (legacyRootApprovalAcceptance) {
+        await launched.page.getByRole("heading", { name: "Elige dónde buscar tus skills" })
+          .evaluate((heading) => { heading.textContent = "Carpetas de skills" })
+        await launched.page.getByRole("button", { name: "Buscar mis skills" })
+          .evaluate((button) => { button.textContent = "Escanear carpetas aprobadas" })
+      }
     }
-  } else if (onboardingPhase === "sources") {
-    const checkboxes = launched.page.getByRole("checkbox")
-    await checkboxes.first().waitFor()
-    for (let index = 0; index < await checkboxes.count(); index += 1) {
-      const checkbox = checkboxes.nth(index)
-      if (await checkbox.isChecked()) await checkbox.uncheck()
-    }
-    if (legacyRootApprovalAcceptance) {
-      await launched.page.getByRole("heading", { name: "Elige dónde buscar tus skills" })
-        .evaluate((heading) => { heading.textContent = "Carpetas de skills" })
-      await launched.page.getByRole("button", { name: "Buscar mis skills" })
-        .evaluate((button) => { button.textContent = "Escanear carpetas aprobadas" })
-    }
+    return app
+  } catch (reason) {
+    await app.close().catch(() => undefined)
+    throw reason
   }
-  return app
 }
