@@ -4,7 +4,7 @@
 
 # Skillglass
 
-Skillglass is a local desktop app for finding, reading, and editing agent skills. It brings Codex skills and any folders containing `SKILL.md` files into one clear inventory, without an account or usage telemetry.
+Skillglass is a local desktop app for finding, reading, and editing agent skills. It automatically discovers known Codex locations and can scan any other compatible folder you approve, including folders created by another IDE or agent. A compatible skill is a directory containing a `SKILL.md` file.
 
 <p>
   <a href="https://github.com/r-bart/skillglass/releases">Downloads</a> ·
@@ -16,7 +16,8 @@ Skillglass is a local desktop app for finding, reading, and editing agent skills
 
 ## What it does
 
-- Finds skills in known Codex locations and folders you choose.
+- Automatically finds skills in known Codex locations.
+- Scans any other compatible folder you add, regardless of which tool created it.
 - Lets you search and filter by project, validity, source, and local state.
 - Shows duplicate names and every matching location without guessing which copy is active.
 - Renders common `SKILL.md` content safely inside the app.
@@ -42,10 +43,10 @@ Skillglass reads and writes only inside folders you explicitly approve. It treat
 
 The first release deliberately stays small. It does not:
 
-- activate, deactivate, move, or uninstall skills in Codex;
+- activate, deactivate, move, or uninstall skills in an IDE or agent runtime;
 - install from internet URLs or query a remote registry;
 - sync files or generate skills with AI;
-- crawl plugin caches automatically;
+- discover every non-Codex location automatically or crawl plugin caches;
 - update the desktop app automatically.
 
 ## Download
