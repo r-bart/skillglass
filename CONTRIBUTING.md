@@ -30,16 +30,9 @@ Platform-specific packaging must run on the corresponding native operating syste
 pnpm make
 ```
 
-Landing screenshots are generated from real Electron flows with temporary
-fixtures. After building the desktop bundle, regenerate them with:
-
-```sh
-pnpm exec tsx apps/landing/scripts/capture-product-assets.ts
-```
-
-Review every generated image before committing it. Visible fixture paths must
-remain normalized to `/demo`, and screenshots must contain no private skills,
-tokens, or personal filesystem paths.
+README screenshots must come from fixture-backed Electron flows. Review every
+image before committing it, keep visible paths normalized to `/demo`, and make
+sure it contains no private skills, tokens, or personal filesystem paths.
 
 The Arch Linux and Omarchy Pacman release candidate is built from the packaged
 Linux application with `packaging/arch/build-package.sh`. The regular CI path

@@ -1,8 +1,8 @@
 # Installing Skillglass
 
-Skillglass 1.0.0 is being prepared. There is no active public binary download
-yet. This guide documents the package formats and the checks that must be
-completed before the landing page enables a download.
+Skillglass 1.0.0 is in final local testing. There is no public binary download
+yet. This guide documents the planned package formats, verification steps, and
+the checks that must be completed before publication.
 
 ## Official downloads
 

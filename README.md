@@ -1,111 +1,99 @@
+<p align="center">
+  <img src="docs/assets/skillglass-cover.png" alt="Skillglass — Find and edit your skills in one place" width="100%">
+</p>
+
 # Skillglass
 
-Find and edit your skills in one place. Skillglass is a local desktop app for
-Codex skills and other folders containing `SKILL.md` files.
+Skillglass is a local desktop app for finding, reading, and editing agent skills. It brings Codex skills and any folders containing `SKILL.md` files into one clear inventory, without an account or usage telemetry.
 
-![Skillglass inventory with example skills](apps/landing/public/demo/product-en.webp)
+<p>
+  <a href="https://github.com/r-bart/skillglass/releases">Downloads</a> ·
+  <a href="docs/installation.md">Installation</a> ·
+  <a href="https://github.com/r-bart/skillglass/issues">Report an issue</a>
+</p>
 
-Skillglass helps you browse the folders you choose, read each skill's
-instructions, spot duplicate names, and review changes before saving. It does
-not require an account and does not collect usage telemetry.
+![Skillglass inventory showing example skills](docs/assets/skillglass-inventory.webp)
 
-## Download and compatibility
+## What it does
 
-Skillglass 1.0.0 is being prepared. There is no active public binary download
-yet. When the release is published, official binaries will be available only
-from this repository's [Releases page](../../releases), alongside
-`SHA256SUMS.txt` and `build-metadata.json`.
+- Finds skills in known Codex locations and folders you choose.
+- Lets you search and filter by project, validity, source, and local state.
+- Shows duplicate names and every matching location without guessing which copy is active.
+- Renders common `SKILL.md` content safely inside the app.
+- Creates and edits skills with an exact diff before each write.
+- Installs a skill from a local folder or ZIP file.
+- Keeps a restart-safe operation history with undo.
+- Works in English and Spanish.
 
-The release pipeline prepares native packages for macOS, Windows, and Linux.
-Only the platforms checked against the final release artifact will be described
-as verified. See the [installation guide](docs/installation.md) for package
-formats, signing status, and the checks that remain before publication.
+## How it works
 
-The planned files are an Apple Silicon macOS ZIP, a Windows x64 installer, and
-one DEB, one RPM, and one Pacman package for Linux x64. All use the canonical
-`skillglass-v1.0.0-<platform>-<architecture>` filename recorded in the
-installation guide. The build matrix does not by itself define a minimum
-supported operating-system version.
+1. Open Skillglass and approve the folders it may scan.
+2. Choose the skills you want to monitor.
+3. Search the inventory and open a skill to read its instructions and location.
+4. Edit, create, or install a local skill.
+5. Review the proposed diff and confirm the write.
+6. Use **History** to inspect or undo a recorded change.
 
-## First use
+Your skill files remain the source of truth. Skillglass stores a local index, snapshots, provenance, and its operation journal so it can explain and reverse its own writes.
 
-1. Open Skillglass and choose the folders it may scan.
-2. Review the proposed Codex locations or add another folder containing
-   `SKILL.md` files.
-3. Choose which observed skills to monitor and open the inventory.
-4. Select a skill to read its instructions and location.
-5. Use **Edit** to change `SKILL.md`, review the diff, then confirm the write.
-6. Open **History** to undo a recorded operation while the written tree remains
-   unchanged outside Skillglass.
+## Safety and scope
 
-The [product demo](https://skillglass.dev/#demo) shows this flow with local
-fixtures. Its screenshots use normalized paths and contain no personal files.
+Skillglass reads and writes only inside folders you explicitly approve. It treats imported skill content as untrusted data and asks for confirmation after showing the exact change it plans to make.
 
-## What the first release includes
+The first release deliberately stays small. It does not:
 
-- Read-only discovery inside explicitly approved folders.
-- Search and filters for observed skills, projects, validity, and local source
-  state.
-- Duplicate-name detection that shows each location without guessing which
-  copy Codex uses.
-- Safe Markdown rendering for common `SKILL.md` content.
-- Create, edit, local folder/ZIP install, exact diff review, and restart-safe
-  operation history.
-- English and Spanish interface copy.
+- activate, deactivate, move, or uninstall skills in Codex;
+- install from internet URLs or query a remote registry;
+- sync files or generate skills with AI;
+- crawl plugin caches automatically;
+- update the desktop app automatically.
 
-## Deliberate limits
+## Download
 
-Skillglass does not activate, deactivate, configure, move, or uninstall skills
-in a harness. It does not install from internet URLs, query a remote registry,
-sync files, generate skills with AI, or update the desktop app automatically.
+Skillglass 1.0.0 is in final local testing. There is no public binary yet. Once the release is ready, the official packages, checksums, and build metadata will appear on the [GitHub Releases page](https://github.com/r-bart/skillglass/releases).
 
-Discovery covers known Codex locations and folders you add. It does not crawl
-plugin caches automatically. If several skills share a name, Skillglass shows
-the copies and their locations; it does not invent activation or precedence
-facts that Codex has not exposed.
+The planned packages are:
 
-## Build from source
+| Platform | Architecture | Format |
+| --- | --- | --- |
+| macOS | Apple Silicon | ZIP containing `Skillglass.app` |
+| Windows | x64 | Squirrel installer (`.exe`) |
+| Debian / Ubuntu | x64 | `.deb` |
+| Fedora and other RPM-based systems | x64 | `.rpm` |
+| Arch Linux / Omarchy | x64 | `.pkg.tar.zst` |
 
-The source is licensed under Apache 2.0 and is intended for public release with
-version 1.0.0. Building requires Git, Node.js 24.19.x, and pnpm 11.5.x.
+The first packages are not signed by a trusted publisher. macOS uses an ad hoc integrity signature; Windows and Linux packages are unsigned. See the [installation guide](docs/installation.md) for verification steps and the current platform status.
+
+## Build and run locally
+
+You need Git, Node.js 24.19.x, and pnpm 11.5.x.
 
 ```sh
 git clone https://github.com/r-bart/skillglass.git
 cd skillglass
 corepack enable
 pnpm install --frozen-lockfile
+pnpm dev
+```
+
+Run the repository checks with:
+
+```sh
 pnpm typecheck
 pnpm lint
 pnpm test
+```
+
+Build a native package for your current operating system with:
+
+```sh
 pnpm make
 ```
 
-`pnpm make` builds for the current operating system and writes ignored output
-below `apps/desktop/out/make/`. It is not a cross-compiler. Platform maker
-requirements and install steps are documented in
-[docs/installation.md](docs/installation.md).
+The generated files are written below `apps/desktop/out/make/`. `pnpm make` is not a cross-compiler; each platform must build its own package.
 
-Run the desktop app or landing page during development with:
+## Contributing and security
 
-```sh
-pnpm dev:desktop
-pnpm dev:landing
-```
+Bug reports and focused improvements are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before proposing code. For security issues, follow [SECURITY.md](SECURITY.md) and do not put vulnerability details, private skill contents, or local filesystem paths in a public issue.
 
-Validate the static website with `pnpm check:landing` and
-`pnpm build:landing`.
-
-## Security, feedback, and contributions
-
-Skillglass treats imported skill content as untrusted data and writes only
-inside approved, user-writable roots after a preview and confirmation. The
-[security policy](SECURITY.md) documents local permissions, recovery data,
-official binaries, and private vulnerability reporting.
-
-For a bug or product suggestion, open a
-[GitHub issue](https://github.com/r-bart/skillglass/issues). The repository has
-Issues enabled. Read [CONTRIBUTING.md](CONTRIBUTING.md) before proposing code,
-and do not put vulnerability details or private skill content in a public issue.
-
-Skillglass is made by [Roberto](https://github.com/r-bart) as a small local tool
-he uses and shares.
+Skillglass is open source under the [Apache License 2.0](LICENSE). It is made by [Roberto](https://github.com/r-bart) as a small tool he uses and shares.

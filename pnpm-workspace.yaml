@@ -25,6 +25,3 @@ allowBuilds:
 # Electron Forge currently reaches @electron/node-gyp through @electron/rebuild.
 # Keep this explicit and remove it when Forge no longer needs a Git subdependency.
 blockExoticSubdeps: false
-
-minimumReleaseAgeExclude:
-  - astro@7.2.9

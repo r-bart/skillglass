@@ -13,9 +13,6 @@
   "scripts": {
     "dev": "pnpm --filter @forge/desktop start",
     "dev:desktop": "pnpm --filter @forge/desktop start",
-    "dev:landing": "pnpm --filter @forge/landing dev",
-    "build:landing": "pnpm --filter @forge/landing build",
-    "check:landing": "pnpm --filter @forge/landing check",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "eslint .",
     "test": "vitest run --passWithNoTests",
